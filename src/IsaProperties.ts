@@ -22,6 +22,8 @@ const isaProperties = reactive({
   // Tübingen, Freiburg, Dev, ...
   repoTarget: "",
 
+  // date of last edit
+  date: "",
 });
 
 export default isaProperties;
