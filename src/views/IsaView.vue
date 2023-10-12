@@ -85,37 +85,41 @@ function setTemplate(templateId: string) {
       templateProperties.template = [];
       templateProperties.content = [];
 
-      data.forEach((element) => {
+      data.forEach((element, i) => {
         // insert the columnHeader with type, name and accession set
         templateProperties.template.push({
-          Type: element["ColumnHeader"].Type,
-          Name: element["ColumnHeader"].Name,
+          Type:
+            element["ColumnHeader"].Type +
+            " [" +
+            element["ColumnHeader"].Name +
+            "]",
           Accession: element["ColumnTerm"].TermAccession,
         });
 
         // for the columnHeader column insert an empty cell
-        templateProperties.content.push("");
+        templateProperties.content.push([""]);
 
         // insert the term accession column
         templateProperties.template.push({
-          Type: "Term Accession Number",
-          Name: element["ColumnTerm"].TermAccession,
+          Type:
+            "Term Accession Number [" +
+            element["ColumnTerm"].TermAccession +
+            "]",
         });
 
         // if the current template part has a unit, insert an extra unit column
         if (element["HasUnit"]) {
           templateProperties.template.push({
             Type: "Unit",
-            Name: element["UnitTerm"].Name,
           });
 
           // for unit columns the term accession cell is filled with the termAccession of the unit
-          templateProperties.content.push(element["UnitTerm"].TermAccession);
+          templateProperties.content.push([element["UnitTerm"].TermAccession]);
           // the unit column cell is filled with the name of the unit
-          templateProperties.content.push(element["UnitTerm"].Name);
+          templateProperties.content.push([element["UnitTerm"].Name]);
         } else {
           // if there is no unit cell the term accession cell is empty
-          templateProperties.content.push("");
+          templateProperties.content.push([""]);
         }
       });
     });
@@ -123,8 +127,11 @@ function setTemplate(templateId: string) {
 
 // if a term is chosen the values of the columns header and the term accession will be set to the chosen values
 function setTerm(name: string, accession: string) {
-  templateProperties.content[templateProperties.id] = name;
-  templateProperties.content[templateProperties.id + 1] = accession;
+  console.log(templateProperties.content);
+  templateProperties.content[templateProperties.id].pop();
+  templateProperties.content[templateProperties.id + 1].pop();
+  templateProperties.content[templateProperties.id].push(name);
+  templateProperties.content[templateProperties.id + 1].push(accession);
 }
 
 function selectSheet(name: string, index: number) {
@@ -133,22 +140,30 @@ function selectSheet(name: string, index: number) {
   templateProperties.content = [];
   for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
     let element = sheetProperties.sheets[index].columns[i];
-    let words = element.split("[");
+    let words = element.split(" [");
     if (words[0] != "Term Accession Number " && words[0] != "Unit ") {
-      templateProperties.template.push({
-        Type: words[0],
-        Name: words[1].split("]")[0],
-        Accession: sheetProperties.sheets[index].columns[i + 1]
+      let accession = "";
+      try {
+        accession = sheetProperties.sheets[index].columns[i + 1]
           .split("[")[1]
-          .split("]")[0],
+          .split("]")[0];
+      } catch (error) {
+        accession = "";
+      }
+      templateProperties.template.push({
+        Type: element,
+        Accession: accession,
       });
     } else {
       templateProperties.template.push({
-        Type: words[0],
-        Name: words[1].split("]")[0],
+        Type: element,
       });
     }
-    templateProperties.content.push(sheetProperties.sheets[index].data[0][i]);
+    let cellContent: string[] = [];
+    for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
+      cellContent.push(sheetProperties.sheets[index].data[j][i]);
+    }
+    templateProperties.content.push(cellContent);
   }
 }
 </script>

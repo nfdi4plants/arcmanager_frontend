@@ -403,7 +403,9 @@ async function getTemplates() {
 
 async function getSheets(path, id, branch) {
   cleanIsaView();
-
+  isaProperties.path = path;
+  isaProperties.repoId = id;
+  arcProperties.branch = branch;
   // retrieve the templates
   fetch(
     backend + "getSheets?path=" + path + "&id=" + id + "&branch=" + branch,

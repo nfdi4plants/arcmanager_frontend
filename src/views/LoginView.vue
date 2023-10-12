@@ -66,19 +66,19 @@ async function Login() {
 }
 /*
 async function Login() {
-  let response = fetch(
-    backend + "auth/login?datahub=" + login.site.toLowerCase()
-  );
+  window.location.assign(backend + "auth/login?datahub=dev");
 }
 */
 async function logout() {
-  keycloak.logout();
+  await keycloak.logout({
+    //redirectUri: "https://git.nfdi4plants.org/explore",
+  });
   fetch(backend + "auth_alt/logout", {
     credentials: "include",
   });
 }
 // current fix of the double login problem; new problem is the instant forced login (which we probably want anyway later when we spread the logins to different keycloaks)
-// if (!keycloak.authenticated) Login();
+//if (!keycloak.authenticated) Login();
 </script>
 
 <template>
