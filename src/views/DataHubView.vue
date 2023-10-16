@@ -101,7 +101,7 @@ async function fetchArcs() {
     cleanIsaView();
     // reset Properties and histories
     isaProperties.entryOld = [];
-    isaProperties.entryId = 0;
+    isaProperties.rowId = 0;
     fileProperties.name = "";
     pathHistory = [];
     try {
@@ -244,14 +244,18 @@ async function getFile(id: number, path: string, branch: string) {
       fileProperties.path = path;
 
       // display the decoded content
-      fileProperties.content = decodeURIComponent(
-        atob(data.content)
-          .split("")
-          .map(function (c) {
-            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-          })
-          .join("")
-      );
+      try {
+        fileProperties.content = decodeURIComponent(
+          atob(data.content)
+            .split("")
+            .map(function (c) {
+              return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+            })
+            .join("")
+        );
+      } catch (error) {
+        fileProperties.content = data.content;
+      }
 
       // if there is no typical content, its an isa file, because then we have a list of entries
     } else {
@@ -401,7 +405,7 @@ async function getTemplates() {
     });
 }
 
-async function getSheets(path, id, branch) {
+async function getSheets(path: string, id: number, branch: string) {
   cleanIsaView();
   isaProperties.path = path;
   isaProperties.repoId = id;

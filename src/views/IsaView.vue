@@ -253,6 +253,7 @@ function selectSheet(name: string, index: number) {
       </q-expansion-item>
     </q-item>
   </q-list>
+  <!-- list of different sheets -->
   <q-list bordered>
     <q-item
       v-if="sheetProperties.names.length > 0"
