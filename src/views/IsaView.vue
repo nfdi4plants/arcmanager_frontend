@@ -3,6 +3,9 @@ import { reactive, watch, onMounted, ref } from "vue";
 import isaProperties from "../IsaProperties.ts";
 import fileProperties from "../FileProperties";
 import arcProperties from "@/ArcProperties";
+import templateProperties from "@/TemplateProperties";
+import termProperties from "@/TermProperties";
+import sheetProperties from "@/SheetProperties";
 
 import { setCssVar } from "quasar";
 setCssVar("primary", "#2d3e50");
@@ -41,7 +44,6 @@ const setEntry = (entry: string[], id: number) => {
 async function commitFile() {
   loading = true;
   keyNumber.value += 1;
-  // replace null values with empty string
 
   const response = await fetch(
     backend +
@@ -74,11 +76,104 @@ async function commitFile() {
   loading = false;
   keyNumber.value += 1;
 }
+
+function setTemplate(templateId: string) {
+  fetch(backend + "getTemplate?id=" + templateId)
+    .then((response) => response.json())
+    .then((data) => {
+      // reset the current template and content
+      templateProperties.template = [];
+      templateProperties.content = [];
+
+      data.forEach((element, i) => {
+        // insert the columnHeader with type, name and accession set
+        templateProperties.template.push({
+          Type:
+            element["ColumnHeader"].Type +
+            " [" +
+            element["ColumnHeader"].Name +
+            "]",
+          Accession: element["ColumnTerm"].TermAccession,
+        });
+
+        // for the columnHeader column insert an empty cell
+        templateProperties.content.push([""]);
+
+        // insert the term accession column
+        templateProperties.template.push({
+          Type:
+            "Term Accession Number [" +
+            element["ColumnTerm"].TermAccession +
+            "]",
+        });
+
+        // if the current template part has a unit, insert an extra unit column
+        if (element["HasUnit"]) {
+          templateProperties.template.push({
+            Type: "Unit",
+          });
+
+          // for unit columns the term accession cell is filled with the termAccession of the unit
+          templateProperties.content.push([element["UnitTerm"].TermAccession]);
+          // the unit column cell is filled with the name of the unit
+          templateProperties.content.push([element["UnitTerm"].Name]);
+        } else {
+          // if there is no unit cell the term accession cell is empty
+          templateProperties.content.push([""]);
+        }
+      });
+    });
+}
+
+// if a term is chosen the values of the columns header and the term accession will be set to the chosen values
+function setTerm(name: string, accession: string) {
+  console.log(templateProperties.content);
+  templateProperties.content[templateProperties.id].pop();
+  templateProperties.content[templateProperties.id + 1].pop();
+  templateProperties.content[templateProperties.id].push(name);
+  templateProperties.content[templateProperties.id + 1].push(accession);
+}
+
+function selectSheet(name: string, index: number) {
+  sheetProperties.name = name;
+  templateProperties.template = [];
+  templateProperties.content = [];
+  for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
+    let element = sheetProperties.sheets[index].columns[i];
+    let words = element.split(" [");
+    if (words[0] != "Term Accession Number " && words[0] != "Unit ") {
+      let accession = "";
+      try {
+        accession = sheetProperties.sheets[index].columns[i + 1]
+          .split("[")[1]
+          .split("]")[0];
+      } catch (error) {
+        accession = "";
+      }
+      templateProperties.template.push({
+        Type: element,
+        Accession: accession,
+      });
+    } else {
+      templateProperties.template.push({
+        Type: element,
+      });
+    }
+    let cellContent: string[] = [];
+    for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
+      cellContent.push(sheetProperties.sheets[index].data[j][i]);
+    }
+    templateProperties.content.push(cellContent);
+  }
+}
 </script>
 
 <template>
   <q-toolbar-title v-if="isaProperties.entries.length != 0"
-    >Isa Entries</q-toolbar-title
+    >Isa Entries ({{ isaProperties.date }})</q-toolbar-title
+  >
+  <q-toolbar-title v-if="templateProperties.templates.length > 0"
+    >Templates</q-toolbar-title
   >
   <q-toolbar-title
     v-if="errors != ''"
@@ -104,6 +199,82 @@ async function commitFile() {
       icon="edit"
       @click="setEntry(item, i)"></q-btn>
   </q-item-section>
+  <!-- IF there is a list of templates -->
+  <q-list bordered>
+    <q-item
+      clickable
+      v-if="templateProperties.templates.length > 0"
+      v-for="(template, i) in templateProperties.templates"
+      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      <q-expansion-item>
+        <template #header>
+          {{ template.Name }} ({{ template.Organisation }})
+          {{ template.Version }}
+        </template>
+        <q-card
+          ><q-card-section>{{ template.Description }}</q-card-section>
+          <q-card-section>Authors: {{ template.Authors }}</q-card-section
+          ><q-card-section
+            >Updated last:
+            {{ template.LastUpdated.slice(0, 10) }}</q-card-section
+          ><q-card-section
+            ><q-btn
+              style="background-color: #f2f2f2"
+              @click="setTemplate(template.Id)"
+              >Import</q-btn
+            ></q-card-section
+          >
+        </q-card>
+      </q-expansion-item>
+    </q-item>
+  </q-list>
+  <!-- IF there is a list of terms-->
+  <q-list bordered>
+    <q-item
+      clickable
+      v-if="termProperties.terms.length > 0"
+      v-for="(term, i) in termProperties.terms.slice(0, 1000)"
+      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      <q-expansion-item>
+        <template #header>
+          {{ term["Name"] }} ({{ term["Accession"] }})
+        </template>
+        <q-card
+          ><q-card-section>{{ term["Description"] }}</q-card-section>
+          <q-card-section
+            ><q-btn
+              style="background-color: #f2f2f2"
+              @click="setTerm(term['Name'], term['Accession'])"
+              :disable="term['Name'] == 'No Term was found!'"
+              >Insert</q-btn
+            ></q-card-section
+          >
+        </q-card>
+      </q-expansion-item>
+    </q-item>
+  </q-list>
+  <!-- list of different sheets -->
+  <q-list bordered>
+    <q-item
+      v-if="sheetProperties.names.length > 0"
+      v-for="(name, i) in sheetProperties.names"
+      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      <q-expansion-item>
+        <template #header>
+          <q-btn @click="selectSheet(name, i)">{{ name }}</q-btn>
+        </template>
+        <q-card
+          ><q-card-section>{{
+            sheetProperties.sheets[i]["columns"]
+          }}</q-card-section
+          ><q-card-section>{{
+            sheetProperties.sheets[i]["data"]
+          }}</q-card-section>
+        </q-card>
+      </q-expansion-item>
+    </q-item>
+  </q-list>
+  <!-- If its an non isa file, display the content-->
   <q-item-section v-if="fileProperties.content != ''">
     <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
 

@@ -10,10 +10,13 @@ import isaProperties from "./IsaProperties";
 import IsaView from "./views/IsaView.vue";
 import LoginView from "./views/LoginView.vue";
 
+import SwateView from "./views/SwateView.vue";
+
 import DataHubView from "./views/DataHubView.vue";
 
 import logoURL from "./assets/dpLogo2_w.png";
 import IsaEditView from "./views/IsaEditView.vue";
+import templateProperties from "./TemplateProperties";
 
 let fontSize = "large";
 
@@ -43,26 +46,6 @@ const arclist = ref(0);
 const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the page
   arclist.value += 1;
-};
-
-// old code to test the alpha standalone to edit isa files, not working
-
-const postSwate = () => {
-  /*
-  console.log(JSON.stringify(assayJson));
-  console.log(assayJson);
-  const requestOptions = {
-    method: "POST",
-    headers: {},
-    body: JSON.stringify(assayJson.toString()),
-  };
-  fetch(
-    "https://swate-alpha.nfdi4plants.org/api/ITemplateAPIv1/tryParseToBuildingBlocks",
-    requestOptions
-  )
-    .then((response) => response.json())
-    .then((data) => console.log(data));
-    */
 };
 
 async function createArc() {
@@ -233,6 +216,8 @@ async function uploadFile(file: any) {
         <DataHubView :site="target" v-else :key="arclist">dataview</DataHubView>
 
         <IsaEditView v-if="isaProperties.entry.length > 0"></IsaEditView>
+
+        <SwateView v-if="templateProperties.template.length > 1"></SwateView>
       </q-page>
     </q-page-container>
   </q-layout>
@@ -240,6 +225,6 @@ async function uploadFile(file: any) {
 
 <style>
 * {
-  font-size: medium;
+  font-size: large;
 }
 </style>

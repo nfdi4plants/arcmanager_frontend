@@ -8,6 +8,9 @@ import ViewItem from "../components/ViewItem.vue";
 import { useQuasar } from "quasar";
 import arcProperties from "@/ArcProperties";
 import appProperties from "@/AppProperties";
+import templateProperties from "@/TemplateProperties";
+import termProperties from "@/TermProperties";
+import sheetProperties from "@/SheetProperties";
 
 const $q = useQuasar();
 
@@ -94,13 +97,12 @@ async function fetchArcs() {
   } else {
     arcList = [];
     arcProperties.identifier = "";
+
+    cleanIsaView();
     // reset Properties and histories
-    isaProperties.entries = [];
-    isaProperties.entry = [];
     isaProperties.entryOld = [];
-    isaProperties.entryId = 0;
+    isaProperties.rowId = 0;
     fileProperties.name = "";
-    fileProperties.content = "";
     pathHistory = [];
     try {
       const response = await fetch(backend + "arc_list?owned=" + owned.value, {
@@ -132,6 +134,19 @@ async function fetchArcs() {
 const openArc = (url: string) => {
   window.open(url);
 };
+function cleanIsaView() {
+  // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
+  templateProperties.templates = templateProperties.template = [];
+  termProperties.terms = [];
+  isaProperties.entries = [];
+  isaProperties.entry = [];
+  fileProperties.content = "";
+  sheetProperties.names = sheetProperties.sheets = [];
+  sheetProperties.name = "";
+  errors = "";
+  forcereload();
+}
+
 // get a tree view of the front page of the arc
 async function inspectArc(id: number) {
   loading = true;
@@ -186,8 +201,7 @@ async function inspectTree(id: number, path: string, expand?: boolean) {
     if (expand) pathHistory.push(path);
     else if (expand == undefined) console.log("skip");
     else pathHistory.pop();
-    isaProperties.entries = [];
-    isaProperties.entry = [];
+    cleanIsaView();
   } catch (error) {
     errors = error;
   }
@@ -198,6 +212,8 @@ async function inspectTree(id: number, path: string, expand?: boolean) {
 async function getFile(id: number, path: string, branch: string) {
   loading = true;
   forcereload();
+
+  cleanIsaView();
   let response;
   try {
     response = await fetch(
@@ -228,25 +244,35 @@ async function getFile(id: number, path: string, branch: string) {
       fileProperties.path = path;
 
       // display the decoded content
-      fileProperties.content = decodeURIComponent(
-        atob(data.content)
-          .split("")
-          .map(function (c) {
-            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-          })
-          .join("")
-      );
-
-      // reset entries array
-      isaProperties.entries = [];
+      try {
+        fileProperties.content = decodeURIComponent(
+          atob(data.content)
+            .split("")
+            .map(function (c) {
+              return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+            })
+            .join("")
+        );
+      } catch (error) {
+        fileProperties.content = data.content;
+      }
 
       // if there is no typical content, its an isa file, because then we have a list of entries
     } else {
-      fileProperties.content = "";
+      isaProperties.date = "";
+
       isaList = [];
       data.forEach((element: any) => {
         // TODO: currently only works with isa files, non isa files will create errors
         // reads out the file and saves the content to isaProperties
+        if (isaProperties.date == "") {
+          switch (element[0]) {
+            case "Investigation Identifier":
+            case "Study Identifier":
+            case "Measurement Type":
+              isaProperties.date = element[2];
+          }
+        }
         isaList.push(element);
       });
       // write the new data to isaProperties
@@ -255,7 +281,6 @@ async function getFile(id: number, path: string, branch: string) {
       isaProperties.path = path;
       isaProperties.repoTarget = git.site.toLowerCase();
     }
-    isaProperties.entry = [];
 
     // catch any error and display it
   } catch (error) {
@@ -366,6 +391,40 @@ async function fileUpload() {
   loading = false;
   arclist.value += 1;
   forcereload();
+}
+
+// if you click the swate button, you will get a list containing all the current templates
+async function getTemplates() {
+  cleanIsaView();
+  // retrieve the templates
+  fetch(backend + "getTemplates")
+    .then((response) => response.json())
+    .then((templates) => {
+      // save the templates
+      templateProperties.templates = templates.templates;
+    });
+}
+
+async function getSheets(path: string, id: number, branch: string) {
+  cleanIsaView();
+  isaProperties.path = path;
+  isaProperties.repoId = id;
+  arcProperties.branch = branch;
+  // retrieve the templates
+  fetch(
+    backend + "getSheets?path=" + path + "&id=" + id + "&branch=" + branch,
+    { credentials: "include" }
+  )
+    .then((response) => response.json())
+    .then((sheets) => {
+      if (sheets[0].length == 0) {
+        errors = "ERROR: No sheets found!";
+        forcereload();
+      }
+      // save the templates
+      sheetProperties.sheets = sheets[0];
+      sheetProperties.names = sheets[1];
+    });
 }
 </script>
 
@@ -524,7 +583,45 @@ async function fileUpload() {
               @click="inspectTree(arcId, item.path, true)"
               >{{ item.name }}</q-btn
             >
-
+            <!-- if its an study or assay file, there will be an extra option to use swate -->
+            <q-list
+              bordered
+              v-else-if="
+                item.name == 'isa.study.xlsx' || item.name == 'isa.assay.xlsx'
+              "
+              icon="expand_more"
+              ><q-item style="text-align: center"
+                ><q-item-section avatar
+                  ><q-icon name="expand_more"></q-icon></q-item-section
+                ><q-item-section
+                  ><q-item-label>{{
+                    item.name.toUpperCase()
+                  }}</q-item-label></q-item-section
+                ></q-item
+              >
+              <q-item
+                ><q-item-section
+                  ><q-btn
+                    icon="table_chart"
+                    @click="
+                      getTemplates();
+                      isaProperties.repoId = arcId;
+                      isaProperties.path = item.path;
+                      isaProperties.repoTarget = git.site.toLowerCase();
+                    "
+                    >Create new Sheet</q-btn
+                  ><q-btn
+                    icon="edit"
+                    @click="getSheets(item.path, arcId, arcBranch)"
+                    >Edit Sheet</q-btn
+                  ><q-btn
+                    icon="edit"
+                    @click="getFile(arcId, item.path, arcBranch)"
+                    >Edit Metadata</q-btn
+                  ></q-item-section
+                ></q-item
+              >
+            </q-list>
             <q-btn
               v-else
               icon="edit"

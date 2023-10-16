@@ -1,0 +1,18 @@
+import { reactive } from 'vue'
+
+const templateProperties = reactive({
+  // list of all templates
+  templates: [],
+
+  // the chosen template
+  template: [{}],
+
+  // the content of the cells of the chosen template
+  content: [""],
+
+  // id of the cell to overwrite
+  id: 0,
+
+});
+
+export default templateProperties;
