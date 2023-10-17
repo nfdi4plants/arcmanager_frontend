@@ -47,7 +47,6 @@ const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the page
   arclist.value += 1;
 };
-
 async function createArc() {
   loading = true;
   forcereload();

@@ -72,6 +72,15 @@ const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the page
   arclist.value += 1;
 };
+if (document.cookie.includes("logged_in=true")) {
+  appProperties.loggedIn = true;
+
+  // set username
+  window.sessionStorage.setItem(
+    "username",
+    document.cookie.split('username="')[1].split('"')[0]
+  );
+}
 
 let fileInput = ref();
 // get a list of all arcs in the gitlab
