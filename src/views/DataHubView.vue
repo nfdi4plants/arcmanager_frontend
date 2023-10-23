@@ -64,7 +64,7 @@ let ident = ref("");
 let search = ref("");
 
 // the filtered list, that will be displayed
-let searchList = [];
+let searchList: any[] = [];
 
 // here we trick vue js to reload the component
 const arclist = ref(0);
@@ -292,8 +292,8 @@ async function getFile(id: number, path: string, branch: string) {
     }
 
     // catch any error and display it
-  } catch (error) {
-    fileProperties.content = error;
+  } catch (error: any) {
+    fileProperties.content = error.toString();
     fileProperties.name = response?.status.toString();
   }
   loading = false;
@@ -535,7 +535,7 @@ async function getSheets(path: string, id: number, branch: string) {
         label="Search"
         v-if="arcList.length == 0"
         value="name"
-        @update:model-value="(newValue) => sortArcs(newValue)"
+        @update:model-value="(newValue:string) => sortArcs(newValue)"
         ><template v-slot:append> <q-icon name="search"></q-icon></template
       ></q-input>
       <!-- PATH; RETURN ARROW; CREATE ISA -->
@@ -631,6 +631,9 @@ async function getSheets(path: string, id: number, branch: string) {
                 ></q-item
               >
             </q-list>
+            <q-btn v-else-if="item.name == 'LICENSE'" disabled>{{
+              item.name
+            }}</q-btn>
             <q-btn
               v-else
               icon="edit"
