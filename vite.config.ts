@@ -21,11 +21,8 @@ export default defineConfig({
     'process.env': process.env
 
   },
-  server: {
-    https: {
-      key: fs.readFileSync("./nfdi4plants.de+5-key.pem"),
-      cert: fs.readFileSync("./nfdi4plants.de+5.pem")
-    },
-  },
-
 })
+
+module.exports = {
+  publicPath: process.env.APP_BASE_PATH
+}
