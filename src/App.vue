@@ -17,6 +17,7 @@ import DataHubView from "./views/DataHubView.vue";
 import logoURL from "./assets/dpLogo2_w.png";
 import IsaEditView from "./views/IsaEditView.vue";
 import templateProperties from "./TemplateProperties";
+import appProperties from "./AppProperties";
 
 let fontSize = "large";
 
@@ -41,13 +42,14 @@ let invId = ref("");
 
 let loading = false;
 
+let loginOptions = ["Dev", "Freiburg", "Tübingen", "PlantMicrobe"];
+
 // here we trick vue js to reload the component
 const arclist = ref(0);
 const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the page
   arclist.value += 1;
 };
-
 async function createArc() {
   loading = true;
   forcereload();
@@ -123,18 +125,14 @@ async function uploadFile(file: any) {
               >
             </q-item-section>
           </q-item>
-          <!-- Here we select the corresponding login target and git target-->
-          <select
+          <q-select
+            standout
             v-model="target"
-            style="margin-bottom: 1em; text-align: center">
-            <option>Dev</option>
-            <option>Freiburg</option>
-            <option>Tübingen</option>
-            <option>Plantmicrobe</option>
-          </select>
+            v-if="!appProperties.loggedIn"
+            :options="loginOptions"
+            label="DataHub" />
           <q-separator></q-separator>
 
-          <button @click="postSwate()" disabled hidden>Upload to Swate</button>
           <LoginView :site="target" />
 
           <q-separator />
@@ -149,15 +147,6 @@ async function uploadFile(file: any) {
               forcereload();
             "
             :key="arclist"></ToolbarButton>
-
-          <q-separator />
-
-          <!--<ToolbarButton text='Upload ARC' icon='cloud_upload' requiresARC='true' @clicked='test()'></ToolbarButton>-->
-          <ToolbarButton
-            text="Reset ARC"
-            icon="autorenew"
-            @clicked="console.log('reset arc')"
-            disable></ToolbarButton>
         </q-list>
         <q-spinner-gears
           color="primary"

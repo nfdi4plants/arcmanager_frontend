@@ -19,6 +19,7 @@ const forcereload = () => {
   arclist.value += 1;
 };
 
+/*
 // change to actual keycloak address
 const keycloak = new Keycloak({
   url: `http://localhost:8080`,
@@ -64,18 +65,21 @@ async function Login() {
 
   forcereload();
 }
-/*
-async function Login() {
-  window.location.assign(backend + "auth/login?datahub=dev");
-}
 */
+async function Login() {
+  window.location.assign(
+    backend + "auth/login?datahub=" + login.site.toLowerCase()
+  );
+}
+
 async function logout() {
-  await keycloak.logout({
-    //redirectUri: "https://git.nfdi4plants.org/explore",
-  });
-  fetch(backend + "auth_alt/logout", {
+  //await keycloak.logout({
+  //redirectUri: "https://git.nfdi4plants.org/explore",
+  //});
+  await fetch(backend + "auth/logout", {
     credentials: "include",
   });
+  window.location.reload();
 }
 // current fix of the double login problem; new problem is the instant forced login (which we probably want anyway later when we spread the logins to different keycloaks)
 //if (!keycloak.authenticated) Login();
@@ -83,7 +87,7 @@ async function logout() {
 
 <template>
   <q-item
-    v-if="!keycloak.authenticated"
+    v-if="!appProperties.loggedIn"
     clickable
     v-ripple
     @click="
@@ -98,7 +102,7 @@ async function logout() {
     <q-item-section style="margin-left: -1.2em">Login</q-item-section>
   </q-item>
   <q-item
-    v-if="keycloak.authenticated"
+    v-if="appProperties.loggedIn"
     clickable
     v-ripple
     @click="
