@@ -85,7 +85,7 @@ function setTemplate(templateId: string) {
       templateProperties.template = [];
       templateProperties.content = [];
 
-      data.forEach((element, i) => {
+      data.forEach((element: any) => {
         // insert the columnHeader with type, name and accession set
         templateProperties.template.push({
           Type:
