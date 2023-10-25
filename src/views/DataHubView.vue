@@ -15,8 +15,8 @@ import sheetProperties from "@/SheetProperties";
 const $q = useQuasar();
 
 // Address of the backend
-let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
-//let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
+//let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
+let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
 
 // list with all arcs
 var list: any[] = [];
