@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 
-let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
-//let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
+//let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
+let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
 
 import templateProperties from "@/TemplateProperties";
 import termProperties from "@/TermProperties";

@@ -33,5 +33,5 @@ coverage
 *.pem
 
 # Production deployment documentation
-production.md
+deployment.md
 .env

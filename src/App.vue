@@ -28,8 +28,8 @@ const layoutProperties = reactive({
   splitterModel: 300,
 });
 
-let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
-//let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
+//let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
+let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
 
 let target = ref("Dev");
 let showInput = false;

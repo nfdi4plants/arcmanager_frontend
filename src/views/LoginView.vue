@@ -9,8 +9,8 @@ import appProperties from "@/AppProperties";
 
 let login = defineProps(["site"]);
 
-let backend = "http://localhost:8000/arcmanager/api/v1/";
-//let backend = "https://nfdi4plants.de/arcmanager/api/v1/";
+//let backend = "http://localhost:8000/arcmanager/api/v1/";
+let backend = "https://nfdi4plants.de/arcmanager/api/v1/";
 
 // here we trick vue js to reload the component
 const arclist = ref(0);
