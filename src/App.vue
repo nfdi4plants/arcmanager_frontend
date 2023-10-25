@@ -180,8 +180,7 @@ async function uploadFile(file: any) {
       bordered
       :breakpoint="0"
       class="bg-grey-3"
-      :width="600"
-      :mini-width="300">
+      :width="drawerWidth">
       <q-scroll-area class="fit" style="height: 95%; width: 95%">
         <IsaView></IsaView>
       </q-scroll-area>
