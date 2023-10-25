@@ -42,6 +42,21 @@ let invId = ref("");
 
 let loading = false;
 
+let drawerWidth = ref(600);
+
+let windowWidth = window.innerWidth;
+
+window.addEventListener("resize", () => {
+  windowWidth = window.innerWidth;
+  checkMini(windowWidth);
+});
+
+function checkMini(width: number) {
+  if (width < 1800) drawerWidth.value = 300;
+  else drawerWidth.value = 600;
+}
+checkMini(windowWidth);
+
 let loginOptions = ["Dev", "Freiburg", "Tübingen", "PlantMicrobe"];
 
 // here we trick vue js to reload the component
