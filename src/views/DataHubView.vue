@@ -300,16 +300,6 @@ async function getFile(id: number, path: string, branch: string) {
   forcereload();
 }
 
-//currently only prints the content of the arc in the console
-const importArc = (id: number) => {
-  arcList = [];
-  fetch(backend + "arc_tree?id=" + id, {
-    credentials: "include",
-  })
-    .then((response) => response.json())
-    .then((data) => console.log(data.Arc));
-};
-
 // create a new isa structure with a given identifier
 async function addIsa(
   id: number,
@@ -700,14 +690,6 @@ async function getSheets(path: string, id: number, branch: string) {
               icon="search"
               ><q-tooltip>Open in new Tab</q-tooltip></q-btn
             >
-          </q-item-section>
-          <q-item-section avatar>
-            <q-btn
-              unelevated
-              color="secondary"
-              v-on:click="importArc(item.id)"
-              icon="file_download"
-              disable></q-btn>
           </q-item-section>
           <q-item-section avatar>
             <q-btn
