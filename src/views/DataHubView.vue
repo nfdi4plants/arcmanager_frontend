@@ -112,6 +112,7 @@ async function fetchArcs() {
     isaProperties.entryOld = [];
     isaProperties.rowId = 0;
     fileProperties.name = "";
+    arcProperties.changes = "";
     pathHistory = [];
     try {
       const response = await fetch(backend + "arc_list?owned=" + owned.value, {
@@ -180,6 +181,19 @@ async function inspectArc(id: number) {
 
     pathHistory = [];
     pathHistory.push("");
+
+    await fetch(backend + "getChanges?id=" + id, {
+      credentials: "include",
+    })
+      .then((response) => {
+        if (response.ok) {
+          return response.text();
+        }
+      })
+      .then((text) => {
+        // include html linebreaks
+        if (text) arcProperties.changes = text.replace(/\n/g, "<br />");
+      });
   } catch (error) {
     errors = error;
   }
@@ -399,6 +413,10 @@ async function getTemplates() {
   fetch(backend + "getTemplates")
     .then((response) => response.json())
     .then((templates) => {
+      if (templates.templates.length == 0) {
+        errors = "ERROR: No templates found!";
+        forcereload();
+      }
       // save the templates
       templateProperties.templates = templates.templates;
     });
@@ -441,7 +459,7 @@ async function getSheets(path: string, id: number, branch: string) {
       left-label
       v-model="owned"
       label="Your Arcs:"
-      v-show="arcList.length == 0"
+      v-show="arcList.length == 0 && appProperties.loggedIn"
       @update:model-value="fetchArcs" />
 
     <q-file
@@ -542,7 +560,9 @@ async function getSheets(path: string, id: number, branch: string) {
         <q-btn
           icon="arrow_back"
           @click="
-            inspectTree(arcId, pathHistory[pathHistory.length - 2], false)
+            inspectTree(arcId, pathHistory[pathHistory.length - 2], false);
+            showInput = false;
+            forcereload();
           "
           v-if="pathHistory.length > 1"
           style="background-color: antiquewhite">

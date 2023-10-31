@@ -9,6 +9,9 @@ const arcProperties = reactive({
 
   // url of the arc
   url: '',
+
+  // list of changes in the arc
+  changes: ""
 });
 
 export default arcProperties;

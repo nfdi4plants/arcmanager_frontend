@@ -18,6 +18,10 @@ import logoURL from "./assets/dpLogo2_w.png";
 import IsaEditView from "./views/IsaEditView.vue";
 import templateProperties from "./TemplateProperties";
 import appProperties from "./AppProperties";
+import arcProperties from "./ArcProperties";
+import fileProperties from "./FileProperties";
+import sheetProperties from "./SheetProperties";
+import termProperties from "./TermProperties";
 
 let fontSize = "large";
 
@@ -86,15 +90,18 @@ async function createArc() {
   loading = false;
   forcereload();
 }
-
-async function uploadFile(file: any) {
-  let reader = new FileReader();
-  reader.readAsDataURL(file.target.files[0]);
-
-  reader.onload = function () {
-    let result = reader.result?.toString();
-    let resultContent = result?.split(",")[1];
-  };
+// clean right side view
+function cleanIsaView() {
+  // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
+  templateProperties.templates = templateProperties.template = [];
+  termProperties.terms = [];
+  isaProperties.entries = [];
+  isaProperties.entry = [];
+  fileProperties.content = "";
+  sheetProperties.names = sheetProperties.sheets = [];
+  sheetProperties.name = "";
+  arcProperties.changes = "";
+  forcereload();
 }
 </script>
 
@@ -157,8 +164,7 @@ async function uploadFile(file: any) {
             icon="add_circle"
             @clicked="
               showInput = true;
-              isaProperties.entry = [];
-              isaProperties.entries = [];
+              cleanIsaView();
               forcereload();
             "
             :key="arclist"></ToolbarButton>

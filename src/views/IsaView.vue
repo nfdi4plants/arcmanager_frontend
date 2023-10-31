@@ -22,6 +22,8 @@ let keyNumber = ref(0);
 
 let errors = "";
 
+let showChanges = ref(true);
+
 // edit the fields of the entry
 const setEntry = (entry: string[], id: number) => {
   // clear old entry arrays
@@ -166,6 +168,18 @@ function selectSheet(name: string, index: number) {
     templateProperties.content.push(cellContent);
   }
 }
+
+function checkEmptyIsaView() {
+  if (
+    isaProperties.entries.length > 0 ||
+    fileProperties.content != "" ||
+    sheetProperties.sheets.length > 0 ||
+    templateProperties.templates.length > 0 ||
+    termProperties.terms.length > 0
+  )
+    return false;
+  return true;
+}
 </script>
 
 <template>
@@ -277,10 +291,28 @@ function selectSheet(name: string, index: number) {
   <!-- If its an non isa file, display the content-->
   <q-item-section v-if="fileProperties.content != ''">
     <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
-
-    <q-editor
-      v-model="fileProperties.content"
-      style="white-space: pre-line"></q-editor>
-    <q-btn icon="save" @click="commitFile()">Save</q-btn>
+    <!-- IF its an png -->
+    <q-img
+      v-if="fileProperties.name.includes('.png')"
+      :src="'data:image/png;base64,' + fileProperties.content"></q-img>
+    <!-- IF its an jpeg -->
+    <q-img
+      v-else-if="fileProperties.name.includes('.jpeg')"
+      :src="'data:image/jpeg;base64,' + fileProperties.content"></q-img>
+    <template v-else>
+      <q-editor
+        v-model="fileProperties.content"
+        style="white-space: pre-line"></q-editor>
+      <q-btn icon="save" @click="commitFile()">Save</q-btn></template
+    >
+  </q-item-section>
+  <!-- Display the changes made in the arc-->
+  <q-item-section
+    v-else-if="checkEmptyIsaView() && arcProperties.changes != ''">
+    <q-checkbox v-model="showChanges" label="View changes" />
+    <q-card v-if="showChanges">
+      <q-card-section>Changes</q-card-section>
+      <q-card-section v-html="arcProperties.changes"></q-card-section>
+    </q-card>
   </q-item-section>
 </template>
