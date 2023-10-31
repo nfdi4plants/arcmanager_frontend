@@ -24,22 +24,24 @@ let errors = "";
 
 let showChanges = ref(true);
 
+let editorRef = ref(null);
+
 // edit the fields of the entry
 const setEntry = (entry: string[], id: number) => {
   // clear old entry arrays
   isaProperties.entry = [];
   isaProperties.entryOld = [];
   isaProperties.rowId = id;
-  // load both entry and entry old with the entry fields
+  // load entry old with the entry fields
   entry.forEach((element) => {
     if (element != null) {
-      isaProperties.entry.push(element);
       isaProperties.entryOld.push(element);
     } else {
-      isaProperties.entry.push("");
       isaProperties.entryOld.push("");
     }
   });
+  // map entry with the corresponding row data
+  isaProperties.entry = isaProperties.entries[isaProperties.rowId];
   errors = "";
 };
 
@@ -180,6 +182,32 @@ function checkEmptyIsaView() {
     return false;
   return true;
 }
+
+// See: https://stackoverflow.com/a/28213320
+let _onPaste_StripFormatting_IEPaste = false;
+function onPaste(e) {
+  if (
+    e.originalEvent &&
+    e.originalEvent.clipboardData &&
+    e.originalEvent.clipboardData.getData
+  ) {
+    e.preventDefault();
+    var text = e.originalEvent.clipboardData.getData("text/plain");
+    window.document.execCommand("insertText", false, text);
+  } else if (e.clipboardData && e.clipboardData.getData) {
+    e.preventDefault();
+    var text = e.clipboardData.getData("text/plain");
+    window.document.execCommand("insertText", false, text);
+  } else if (window.clipboardData && window.clipboardData.getData) {
+    // Stop stack overflow
+    if (!_onPaste_StripFormatting_IEPaste) {
+      _onPaste_StripFormatting_IEPaste = true;
+      e.preventDefault();
+      window.document.execCommand("ms-pasteTextOnly", false);
+    }
+    _onPaste_StripFormatting_IEPaste = false;
+  }
+}
 </script>
 
 <template>
@@ -293,16 +321,21 @@ function checkEmptyIsaView() {
     <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
     <!-- IF its an png -->
     <q-img
-      v-if="fileProperties.name.includes('.png')"
+      v-if="fileProperties.name.toLowerCase().includes('.png')"
       :src="'data:image/png;base64,' + fileProperties.content"></q-img>
     <!-- IF its an jpeg -->
     <q-img
-      v-else-if="fileProperties.name.includes('.jpeg')"
+      v-else-if="fileProperties.name.toLowerCase().includes('.jpeg')"
       :src="'data:image/jpeg;base64,' + fileProperties.content"></q-img>
+    <!-- IF its an jpg -->
+    <q-img
+      v-else-if="fileProperties.name.toLowerCase().includes('.jpg')"
+      :src="'data:image/jpg;base64,' + fileProperties.content"></q-img>
     <template v-else>
       <q-editor
         v-model="fileProperties.content"
-        style="white-space: pre-line"></q-editor>
+        style="white-space: pre-line"
+        @paste="onPaste"></q-editor>
       <q-btn icon="save" @click="commitFile()">Save</q-btn></template
     >
   </q-item-section>
