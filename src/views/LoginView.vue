@@ -67,9 +67,11 @@ async function Login() {
 }
 */
 async function Login() {
-  window.location.assign(
-    backend + "auth/login?datahub=" + login.site.toLowerCase()
-  );
+  if (login.site == "") {
+    window.alert("Please select a Datahub first!");
+  } else {
+    window.location.assign(backend + "auth/login?datahub=" + login.site.value);
+  }
 }
 
 async function logout() {
@@ -81,8 +83,6 @@ async function logout() {
   });
   window.location.reload();
 }
-// current fix of the double login problem; new problem is the instant forced login (which we probably want anyway later when we spread the logins to different keycloaks)
-//if (!keycloak.authenticated) Login();
 </script>
 
 <template>

@@ -35,7 +35,7 @@ const layoutProperties = reactive({
 //let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
 let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
 
-let target = ref("Dev");
+let target = ref("");
 let showInput = false;
 // Name of the new arc
 let arcName = ref("");
@@ -61,7 +61,31 @@ function checkMini(width: number) {
 }
 checkMini(windowWidth);
 
-let loginOptions = ["Dev", "Freiburg", "Tübingen", "PlantMicrobe"];
+// the different login options with name and description
+let loginOptions = [
+  {
+    label: "nfdi4plants.ORG",
+    value: "freiburg",
+    description:
+      "nfdi4plants reference DataHUB hosted at the University of Freiburg",
+  },
+  {
+    label: "nfdi4plants.DE",
+    value: "tuebingen",
+    description:
+      "nfdi4plants high-availability DataHUB hosted at the University of Tuebingen",
+  },
+  {
+    label: "PlantMicrobe",
+    value: "plantmicrobe",
+    description: "DataHUB for the transregio project TRR365",
+  },
+  {
+    label: "Dev",
+    value: "dev",
+    description: "Development server",
+  },
+];
 
 // here we trick vue js to reload the component
 const arclist = ref(0);
@@ -143,7 +167,10 @@ function cleanIsaView() {
             </q-item-section>
             <q-item-section style="margin: 0.6em 0 0 -1.2em">
               <q-item-label
-                ><b style="font-size: 1.4em">ARCitect Web</b></q-item-label
+                ><b style="font-size: 1.4em">ARCitect Web</b>
+                <q-badge outline align="middle" color="teal">
+                  v 0.2
+                </q-badge></q-item-label
               >
             </q-item-section>
           </q-item>
@@ -152,7 +179,18 @@ function cleanIsaView() {
             v-model="target"
             v-if="!appProperties.loggedIn"
             :options="loginOptions"
-            label="DataHub" />
+            label="DataHub">
+            <template v-slot:option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.label }}</q-item-label>
+                  <q-item-label caption>{{
+                    scope.opt.description
+                  }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template></q-select
+          >
           <q-separator></q-separator>
 
           <LoginView :site="target" />
@@ -167,6 +205,7 @@ function cleanIsaView() {
               cleanIsaView();
               forcereload();
             "
+            :disable="!appProperties.loggedIn"
             :key="arclist"></ToolbarButton>
         </q-list>
         <q-spinner-gears

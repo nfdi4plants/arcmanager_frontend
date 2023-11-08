@@ -42,12 +42,7 @@ var isaList: any[] = [];
 var pathHistory: string[] = [];
 
 // here we get the target git from App.vue
-let git = defineProps({
-  site: {
-    type: String,
-    required: true,
-  },
-});
+let git = defineProps(["site"]);
 
 let username = "";
 
@@ -56,6 +51,14 @@ let loading = false;
 
 // displays arc creation input field
 let showInput = false;
+
+// displays the sync input selection field
+let assaySync = false;
+let studySync = false;
+
+// the selected study and assay
+let studySelect = ref("");
+let assaySelect = ref("");
 
 // field for identifier
 let ident = ref("");
@@ -86,26 +89,31 @@ let fileInput = ref();
 // get a list of all arcs in the gitlab
 async function fetchArcs() {
   loading = true;
+  // if not logged in, show only public arcs
   if (!appProperties.loggedIn) {
-    errors = "Not logged in! Listing only public ARCs";
+    if (git.site == "") {
+      errors = "Please select a DataHub first!";
+      loading = false;
+    } else {
+      errors = "Not logged in! Listing only public ARCs";
 
-    const response = await fetch(
-      backend + "public_arcs?target=" + git.site.toLowerCase(),
-      {
-        cache: "force-cache",
-      }
-    );
-    const data = await response.json();
-    list = [];
-    data.projects.forEach((element: any) => {
-      list.push(element);
-    });
-    searchList = list;
-    loading = false;
-    forcereload();
+      const response = await fetch(
+        backend + "public_arcs?target=" + git.site.value
+      );
+      const data = await response.json();
+      list = [];
+      data.projects.forEach((element: any) => {
+        list.push(element);
+      });
+      searchList = list;
+      loading = false;
+      forcereload();
+    }
+    // if logged in, reset the properties and views and fetch the arc list from the backend
   } else {
     arcList = [];
     arcProperties.identifier = "";
+    assaySync = studySync = false;
 
     cleanIsaView();
     // reset Properties and histories
@@ -131,6 +139,7 @@ async function fetchArcs() {
       searchList = list;
       search.value = "";
 
+      // set the username in sessionStorage and display it
       if (window.sessionStorage.getItem("username") != null)
         username = window.sessionStorage.getItem("username");
     } catch (error) {
@@ -141,9 +150,12 @@ async function fetchArcs() {
   }
 }
 
+// opens the url of the arc in a new tab
 const openArc = (url: string) => {
   window.open(url);
 };
+
+// cleans the right side
 function cleanIsaView() {
   // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
   templateProperties.templates = templateProperties.template = [];
@@ -164,6 +176,7 @@ async function inspectArc(id: number) {
   errors = null;
   search.value = "";
   searchList = list;
+  arcProperties.studies = arcProperties.assays = [];
   forcereload();
   try {
     const response = await fetch(backend + "arc_tree?id=" + id, {
@@ -182,6 +195,28 @@ async function inspectArc(id: number) {
     pathHistory = [];
     pathHistory.push("");
 
+    // get the changes
+    await getChanges(id);
+
+    // get names of the assays and studies
+    let assays = await fetch(backend + "getAssays?id=" + id, {
+      credentials: "include",
+    });
+    let studies = await fetch(backend + "getStudies?id=" + id, {
+      credentials: "include",
+    });
+    arcProperties.assays = await assays.json();
+    arcProperties.studies = await studies.json();
+  } catch (error) {
+    errors = error;
+  }
+  loading = false;
+  forcereload();
+}
+
+// get the list of changes
+async function getChanges(id: number) {
+  try {
     await fetch(backend + "getChanges?id=" + id, {
       credentials: "include",
     })
@@ -197,12 +232,11 @@ async function inspectArc(id: number) {
   } catch (error) {
     errors = error;
   }
-  loading = false;
-  forcereload();
 }
 // get a tree view of the selected path of the arc
 async function inspectTree(id: number, path: string, expand?: boolean) {
   loading = true;
+  assaySync = studySync = false;
   forcereload();
   try {
     const response = await fetch(
@@ -234,10 +268,15 @@ async function inspectTree(id: number, path: string, expand?: boolean) {
 // gets the file on the arc
 async function getFile(id: number, path: string, branch: string) {
   loading = true;
+
+  // cleanup views
+  assaySync = studySync = false;
   forcereload();
 
   cleanIsaView();
   let response;
+
+  // get the file from the backend
   try {
     response = await fetch(
       backend + "arc_file?path=" + path + "&id=" + id + "&branch=" + branch,
@@ -302,7 +341,7 @@ async function getFile(id: number, path: string, branch: string) {
       isaProperties.entries = isaList;
       isaProperties.repoId = id;
       isaProperties.path = path;
-      isaProperties.repoTarget = git.site.toLowerCase();
+      isaProperties.repoTarget = git.site.value;
     }
 
     // catch any error and display it
@@ -338,8 +377,12 @@ async function addIsa(
     .then((response) => response.json())
     .then((data) => {
       console.log(data);
+      // get the updated tree
       inspectTree(id, type);
     });
+
+  // get the updated changes
+  getChanges(id);
   loading = false;
   forcereload();
 }
@@ -348,8 +391,13 @@ async function addIsa(
 function sortArcs(searchTerm: string) {
   searchList = [];
   list.forEach((element) => {
+    // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
     let searchString =
-      element["name_with_namespace"].toLowerCase() + " " + element["id"];
+      element["name_with_namespace"].toLowerCase() +
+      " " +
+      element["id"] +
+      " " +
+      element["topics"].toString().toLowerCase();
     if (searchString.includes(searchTerm)) {
       searchList.push(element);
     }
@@ -360,6 +408,8 @@ function sortArcs(searchTerm: string) {
 async function fileUpload() {
   loading = true;
   let resultContent = "";
+
+  // read out the given file input
   let reader = new FileReader();
   reader.readAsDataURL(fileInput.value);
 
@@ -367,6 +417,7 @@ async function fileUpload() {
     let result = reader.result?.toString();
     resultContent = result?.split(",")[1];
 
+    // save the file on the most recent path
     let filePath = pathHistory[pathHistory.length - 1];
 
     if (filePath == "") {
@@ -374,6 +425,7 @@ async function fileUpload() {
     } else {
       filePath += "/" + fileInput.value.name;
     }
+    // send the file to the backend to upload it
     const response = await fetch(backend + "uploadFile", {
       method: "POST",
       // body for the backend containing all necessary data
@@ -391,24 +443,23 @@ async function fileUpload() {
       errors = "ERROR: " + data["detail"];
       arclist.value += 1;
     } else {
-      (fileInput.value = ""),
-        (fileProperties.name =
-          fileProperties.path =
-          fileProperties.content =
-            ""),
-        (fileProperties.id = 0);
+      // if successful, reset the fileProperties and input value
+      fileInput.value = "";
+      fileProperties.name = fileProperties.path = fileProperties.content = "";
+      fileProperties.id = 0;
       errors = "";
+      // get the updated view of the arc
       await inspectArc(arcId);
     }
   };
   loading = false;
-  arclist.value += 1;
   forcereload();
 }
 
-// if you click the swate button, you will get a list containing all the current templates
+// if you click the 'create new sheet' button, you will get a list containing all the current templates
 async function getTemplates() {
   cleanIsaView();
+  assaySync = studySync = false;
   // retrieve the templates
   fetch(backend + "getTemplates")
     .then((response) => response.json())
@@ -422,12 +473,14 @@ async function getTemplates() {
     });
 }
 
+// get a list of all the swate sheets
 async function getSheets(path: string, id: number, branch: string) {
   cleanIsaView();
+  assaySync = studySync = false;
   isaProperties.path = path;
   isaProperties.repoId = id;
   arcProperties.branch = branch;
-  // retrieve the templates
+  // retrieve the sheets
   fetch(
     backend + "getSheets?path=" + path + "&id=" + id + "&branch=" + branch,
     { credentials: "include" }
@@ -438,16 +491,90 @@ async function getSheets(path: string, id: number, branch: string) {
         errors = "ERROR: No sheets found!";
         forcereload();
       }
-      // save the templates
+      // save the sheets
       sheetProperties.sheets = sheets[0];
       sheetProperties.names = sheets[1];
     });
 }
+
+// sync an assay to a study
+async function syncAssay(
+  id: number,
+  assay: string,
+  study: string,
+  branch: string
+) {
+  loading = true;
+  assaySync = false;
+  forcereload();
+
+  let studyPath = "studies/" + study + "/isa.study.xlsx";
+  let assayPath = "assays/" + assay + "/isa.assay.xlsx";
+
+  // send sync request to the backend with the given paths
+  try {
+    const response = await fetch(
+      backend +
+        "syncAssay?id=" +
+        id +
+        "&pathToStudy=" +
+        studyPath +
+        "&pathToAssay=" +
+        assayPath +
+        "&assayName=" +
+        assay +
+        "&branch=" +
+        branch,
+      { credentials: "include" }
+    );
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(response.statusText + ", " + data["detail"]);
+  } catch (error) {
+    errors = error;
+  }
+
+  loading = false;
+  forcereload();
+}
+
+// sync a study to the investigation file
+async function syncStudy(id: number, study: string, branch: string) {
+  loading = true;
+  studySync = false;
+  forcereload();
+
+  let studyPath = "studies/" + study + "/isa.study.xlsx";
+
+  // send the sync request with the given study path
+  try {
+    const response = await fetch(
+      backend +
+        "syncStudy?id=" +
+        id +
+        "&pathToStudy=" +
+        studyPath +
+        "&studyName=" +
+        study +
+        "&branch=" +
+        branch,
+      { credentials: "include" }
+    );
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(response.statusText + ", " + data["detail"]);
+  } catch (error) {
+    errors = error;
+  }
+
+  loading = false;
+  forcereload();
+}
 </script>
 
 <template>
-  <!-- FETCH ARC/FILE UPLOAD BUTTON -->
-  <div class="q-pa-xs row">
+  <!-- FETCH ARC/FILE UPLOAD BUTTON/OPEN ARC/SYNC ASSAYS/STUDIES -->
+  <div class="q-pa-xs row q-gutter-sm">
     <q-btn
       @click="fetchArcs(), forcereload()"
       icon="refresh"
@@ -483,6 +610,28 @@ async function getSheets(path: string, id: number, branch: string) {
       :key="arclist"
       >Open</q-btn
     >
+    <q-btn
+      style="background-color: orange"
+      v-show="arcList.length != 0"
+      @click="
+        assaySync = !assaySync;
+        studySync = false;
+        forcereload();
+      "
+      :key="arclist"
+      >Sync Assay/Study</q-btn
+    >
+    <q-btn
+      style="background-color: gainsboro"
+      v-show="arcList.length != 0"
+      @click="
+        studySync = !studySync;
+        assaySync = false;
+        forcereload();
+      "
+      :key="arclist"
+      >Sync Study/Invest</q-btn
+    >
 
     <!-- LOADING SPINNER --><q-spinner
       id="loader"
@@ -497,6 +646,7 @@ async function getSheets(path: string, id: number, branch: string) {
     <q-item v-if="username.length > 1"
       >User: {{ username }} / ARC: {{ arcProperties.identifier }}</q-item
     >
+    <!-- LIST WITH ALL ARCS AND ARC TREE VIEW-->
     <ViewItem
       :key="arclist"
       icon="cloud_download"
@@ -626,7 +776,7 @@ async function getSheets(path: string, id: number, branch: string) {
                       getTemplates();
                       isaProperties.repoId = arcId;
                       isaProperties.path = item.path;
-                      isaProperties.repoTarget = git.site.toLowerCase();
+                      isaProperties.repoTarget = git.site.value;
                     "
                     >Create new Sheet</q-btn
                   ><q-btn
@@ -691,6 +841,11 @@ async function getSheets(path: string, id: number, branch: string) {
             <q-item-label style="font-weight: bold"
               >{{ item.name }}, ID: {{ item.id }}</q-item-label
             >
+            <div class="q-pa-xs q-gutter-md" v-if="item.topics.length > 0">
+              <q-badge outline v-for="i in item.topics" color="brown">{{
+                i
+              }}</q-badge>
+            </div>
             <q-item-label style="color: #666"
               >[{{ item.created_at }}]</q-item-label
             >
@@ -730,5 +885,73 @@ async function getSheets(path: string, id: number, branch: string) {
         </q-item>
       </q-list>
     </ViewItem>
+    <!-- SYNC ASSAY TO STUDY-->
+    <template v-if="assaySync"
+      ><div class="q-pa-md">
+        <q-btn
+          icon="arrow_back"
+          @click="
+            assaySync = false;
+            forcereload();
+          "
+          style="background-color: antiquewhite">
+          Return
+        </q-btn>
+        <div class="q-gutter-md row">
+          <q-select
+            v-model="assaySelect"
+            :options="arcProperties.assays"
+            label="Assay"
+            style="width: 200px" />
+          <q-icon name="arrow_forward" size="48px"></q-icon>
+          <q-select
+            v-model="studySelect"
+            :options="arcProperties.studies"
+            label="Study"
+            style="width: 200px" />
+          <q-btn
+            @click="
+              assaySync = false;
+              syncAssay(arcId, assaySelect, studySelect, arcBranch);
+              studySelect = assaySelect = '';
+              forcereload();
+            "
+            :disable="studySelect == '' || assaySelect == ''"
+            >Sync</q-btn
+          >
+        </div>
+      </div>
+    </template>
+    <!-- SYNC STUDY TO INVESTIGATION-->
+    <template v-if="studySync"
+      ><div class="q-pa-md">
+        <q-btn
+          icon="arrow_back"
+          @click="
+            studySync = false;
+            forcereload();
+          "
+          style="background-color: antiquewhite">
+          Return
+        </q-btn>
+        <div class="q-gutter-md row">
+          <q-select
+            v-model="studySelect"
+            :options="arcProperties.studies"
+            label="Study"
+            style="width: 200px" />
+          <q-btn
+            @click="
+              studySync = false;
+              syncStudy(arcId, studySelect, arcBranch);
+              studySelect = assaySelect = '';
+              forcereload();
+            "
+            :disable="studySelect == ''"
+            >Sync</q-btn
+          >
+        </div>
+      </div>
+    </template>
   </q-list>
 </template>

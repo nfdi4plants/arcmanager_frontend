@@ -22,7 +22,7 @@ let keyNumber = ref(0);
 
 let errors = "";
 
-let showChanges = ref(true);
+let showChanges = ref(false);
 
 let editorRef = ref(null);
 
@@ -138,16 +138,20 @@ function setTerm(name: string, accession: string) {
   templateProperties.content[templateProperties.id + 1].push(accession);
 }
 
+// load the selected sheet and display it
 function selectSheet(name: string, index: number) {
   sheetProperties.name = name;
   templateProperties.template = [];
   templateProperties.content = [];
+
+  // create the table column by column
   for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
     let element = sheetProperties.sheets[index].columns[i];
     let words = element.split(" [");
     if (words[0] != "Term Accession Number " && words[0] != "Unit ") {
       let accession = "";
       try {
+        // retrieve the accession (get the word between the square brackets)
         accession = sheetProperties.sheets[index].columns[i + 1]
           .split("[")[1]
           .split("]")[0];
@@ -164,6 +168,7 @@ function selectSheet(name: string, index: number) {
       });
     }
     let cellContent: string[] = [];
+    // load in the cell data row by row
     for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
       cellContent.push(sheetProperties.sheets[index].data[j][i]);
     }
@@ -171,6 +176,7 @@ function selectSheet(name: string, index: number) {
   }
 }
 
+// check if the right side is empty
 function checkEmptyIsaView() {
   if (
     isaProperties.entries.length > 0 ||
@@ -229,10 +235,10 @@ function onPaste(e) {
     size="2em"
     v-show="loading"
     :key="keyNumber"></q-spinner>
-  <!-- limit the size of input fields to first 500-->
+  <!-- limit the size of input fields to first 1000-->
   <q-item-section
     v-if="isaProperties.entries.length != 0"
-    v-for="(item, i) in isaProperties.entries.slice(0, 500)"
+    v-for="(item, i) in isaProperties.entries.slice(0, 1000)"
     :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
     <q-item-section v-for="entry in item">
       <q-item-section>{{ entry }}</q-item-section> </q-item-section
