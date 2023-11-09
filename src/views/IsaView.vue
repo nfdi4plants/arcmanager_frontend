@@ -235,14 +235,17 @@ function onPaste(e) {
     size="2em"
     v-show="loading"
     :key="keyNumber"></q-spinner>
-  <!-- limit the size of input fields to first 1000-->
+  <!-- Isa File content; limit the size of input fields to first 1000-->
   <q-item-section
     v-if="isaProperties.entries.length != 0"
     v-for="(item, i) in isaProperties.entries.slice(0, 1000)"
     :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
     <q-item-section v-for="entry in item">
-      <q-item-section>{{ entry }}</q-item-section> </q-item-section
-    ><q-btn
+      <q-item-section>{{ entry }}</q-item-section>
+    </q-item-section>
+    <!-- Only allow editing for non headline fields (not in all caps)-->
+    <q-btn
+      v-if="item[0] != item[0].toUpperCase()"
       style="width: 5px; height: auto"
       icon="edit"
       @click="setEntry(item, i)"></q-btn>

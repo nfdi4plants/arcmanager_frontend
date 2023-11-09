@@ -83,7 +83,7 @@ let loginOptions = [
   {
     label: "Dev",
     value: "dev",
-    description: "Development server",
+    description: "Development server for testing purposes",
   },
 ];
 
@@ -126,6 +126,11 @@ function cleanIsaView() {
   sheetProperties.name = "";
   arcProperties.changes = "";
   forcereload();
+}
+
+// if you tried to login and there is an error, the error will be stored in the cookies
+if (document.cookie.includes("error")) {
+  window.alert(document.cookie.split("error=")[1]);
 }
 </script>
 
@@ -179,7 +184,7 @@ function cleanIsaView() {
             v-model="target"
             v-if="!appProperties.loggedIn"
             :options="loginOptions"
-            label="DataHub">
+            label="DataHUB">
             <template v-slot:option="scope">
               <q-item v-bind="scope.itemProps">
                 <q-item-section>

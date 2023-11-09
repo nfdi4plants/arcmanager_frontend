@@ -67,6 +67,8 @@ async function Login() {
 }
 */
 async function Login() {
+  // clear any error cookie
+  document.cookie = "error=; expires=Thu, 01 Jan 1970 00:00:00 UTC";
   if (login.site == "") {
     window.alert("Please select a Datahub first!");
   } else {

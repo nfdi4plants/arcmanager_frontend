@@ -96,16 +96,25 @@ async function fetchArcs() {
       loading = false;
     } else {
       errors = "Not logged in! Listing only public ARCs";
+      searchList = [];
+      try {
+        const response = await fetch(
+          backend + "public_arcs?target=" + git.site.value
+        );
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(response.statusText + ", " + data["detail"]);
+        }
 
-      const response = await fetch(
-        backend + "public_arcs?target=" + git.site.value
-      );
-      const data = await response.json();
-      list = [];
-      data.projects.forEach((element: any) => {
-        list.push(element);
-      });
-      searchList = list;
+        list = [];
+        data.projects.forEach((element: any) => {
+          list.push(element);
+        });
+        searchList = list;
+      } catch (error) {
+        errors = error;
+      }
+
       loading = false;
       forcereload();
     }
@@ -198,15 +207,8 @@ async function inspectArc(id: number) {
     // get the changes
     await getChanges(id);
 
-    // get names of the assays and studies
-    let assays = await fetch(backend + "getAssays?id=" + id, {
-      credentials: "include",
-    });
-    let studies = await fetch(backend + "getStudies?id=" + id, {
-      credentials: "include",
-    });
-    arcProperties.assays = await assays.json();
-    arcProperties.studies = await studies.json();
+    // get the assays and studies
+    await getAssaysAndStudies(id);
   } catch (error) {
     errors = error;
   }
@@ -226,7 +228,7 @@ async function getChanges(id: number) {
         }
       })
       .then((text) => {
-        // include html linebreaks
+        // include html line breaks
         if (text) arcProperties.changes = text.replace(/\n/g, "<br />");
       });
   } catch (error) {
@@ -381,8 +383,10 @@ async function addIsa(
       inspectTree(id, type);
     });
 
-  // get the updated changes
-  getChanges(id);
+  // get the updated changes, assays and studies
+  await getChanges(id);
+  await getAssaysAndStudies(id);
+
   loading = false;
   forcereload();
 }
@@ -495,6 +499,23 @@ async function getSheets(path: string, id: number, branch: string) {
       sheetProperties.sheets = sheets[0];
       sheetProperties.names = sheets[1];
     });
+}
+
+// get a list of all assays and studies
+async function getAssaysAndStudies(id: number) {
+  try {
+    // get names of the assays and studies
+    let assays = await fetch(backend + "getAssays?id=" + id, {
+      credentials: "include",
+    });
+    let studies = await fetch(backend + "getStudies?id=" + id, {
+      credentials: "include",
+    });
+    arcProperties.assays = await assays.json();
+    arcProperties.studies = await studies.json();
+  } catch (error) {
+    errors = error;
+  }
 }
 
 // sync an assay to a study
