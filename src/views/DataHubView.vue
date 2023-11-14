@@ -518,6 +518,7 @@ async function getAssaysAndStudies(id: number) {
     errors = error;
   }
 
+  // if either no assay or no study is found, return error
   if (arcProperties.assays.length == 0) errors = "ERROR: No Assays found!";
   if (arcProperties.studies.length == 0) errors = "ERROR: No Studies found!";
 
@@ -660,7 +661,9 @@ async function syncStudy(id: number, study: string, branch: string) {
         :key="arclist"
         >Sync Study/Invest</q-btn
       >
+      <!-- Reloads the arc -->
       <q-btn icon="refresh" @click="inspectArc(arcId)">Reload</q-btn>
+      <!-- activates swate and annotation sheets-->
       <q-checkbox v-model="experimental">Experimental</q-checkbox></template
     >
 

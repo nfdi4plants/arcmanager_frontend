@@ -69,6 +69,8 @@ async function getTerms(input: string) {
 async function saveSheet() {
   loading = true;
   keyNumber.value += 1;
+
+  // send the content of the sheet to the backend
   const response = await fetch(backend + "saveSheet", {
     method: "POST",
     body: JSON.stringify({
@@ -76,10 +78,12 @@ async function saveSheet() {
       tableContent: templateProperties.content,
       path: isaProperties.path,
       id: isaProperties.repoId,
+      // replace whitespace with underscores
       name: sheetProperties.name.replace(" ", "_"),
     }),
     credentials: "include",
   });
+  // cleanup view
   templateProperties.template = templateProperties.templates = [];
   templateProperties.content = [];
   termProperties.terms = [];
