@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from "vue-router";
 import { setCssVar } from "quasar";
 setCssVar("primary", "#2d3e50");
-import { onMounted, ref, reactive } from "vue";
+import { ref, reactive } from "vue";
 import ToolbarButton from "./components/ToolbarButton.vue";
 
 import isaProperties from "./IsaProperties";
@@ -32,8 +31,7 @@ const layoutProperties = reactive({
   splitterModel: 300,
 });
 
-//let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
-let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
+let backend = appProperties.backend + "projects/";
 
 let target = ref("");
 let showInput = false;
@@ -78,7 +76,7 @@ let loginOptions = [
   {
     label: "PlantMicrobe",
     value: "plantmicrobe",
-    description: "DataHUB for the transregio project TRR365",
+    description: "DataHUB for the transregio project TRR356",
   },
   {
     label: "Dev",
@@ -174,7 +172,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.4em">ARCitect Web</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.2
+                  v 0.2.1
                 </q-badge></q-item-label
               >
             </q-item-section>

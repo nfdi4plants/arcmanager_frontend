@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, onUnmounted, reactive, ref, nextTick } from "vue";
+import { ref } from "vue";
 
 import isaProperties from "../IsaProperties.ts";
 import fileProperties from "../FileProperties";
@@ -15,8 +15,7 @@ import sheetProperties from "@/SheetProperties";
 const $q = useQuasar();
 
 // Address of the backend
-//let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
-let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
+let backend = appProperties.backend + "projects/";
 
 // list with all arcs
 var list: any[] = [];
@@ -25,6 +24,9 @@ var list: any[] = [];
 var errors: any;
 
 var owned = ref(false);
+
+// show experimental features
+var experimental = ref(true);
 
 // list of all the content of the specific arc
 var arcList: any[] = [];
@@ -185,6 +187,7 @@ async function inspectArc(id: number) {
   errors = null;
   search.value = "";
   searchList = list;
+  cleanIsaView();
   arcProperties.studies = arcProperties.assays = [];
   forcereload();
   try {
@@ -206,9 +209,6 @@ async function inspectArc(id: number) {
 
     // get the changes
     await getChanges(id);
-
-    // get the assays and studies
-    await getAssaysAndStudies(id);
   } catch (error) {
     errors = error;
   }
@@ -385,7 +385,6 @@ async function addIsa(
 
   // get the updated changes, assays and studies
   await getChanges(id);
-  await getAssaysAndStudies(id);
 
   loading = false;
   forcereload();
@@ -503,6 +502,8 @@ async function getSheets(path: string, id: number, branch: string) {
 
 // get a list of all assays and studies
 async function getAssaysAndStudies(id: number) {
+  loading = true;
+  forcereload();
   try {
     // get names of the assays and studies
     let assays = await fetch(backend + "getAssays?id=" + id, {
@@ -516,6 +517,12 @@ async function getAssaysAndStudies(id: number) {
   } catch (error) {
     errors = error;
   }
+
+  if (arcProperties.assays.length == 0) errors = "ERROR: No Assays found!";
+  if (arcProperties.studies.length == 0) errors = "ERROR: No Studies found!";
+
+  loading = false;
+  forcereload();
 }
 
 // sync an assay to a study
@@ -594,11 +601,11 @@ async function syncStudy(id: number, study: string, branch: string) {
 </script>
 
 <template>
-  <!-- FETCH ARC/FILE UPLOAD BUTTON/OPEN ARC/SYNC ASSAYS/STUDIES -->
+  <!-- FETCH ARC/FILE UPLOAD BUTTON/OPEN ARC/SYNC ASSAYS/STUDIES RELOAD-->
   <div class="q-pa-xs row q-gutter-sm">
     <q-btn
       @click="fetchArcs(), forcereload()"
-      icon="refresh"
+      icon="downloading"
       style="background-color: aquamarine; max-width: 200px"
       dense
       >Load the Arcs</q-btn
@@ -609,49 +616,52 @@ async function syncStudy(id: number, study: string, branch: string) {
       label="Your Arcs:"
       v-show="arcList.length == 0 && appProperties.loggedIn"
       @update:model-value="fetchArcs" />
-
-    <q-file
-      v-show="arcList.length != 0"
-      style="max-width: 200px; background-color: lightgoldenrodyellow"
-      v-model="fileInput"
-      outlined
-      label="Upload File (<10 mb)"
-      max-file-size="10000000"
-      @update:model-value="fileUpload"
-      @rejected="
-        errors = 'ERROR: File too big!';
-        forcereload();
-      "
-      :key="arclist"></q-file>
-    <q-btn
-      v-show="arcList.length != 0"
-      @click="openArc(arcProperties.url)"
-      icon="open_in_new"
-      style="background-color: lightskyblue; max-width: 200px"
-      :key="arclist"
-      >Open</q-btn
-    >
-    <q-btn
-      style="background-color: orange"
-      v-show="arcList.length != 0"
-      @click="
-        assaySync = !assaySync;
-        studySync = false;
-        forcereload();
-      "
-      :key="arclist"
-      >Sync Assay/Study</q-btn
-    >
-    <q-btn
-      style="background-color: gainsboro"
-      v-show="arcList.length != 0"
-      @click="
-        studySync = !studySync;
-        assaySync = false;
-        forcereload();
-      "
-      :key="arclist"
-      >Sync Study/Invest</q-btn
+    <template v-if="arcList.length != 0">
+      <q-file
+        style="max-width: 200px; background-color: lightgoldenrodyellow"
+        v-model="fileInput"
+        outlined
+        label="Upload File (<10 mb)"
+        max-file-size="10000000"
+        @update:model-value="fileUpload"
+        @rejected="
+          errors = 'ERROR: File too big!';
+          forcereload();
+        "
+        :key="arclist"></q-file>
+      <q-btn
+        @click="openArc(arcProperties.url)"
+        icon="open_in_new"
+        style="background-color: lightskyblue; max-width: 200px"
+        :key="arclist"
+        >Open</q-btn
+      >
+      <q-btn
+        style="background-color: orange"
+        icon="sync_alt"
+        @click="
+          assaySync = !assaySync;
+          studySync = false;
+          forcereload();
+          getAssaysAndStudies(arcId);
+        "
+        :key="arclist"
+        >Sync Assay/Study</q-btn
+      >
+      <q-btn
+        style="background-color: gainsboro"
+        icon="sync"
+        @click="
+          studySync = !studySync;
+          assaySync = false;
+          forcereload();
+          getAssaysAndStudies(arcId);
+        "
+        :key="arclist"
+        >Sync Study/Invest</q-btn
+      >
+      <q-btn icon="refresh" @click="inspectArc(arcId)">Reload</q-btn>
+      <q-checkbox v-model="experimental">Experimental</q-checkbox></template
     >
 
     <!-- LOADING SPINNER --><q-spinner
@@ -777,7 +787,8 @@ async function syncStudy(id: number, study: string, branch: string) {
             <q-list
               bordered
               v-else-if="
-                item.name == 'isa.study.xlsx' || item.name == 'isa.assay.xlsx'
+                experimental &&
+                (item.name == 'isa.study.xlsx' || item.name == 'isa.assay.xlsx')
               "
               icon="expand_more"
               ><q-item style="text-align: center"
@@ -813,6 +824,9 @@ async function syncStudy(id: number, study: string, branch: string) {
               >
             </q-list>
             <q-btn v-else-if="item.name == 'LICENSE'" disabled>{{
+              item.name
+            }}</q-btn>
+            <q-btn v-else-if="item.name == '.gitkeep'" disabled>{{
               item.name
             }}</q-btn>
             <q-btn
@@ -908,7 +922,11 @@ async function syncStudy(id: number, study: string, branch: string) {
     </ViewItem>
     <!-- SYNC ASSAY TO STUDY-->
     <template v-if="assaySync"
-      ><div class="q-pa-md">
+      ><div
+        class="q-pa-md"
+        v-show="
+          arcProperties.assays.length > 0 && arcProperties.studies.length > 0
+        ">
         <q-btn
           icon="arrow_back"
           @click="
@@ -945,7 +963,7 @@ async function syncStudy(id: number, study: string, branch: string) {
     </template>
     <!-- SYNC STUDY TO INVESTIGATION-->
     <template v-if="studySync"
-      ><div class="q-pa-md">
+      ><div class="q-pa-md" v-show="arcProperties.studies.length > 0">
         <q-btn
           icon="arrow_back"
           @click="

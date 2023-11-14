@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 
-//let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
-let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
+let backend = appProperties.backend + "projects/";
 
 import templateProperties from "@/TemplateProperties";
 import termProperties from "@/TermProperties";
 import isaProperties from "@/IsaProperties";
 import sheetProperties from "@/SheetProperties";
+import appProperties from "@/AppProperties";
 
 let loading = false;
 
@@ -66,27 +66,34 @@ async function getTerms(input: string) {
   loading = false;
   keyNumber.value += 1;
 }
-async function saveTemplate() {
+async function saveSheet() {
   loading = true;
   keyNumber.value += 1;
-  const response = await fetch(backend + "saveTemplate", {
+  const response = await fetch(backend + "saveSheet", {
     method: "POST",
     body: JSON.stringify({
       tableHead: templateProperties.template,
       tableContent: templateProperties.content,
       path: isaProperties.path,
       id: isaProperties.repoId,
-      name: sheetProperties.name,
+      name: sheetProperties.name.replace(" ", "_"),
     }),
     credentials: "include",
   });
   templateProperties.template = templateProperties.templates = [];
   templateProperties.content = [];
+  termProperties.terms = [];
   loading = false;
   keyNumber.value += 1;
 }
 function checkName(name: string) {
-  if (name.startsWith("Term") || name.startsWith("Unit")) return false;
+  if (
+    name.startsWith("Term") ||
+    name.startsWith("Unit") ||
+    name.startsWith("Source Name") ||
+    name.startsWith("Sample Name")
+  )
+    return false;
   return true;
 }
 function searchName(type: string) {
@@ -171,9 +178,7 @@ async function getSuggestions() {
         type="text"
         v-model="sheetProperties.name"
         placeholder="Name your Sheet" />
-      <q-btn @click="saveTemplate()" style="background-color: bisque"
-        >Save</q-btn
-      >
+      <q-btn @click="saveSheet()" style="background-color: bisque">Save</q-btn>
       <q-spinner
         id="loader"
         color="primary"

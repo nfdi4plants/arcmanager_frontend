@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-import { ref, createApp, onMounted } from "vue";
-import { RouterLink, RouterView } from "vue-router";
+import { ref } from "vue";
 
 import Keycloak from "keycloak-js";
 
@@ -9,8 +8,7 @@ import appProperties from "@/AppProperties";
 
 let login = defineProps(["site"]);
 
-//let backend = "http://localhost:8000/arcmanager/api/v1/";
-let backend = "https://nfdi4plants.de/arcmanager/api/v1/";
+let backend = appProperties.backend;
 
 // here we trick vue js to reload the component
 const arclist = ref(0);

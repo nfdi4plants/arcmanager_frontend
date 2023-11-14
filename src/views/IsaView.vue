@@ -1,8 +1,9 @@
 <script lang="ts" setup>
-import { reactive, watch, onMounted, ref } from "vue";
+import { ref } from "vue";
 import isaProperties from "../IsaProperties.ts";
 import fileProperties from "../FileProperties";
 import arcProperties from "@/ArcProperties";
+import appProperties from "@/AppProperties";
 import templateProperties from "@/TemplateProperties";
 import termProperties from "@/TermProperties";
 import sheetProperties from "@/SheetProperties";
@@ -15,8 +16,7 @@ isaProperties.entry = [];
 
 let loading = false;
 
-//let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
-let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
+let backend = appProperties.backend + "projects/";
 
 let keyNumber = ref(0);
 
@@ -85,9 +85,14 @@ function setTemplate(templateId: string) {
   fetch(backend + "getTemplate?id=" + templateId)
     .then((response) => response.json())
     .then((data) => {
-      // reset the current template and content
-      templateProperties.template = [];
-      templateProperties.content = [];
+      // reset the current template and content to source and sample
+      templateProperties.template = [
+        {
+          Type: "Input [Source]",
+        },
+        { Type: "Output [Sample]" },
+      ];
+      templateProperties.content = [[""], [""]];
 
       data.forEach((element: any) => {
         // insert the columnHeader with type, name and accession set
