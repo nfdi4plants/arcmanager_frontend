@@ -23,6 +23,7 @@ var list: any[] = [];
 // list with errors
 var errors: any;
 
+// show only arcs with writing permission
 var owned = ref(false);
 
 // show experimental features
@@ -72,10 +73,10 @@ let search = ref("");
 let searchList: any[] = [];
 
 // here we trick vue js to reload the component
-const arclist = ref(0);
+const refresher = ref(0);
 const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the page
-  arclist.value += 1;
+  refresher.value += 1;
 };
 if (document.cookie.includes("logged_in=true")) {
   appProperties.loggedIn = true;
@@ -91,6 +92,7 @@ let fileInput = ref();
 // get a list of all arcs in the gitlab
 async function fetchArcs() {
   loading = true;
+  searchList = [];
   // if not logged in, show only public arcs
   if (!appProperties.loggedIn) {
     if (git.site == "") {
@@ -146,6 +148,7 @@ async function fetchArcs() {
       data.projects.forEach((element: any) => {
         list.push(element);
       });
+      if (list.length == 0) throw new Error("No arcs found for you!");
       // fill searchList with the full list and clear the search bar
       searchList = list;
       search.value = "";
@@ -444,7 +447,7 @@ async function fileUpload() {
     if (!(await response).ok) {
       let data = await response.json();
       errors = "ERROR: " + data["detail"];
-      arclist.value += 1;
+      refresher.value += 1;
     } else {
       // if successful, reset the fileProperties and input value
       fileInput.value = "";
@@ -629,12 +632,12 @@ async function syncStudy(id: number, study: string, branch: string) {
           errors = 'ERROR: File too big!';
           forcereload();
         "
-        :key="arclist"></q-file>
+        :key="refresher"></q-file>
       <q-btn
         @click="openArc(arcProperties.url)"
         icon="open_in_new"
         style="background-color: lightskyblue; max-width: 200px"
-        :key="arclist"
+        :key="refresher"
         >Open</q-btn
       >
       <q-btn
@@ -646,7 +649,7 @@ async function syncStudy(id: number, study: string, branch: string) {
           forcereload();
           getAssaysAndStudies(arcId);
         "
-        :key="arclist"
+        :key="refresher"
         >Sync Assay/Study</q-btn
       >
       <q-btn
@@ -658,7 +661,7 @@ async function syncStudy(id: number, study: string, branch: string) {
           forcereload();
           getAssaysAndStudies(arcId);
         "
-        :key="arclist"
+        :key="refresher"
         >Sync Study/Invest</q-btn
       >
       <!-- Reloads the arc -->
@@ -672,7 +675,7 @@ async function syncStudy(id: number, study: string, branch: string) {
       color="primary"
       size="3em"
       v-show="loading"
-      :key="arclist"></q-spinner>
+      :key="refresher"></q-spinner>
   </div>
 
   <q-list bordered dense class="rounded-borders">
@@ -682,7 +685,7 @@ async function syncStudy(id: number, study: string, branch: string) {
     >
     <!-- LIST WITH ALL ARCS AND ARC TREE VIEW-->
     <ViewItem
-      :key="arclist"
+      :key="refresher"
       icon="cloud_download"
       label="List ARCs"
       caption="List ARCs from the DataHUB"
@@ -719,7 +722,7 @@ async function syncStudy(id: number, study: string, branch: string) {
             ident = '';
             forcereload();
           "
-          :key="arclist"></q-btn>
+          :key="refresher"></q-btn>
       </template>
       <!-- SEARCH BAR -->
       <q-input
@@ -734,7 +737,7 @@ async function syncStudy(id: number, study: string, branch: string) {
       <q-item-section
         style="padding-bottom: 2em"
         v-if="pathHistory.length > 1"
-        :key="arclist"
+        :key="refresher"
         ><q-breadcrumbs>
           <q-breadcrumbs-el
             v-for="item in pathHistory[pathHistory.length - 1].split('/')"

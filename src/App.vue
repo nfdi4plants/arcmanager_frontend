@@ -2,7 +2,6 @@
 import { setCssVar } from "quasar";
 setCssVar("primary", "#2d3e50");
 import { ref, reactive } from "vue";
-import ToolbarButton from "./components/ToolbarButton.vue";
 
 import isaProperties from "./IsaProperties";
 
@@ -86,10 +85,10 @@ let loginOptions = [
 ];
 
 // here we trick vue js to reload the component
-const arclist = ref(0);
+const refresher = ref(0);
 const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the page
-  arclist.value += 1;
+  refresher.value += 1;
 };
 async function createArc() {
   loading = true;
@@ -166,7 +165,7 @@ if (document.cookie.includes("error")) {
                   showInput = false;
                   forcereload();
                 "
-                :key="arclist"></q-icon>
+                :key="refresher"></q-icon>
             </q-item-section>
             <q-item-section style="margin: 0.6em 0 0 -1.2em">
               <q-item-label
@@ -199,24 +198,28 @@ if (document.cookie.includes("error")) {
           <LoginView :site="target" />
 
           <q-separator />
-
-          <ToolbarButton
-            text="New ARC"
-            icon="add_circle"
-            @clicked="
+          <!-- New Arc Button-->
+          <q-item
+            v-ripple
+            clickable
+            v-on:click="
               showInput = true;
               cleanIsaView();
               forcereload();
             "
-            :disable="!appProperties.loggedIn"
-            :key="arclist"></ToolbarButton>
+            :disable="!appProperties.loggedIn">
+            <q-item-section avatar>
+              <q-icon color="grey-7" name="add_circle"></q-icon>
+            </q-item-section>
+            <q-item-section style="margin-left: -1.2em">New ARC</q-item-section>
+          </q-item>
         </q-list>
         <q-spinner-gears
           color="primary"
           size="5em"
           style="margin-left: 1cm"
           v-show="loading"
-          :key="arclist"></q-spinner-gears>
+          :key="refresher"></q-spinner-gears>
       </q-scroll-area>
     </q-drawer>
 
@@ -262,9 +265,9 @@ if (document.cookie.includes("error")) {
               arcDesc = arcName = invId = '';
               forcereload();
             "
-            :key="arclist"></q-btn>
+            :key="refresher"></q-btn>
         </template>
-        <DataHubView :site="target" v-else :key="arclist">dataview</DataHubView>
+        <DataHubView :site="target" v-else :key="refresher"></DataHubView>
 
         <IsaEditView v-if="isaProperties.entry.length > 0"></IsaEditView>
 

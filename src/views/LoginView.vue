@@ -11,10 +11,10 @@ let login = defineProps(["site"]);
 let backend = appProperties.backend;
 
 // here we trick vue js to reload the component
-const arclist = ref(0);
+const refresher = ref(0);
 const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the page
-  arclist.value += 1;
+  refresher.value += 1;
 };
 
 /*
@@ -94,7 +94,7 @@ async function logout() {
       Login();
       forcereload();
     "
-    :key="arclist"
+    :key="refresher"
     style="background-color: lightcyan">
     <q-item-section avatar>
       <q-icon color="grey-7" name="login"></q-icon>
@@ -109,7 +109,7 @@ async function logout() {
       logout();
       forcereload();
     "
-    :key="arclist"
+    :key="refresher"
     style="background-color: lightpink">
     <q-item-section avatar>
       <q-icon color="grey-7" name="logout"></q-icon>

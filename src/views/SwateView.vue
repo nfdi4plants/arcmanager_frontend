@@ -83,6 +83,10 @@ async function saveSheet() {
     }),
     credentials: "include",
   });
+  if (!response.ok) {
+    errors = "ERROR: Couldn't save Table!";
+    loading = false;
+  }
   // cleanup view
   templateProperties.template = templateProperties.templates = [];
   templateProperties.content = [];
@@ -125,7 +129,11 @@ function extendTemplate() {
         );
       }
     } else {
-      templateProperties.content[i].push(null);
+      if (templateProperties.template[i].Type.toString().startsWith("Term")) {
+        templateProperties.content[i].push(templateProperties.content[i][0]);
+      } else {
+        templateProperties.content[i].push(null);
+      }
     }
   });
 }
@@ -174,7 +182,9 @@ async function getSuggestions() {
         <q-input v-model="search" :label="searchType"
           ><template v-slot:append>
             <q-icon name="search"></q-icon></template></q-input
-        ><q-btn @click="getTerms(search)">Search</q-btn>
+        ><q-btn @click="getTerms(search)" :disable="search.length == 0"
+          >Search</q-btn
+        >
         <q-checkbox v-model="advanced">Extended search</q-checkbox>
         <q-btn @click="getSuggestions()">Get suggestions</q-btn>
       </template>
@@ -182,7 +192,12 @@ async function getSuggestions() {
         type="text"
         v-model="sheetProperties.name"
         placeholder="Name your Sheet" />
-      <q-btn @click="saveSheet()" style="background-color: bisque">Save</q-btn>
+      <q-btn
+        @click="saveSheet()"
+        style="background-color: bisque"
+        :disable="sheetProperties.name.length == 0"
+        >Save</q-btn
+      >
       <q-spinner
         id="loader"
         color="primary"
