@@ -17,7 +17,7 @@ async function sendToBackend() {
   });
 
   const response = await fetch(backend + "saveFile", {
-    method: "POST",
+    method: "PUT",
     // body for the backend containing all necessary data
     body: JSON.stringify({
       isaInput: isaProperties.entry,

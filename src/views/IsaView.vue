@@ -24,8 +24,6 @@ let errors = "";
 
 let showChanges = ref(false);
 
-let editorRef = ref(null);
-
 // edit the fields of the entry
 const setEntry = (entry: string[], id: number) => {
   // clear old entry arrays
@@ -85,14 +83,13 @@ function setTemplate(templateId: string) {
   fetch(backend + "getTemplate?id=" + templateId)
     .then((response) => response.json())
     .then((data) => {
-      // reset the current template and content to source and sample
+      // reset the current template and add the input column
       templateProperties.template = [
         {
-          Type: "Input [Source]",
+          Type: "Input [Source Name]",
         },
-        { Type: "Output [Sample]" },
       ];
-      templateProperties.content = [[""], [""]];
+      templateProperties.content = [[""]];
 
       data.forEach((element: any) => {
         // insert the columnHeader with type, name and accession set
@@ -108,6 +105,27 @@ function setTemplate(templateId: string) {
         // for the columnHeader column insert an empty cell
         templateProperties.content.push([""]);
 
+        // if the current template part has a unit, insert an extra unit column
+        if (element["HasUnit"]) {
+          templateProperties.template.push({
+            Type: "Unit [" + element["ColumnHeader"].Name + "]",
+          });
+
+          // the unit column cell is filled with the name of the unit
+          templateProperties.content.push([element["UnitTerm"].Name]);
+          // for unit columns the term source ref cell is filled with the accessionToTSR
+          templateProperties.content.push([element["UnitTerm"].accessionToTSR]);
+          // for unit columns the term accession cell is filled with the termAccession of the unit
+          templateProperties.content.push([element["UnitTerm"].TermAccession]);
+        } else {
+          // if there is no unit cell the term accession cell is empty
+          templateProperties.content.push([""], [""]);
+        }
+        // insert the term source ref column
+        templateProperties.template.push({
+          Type: "Term Source REF [" + element["ColumnTerm"].TermAccession + "]",
+        });
+
         // insert the term accession column
         templateProperties.template.push({
           Type:
@@ -115,40 +133,30 @@ function setTemplate(templateId: string) {
             element["ColumnTerm"].TermAccession +
             "]",
         });
-
-        // if the current template part has a unit, insert an extra unit column
-        if (element["HasUnit"]) {
-          templateProperties.template.push({
-            Type: "Unit",
-          });
-
-          // for unit columns the term accession cell is filled with the termAccession of the unit
-          templateProperties.content.push([element["UnitTerm"].TermAccession]);
-          // the unit column cell is filled with the name of the unit
-          templateProperties.content.push([element["UnitTerm"].Name]);
-        } else {
-          // if there is no unit cell the term accession cell is empty
-          templateProperties.content.push([""]);
-        }
       });
+      // insert the output column at the end
+      templateProperties.template.push({ Type: "Output [Sample Name]" });
+      templateProperties.content.push([""]);
     });
 }
 
 // if a term is chosen the values of the columns header and the term accession will be set to the chosen values
-function setTerm(name: string, accession: string) {
+function setTerm(name: string, accession: string, ontology: string) {
   console.log(templateProperties.content);
   templateProperties.content[templateProperties.id].pop();
   templateProperties.content[templateProperties.id + 1].pop();
+  templateProperties.content[templateProperties.id + 2].pop();
   templateProperties.content[templateProperties.id].push(name);
-  templateProperties.content[templateProperties.id + 1].push(accession);
+  templateProperties.content[templateProperties.id + 1].push(ontology);
+  templateProperties.content[templateProperties.id + 2].push(accession);
 }
 
 // load the selected sheet and display it
-function selectSheet(name: string, index: number) {
+async function selectSheet(name: string, index: number) {
   sheetProperties.name = name;
   templateProperties.template = [];
   templateProperties.content = [];
-
+  errors = "";
   // create the table column by column
   for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
     let element = sheetProperties.sheets[index].columns[i];
@@ -178,6 +186,21 @@ function selectSheet(name: string, index: number) {
       cellContent.push(sheetProperties.sheets[index].data[j][i]);
     }
     templateProperties.content.push(cellContent);
+  }
+  // if the content is empty, get a list of templates and display them
+  if (templateProperties.template.length == 0) {
+    errors = "ERROR: Sheet is empty! Insert a Template!";
+    // retrieve the templates
+    await fetch(backend + "getTemplates")
+      .then((response) => response.json())
+      .then((templates) => {
+        if (templates.templates.length == 0) {
+          errors = "ERROR: No templates found!";
+          keyNumber.value += 1;
+        }
+        // save the templates
+        templateProperties.templates = templates.templates;
+      });
   }
 }
 
@@ -255,35 +278,6 @@ function onPaste(e) {
       icon="edit"
       @click="setEntry(item, i)"></q-btn>
   </q-item-section>
-  <!-- IF there is a list of templates -->
-  <q-list bordered>
-    <q-item
-      clickable
-      v-if="templateProperties.templates.length > 0"
-      v-for="(template, i) in templateProperties.templates"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
-      <q-expansion-item>
-        <template #header>
-          {{ template.Name }} ({{ template.Organisation }})
-          {{ template.Version }}
-        </template>
-        <q-card
-          ><q-card-section>{{ template.Description }}</q-card-section>
-          <q-card-section>Authors: {{ template.Authors }}</q-card-section
-          ><q-card-section
-            >Updated last:
-            {{ template.LastUpdated.slice(0, 10) }}</q-card-section
-          ><q-card-section
-            ><q-btn
-              style="background-color: #f2f2f2"
-              @click="setTemplate(template.Id)"
-              >Import</q-btn
-            ></q-card-section
-          >
-        </q-card>
-      </q-expansion-item>
-    </q-item>
-  </q-list>
   <!-- IF there is a list of terms-->
   <q-list bordered>
     <q-item
@@ -300,7 +294,9 @@ function onPaste(e) {
           <q-card-section
             ><q-btn
               style="background-color: #f2f2f2"
-              @click="setTerm(term['Name'], term['Accession'])"
+              @click="
+                setTerm(term['Name'], term['Accession'], term['FK_Ontology'])
+              "
               :disable="term['Name'] == 'No Term was found!'"
               >Insert</q-btn
             ></q-card-section
@@ -326,6 +322,35 @@ function onPaste(e) {
           ><q-card-section>{{
             sheetProperties.sheets[i]["data"]
           }}</q-card-section>
+        </q-card>
+      </q-expansion-item>
+    </q-item>
+  </q-list>
+  <!-- IF there is a list of templates -->
+  <q-list bordered>
+    <q-item
+      clickable
+      v-if="templateProperties.templates.length > 0"
+      v-for="(template, i) in templateProperties.templates"
+      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      <q-expansion-item>
+        <template #header>
+          {{ template.Name }} ({{ template.Organisation }})
+          {{ template.Version }}
+        </template>
+        <q-card
+          ><q-card-section>{{ template.Description }}</q-card-section>
+          <q-card-section>Authors: {{ template.Authors }}</q-card-section
+          ><q-card-section
+            >Updated last:
+            {{ template.LastUpdated.slice(0, 10) }}</q-card-section
+          ><q-card-section
+            ><q-btn
+              style="background-color: #f2f2f2"
+              @click="setTemplate(template.Id)"
+              >Import</q-btn
+            ></q-card-section
+          >
         </q-card>
       </q-expansion-item>
     </q-item>

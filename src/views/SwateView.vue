@@ -41,14 +41,15 @@ async function getTerms(input: string) {
 
   // get the list of terms
   const response = await fetch(
-    backend + "getTerms?input=" + input + "&advanced=" + advanced.value,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        parent_name: searchType,
-        parent_accession: searchAccession,
-      }),
-    }
+    backend +
+      "getTerms?input=" +
+      input +
+      "&advanced=" +
+      advanced.value +
+      "&parentName=" +
+      searchType +
+      "&parentTermAccession=" +
+      searchAccession
   );
   let data = await response.json();
   if (!response.ok) {
@@ -72,7 +73,7 @@ async function saveSheet() {
 
   // send the content of the sheet to the backend
   const response = await fetch(backend + "saveSheet", {
-    method: "POST",
+    method: "PUT",
     body: JSON.stringify({
       tableHead: templateProperties.template,
       tableContent: templateProperties.content,
@@ -99,7 +100,9 @@ function checkName(name: string) {
     name.startsWith("Term") ||
     name.startsWith("Unit") ||
     name.startsWith("Source Name") ||
-    name.startsWith("Sample Name")
+    name.startsWith("Sample Name") ||
+    name.startsWith("Input") ||
+    name.startsWith("Output")
   )
     return false;
   return true;
@@ -148,13 +151,13 @@ async function getSuggestions() {
   sheetProperties.sheets = sheetProperties.names = [];
 
   // get the list of terms
-  const response = await fetch(backend + "getTermSuggestions", {
-    method: "POST",
-    body: JSON.stringify({
-      parent_name: searchType,
-      parent_accession: searchAccession,
-    }),
-  });
+  const response = await fetch(
+    backend +
+      "getTermSuggestions?parentName=" +
+      searchType +
+      "&parentTermAccession=" +
+      searchAccession
+  );
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
@@ -191,12 +194,14 @@ async function getSuggestions() {
       <q-input
         type="text"
         v-model="sheetProperties.name"
-        placeholder="Name your Sheet" />
+        placeholder="Name your sheet" />
       <q-btn
         @click="saveSheet()"
         style="background-color: bisque"
         :disable="sheetProperties.name.length == 0"
         >Save</q-btn
+      ><span style="margin-left: 1em" v-if="sheetProperties.name.length == 0"
+        >Please provide a name for the sheet!</span
       >
       <q-spinner
         id="loader"
@@ -211,6 +216,7 @@ async function getSuggestions() {
             <th v-for="(column, i) in templateProperties.template">
               {{ column.Type }}
               <!-- if the type is neither a term accession or a unit, insert a search button -->
+              <!-- also the parameter should not be of type "unit" -->
               <template v-if="checkName(column.Type)"
                 ><q-btn
                   @click="

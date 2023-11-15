@@ -602,6 +602,18 @@ async function syncStudy(id: number, study: string, branch: string) {
   loading = false;
   forcereload();
 }
+
+// checks weather the file should be editable or not
+function checkName(name: string) {
+  let includes = false;
+  let formats = [".pdf", ".xml", ".zip", ".html", ".css", ".mp4"];
+  formats.forEach((element) => {
+    if (name.toLowerCase().includes(element)) {
+      includes = true;
+    }
+  });
+  return includes;
+}
 </script>
 
 <template>
@@ -722,7 +734,11 @@ async function syncStudy(id: number, study: string, branch: string) {
             ident = '';
             forcereload();
           "
-          :key="refresher"></q-btn>
+          :disable="ident.length == 0"
+          :key="refresher"></q-btn
+        ><span style="margin-left: 1em" v-if="ident.length == 0"
+          >Please provide an identifier!</span
+        >
       </template>
       <!-- SEARCH BAR -->
       <q-input
@@ -738,7 +754,8 @@ async function syncStudy(id: number, study: string, branch: string) {
         style="padding-bottom: 2em"
         v-if="pathHistory.length > 1"
         :key="refresher"
-        ><q-breadcrumbs>
+        ><q-breadcrumbs
+          ><span>Path:</span>
           <q-breadcrumbs-el
             v-for="item in pathHistory[pathHistory.length - 1].split('/')"
             >{{ item }}</q-breadcrumbs-el
@@ -829,10 +846,13 @@ async function syncStudy(id: number, study: string, branch: string) {
                 ></q-item
               >
             </q-list>
-            <q-btn v-else-if="item.name == 'LICENSE'" disabled>{{
+            <q-btn v-else-if="item.name.includes('LICENSE')" disabled>{{
               item.name
             }}</q-btn>
             <q-btn v-else-if="item.name == '.gitkeep'" disabled>{{
+              item.name
+            }}</q-btn>
+            <q-btn v-else-if="checkName(item.name)" disabled>{{
               item.name
             }}</q-btn>
             <q-btn

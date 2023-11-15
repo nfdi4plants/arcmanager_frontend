@@ -253,8 +253,12 @@ if (document.cookie.includes("error")) {
           <q-input
             outlined
             v-model="invId"
-            label="An identifier of your ARC for the isa file (e.g. hhu_talinum_fruticosum)" />
-          <q-separator></q-separator>
+            label="An identifier of your ARC for the isa file (e.g. hhu_talinum_fruticosum)"
+            :rules="[
+              (val) => !val.includes(' ') || 'No whitespace allowed!',
+            ]" />
+          <q-separator
+            style="margin-top: 1em; margin-bottom: 1em"></q-separator>
 
           <q-btn
             icon="send"
@@ -265,7 +269,18 @@ if (document.cookie.includes("error")) {
               arcDesc = arcName = invId = '';
               forcereload();
             "
+            :disable="
+              arcName.length == 0 || arcDesc.length == 0 || invId.length == 0
+            "
             :key="refresher"></q-btn>
+          <!-- Hints to fill out the empty input fields -->
+          <span style="margin-left: 1em" v-if="arcName.length == 0"
+            >Please provide a name for the ARC!</span
+          ><span style="margin-left: 1em" v-else-if="arcDesc.length == 0"
+            >Please provide a description for the ARC!</span
+          ><span style="margin-left: 1em" v-else-if="invId.length == 0"
+            >Please provide an identifier for the ARC!</span
+          >
         </template>
         <DataHubView :site="target" v-else :key="refresher"></DataHubView>
 
