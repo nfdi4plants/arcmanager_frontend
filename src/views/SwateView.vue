@@ -178,6 +178,7 @@ async function getSuggestions() {
 
 <template>
   <p :key="keyNumber">{{ errors }}</p>
+  <a href="https://www.ebi.ac.uk/ols4" target="_blank">Ontology Lookup</a> <a href="https://github.com/nfdi4plants/nfdi4plants_ontology/blob/main/dpbo.obo" target="_blank" style="margin-left: 1em;">DataPLANT Ontology</a>
   <div>
     <q-scroll-area style="height: 800px; max-width: 100%" :key="keyNumber">
       <!-- The table to enter the values with swate is a default html table -->

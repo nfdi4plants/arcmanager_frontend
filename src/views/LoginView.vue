@@ -1,9 +1,6 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 
-import Keycloak from "keycloak-js";
-
-import { loginUrl } from "../login.ts";
 import appProperties from "@/AppProperties";
 
 let login = defineProps(["site"]);
@@ -17,53 +14,7 @@ const forcereload = () => {
   refresher.value += 1;
 };
 
-/*
-// change to actual keycloak address
-const keycloak = new Keycloak({
-  url: `http://localhost:8080`,
-  realm: "arcmanager",
-  clientId: "arcmanager",
-});
-const kcLogin = keycloak.login;
 
-keycloak.login = (options) => {
-  options.idpHint = loginUrl(login.site);
-  kcLogin(options);
-};
-
-async function Login() {
-  await keycloak.init({
-    onLoad: "login-required",
-  });
-  console.log("KEYCLOAK INIT");
-  if (!keycloak.authenticated) {
-    // if not authenticated, we just call the function again, TODO the double login problem
-    Login();
-  } else {
-    console.log("Authenticated!");
-  }
-  if (keycloak.token) {
-    fetch(backend + "auth_alt/login", {
-      method: "POST",
-      // body for the backend containing all necessary data
-      body: JSON.stringify({
-        token: keycloak.token,
-        target: login.site.toLowerCase(),
-      }),
-      credentials: "include",
-    })
-      .then((response) => response.json())
-      .then((data) => console.log(data));
-    window.sessionStorage.setItem(
-      "username",
-      keycloak.idTokenParsed ? keycloak.idTokenParsed["name"] : ""
-    );
-    appProperties.loggedIn = true;
-  }
-
-  forcereload();
-}
-*/
 async function Login() {
   // clear any error cookie
   document.cookie = "error=; expires=Thu, 01 Jan 1970 00:00:00 UTC";
@@ -75,9 +26,6 @@ async function Login() {
 }
 
 async function logout() {
-  //await keycloak.logout({
-  //redirectUri: "https://git.nfdi4plants.org/explore",
-  //});
   await fetch(backend + "auth/logout", {
     credentials: "include",
   });

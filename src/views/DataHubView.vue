@@ -3,7 +3,6 @@ import { ref } from "vue";
 
 import isaProperties from "../IsaProperties.ts";
 import fileProperties from "../FileProperties";
-import ViewItem from "../components/ViewItem.vue";
 
 import { useQuasar } from "quasar";
 import arcProperties from "@/ArcProperties";
@@ -606,12 +605,14 @@ async function syncStudy(id: number, study: string, branch: string) {
 // checks weather the file should be editable or not
 function checkName(name: string) {
   let includes = false;
-  let formats = [".pdf", ".xml", ".zip", ".html", ".css", ".mp4"];
+  let formats = [".pdf", ".xml", ".zip", ".gz", ".html", ".css", ".mp4", ".raw", ".docx", ".db", ".dll", ".pdb"];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
       includes = true;
     }
   });
+  if(name.includes(".xlsx") && !name.includes("isa"))
+    includes = true;
   return includes;
 }
 </script>
@@ -696,12 +697,15 @@ function checkName(name: string) {
       >User: {{ username }} / ARC: {{ arcProperties.identifier }}</q-item
     >
     <!-- LIST WITH ALL ARCS AND ARC TREE VIEW-->
-    <ViewItem
+    <q-expansion-item
       :key="refresher"
+      expand-separator
       icon="cloud_download"
       label="List ARCs"
       caption="List ARCs from the DataHUB"
+      header-class="bg-grey-33"
       default-opened>
+      <div style="display: block; margin: 0 auto; max-width: 80%">
       <!-- ERRORS -->
       <q-item-section v-if="errors != null">{{ errors }}</q-item-section>
       <q-separator />
@@ -846,7 +850,7 @@ function checkName(name: string) {
                 ></q-item
               >
             </q-list>
-            <q-btn v-else-if="item.name.includes('LICENSE')" disabled>{{
+            <q-btn v-else-if="item.name.includes('LICENSE') || item.name.includes('LICENCE')" disabled>{{
               item.name
             }}</q-btn>
             <q-btn v-else-if="item.name == '.gitkeep'" disabled>{{
@@ -859,7 +863,8 @@ function checkName(name: string) {
               v-else
               icon="edit"
               @click="getFile(arcId, item.path, arcBranch)">
-              {{ item.name }}
+              <template v-if="item.name.length > 60">{{ item.name.slice(0,60) }}...</template>
+              <template v-else>{{ item.name }}</template>
             </q-btn>
           </q-item-section>
         </q-item-section>
@@ -910,9 +915,11 @@ function checkName(name: string) {
             <q-item-label style="color: #666"
               >[{{ item.created_at }}]</q-item-label
             >
-            <q-item-label v-if="item.description != ''">
-              {{ item.description }}
+            <q-item-label v-if="item.description != null">
+              <template v-if="item.description.length > 200">{{ item.description.slice(0,200) }}...</template>
+              <template v-else>{{ item.description }}</template>
             </q-item-label>
+
             <q-item-label
               :style="'color:#666;' + (item.isOwner ? 'font-weight:bold;' : '')"
               >{{ item.namespace.name }}</q-item-label
@@ -945,7 +952,8 @@ function checkName(name: string) {
           </q-item-section>
         </q-item>
       </q-list>
-    </ViewItem>
+      </div>
+    </q-expansion-item>
     <!-- SYNC ASSAY TO STUDY-->
     <template v-if="assaySync"
       ><div

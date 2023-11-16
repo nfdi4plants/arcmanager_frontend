@@ -370,12 +370,17 @@ function onPaste(e) {
     <q-img
       v-else-if="fileProperties.name.toLowerCase().includes('.jpg')"
       :src="'data:image/jpg;base64,' + fileProperties.content"></q-img>
+      <!-- IF its an svg -->
+    <q-editor
+      v-else-if="fileProperties.name.toLowerCase().includes('.svg')"
+      style="white-space: pre-line"
+      v-model="fileProperties.content"></q-editor>
     <template v-else>
       <q-editor
         v-model="fileProperties.content"
         style="white-space: pre-line"
         @paste="onPaste"></q-editor>
-      <q-btn icon="save" @click="commitFile()">Save</q-btn></template
+      <q-btn icon="save" @click="commitFile()" :disable="fileProperties.name == '413' || fileProperties.content.includes('git-lfs')">Save</q-btn></template
     >
   </q-item-section>
   <!-- Display the changes made in the arc-->
