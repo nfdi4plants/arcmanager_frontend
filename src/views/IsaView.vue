@@ -80,6 +80,8 @@ async function commitFile() {
 }
 
 function setTemplate(templateId: string) {
+  errors = "";
+  keyNumber.value += 1;
   fetch(backend + "getTemplate?id=" + templateId)
     .then((response) => response.json())
     .then((data) => {
@@ -287,7 +289,15 @@ function onPaste(e) {
       :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
       <q-expansion-item>
         <template #header>
-          {{ term["Name"] }} ({{ term["Accession"] }})
+          {{ term["Name"] }} (<a
+            :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
+            target="_blank"
+            style="font-size: medium"
+            >{{ term["Accession"] }}</a
+          >)
+          <template v-if="term['IsObsolete']">
+            <span style="color: red; margin-left: 1mm">Obsolete</span></template
+          >
         </template>
         <q-card
           ><q-card-section>{{ term["Description"] }}</q-card-section>
@@ -370,7 +380,7 @@ function onPaste(e) {
     <q-img
       v-else-if="fileProperties.name.toLowerCase().includes('.jpg')"
       :src="'data:image/jpg;base64,' + fileProperties.content"></q-img>
-      <!-- IF its an svg -->
+    <!-- IF its an svg -->
     <q-editor
       v-else-if="fileProperties.name.toLowerCase().includes('.svg')"
       style="white-space: pre-line"
@@ -380,7 +390,15 @@ function onPaste(e) {
         v-model="fileProperties.content"
         style="white-space: pre-line"
         @paste="onPaste"></q-editor>
-      <q-btn icon="save" @click="commitFile()" :disable="fileProperties.name == '413' || fileProperties.content.includes('git-lfs')">Save</q-btn></template
+      <q-btn
+        icon="save"
+        @click="commitFile()"
+        :disable="
+          fileProperties.name == '413' ||
+          fileProperties.content.includes('git-lfs')
+        "
+        >Save</q-btn
+      ></template
     >
   </q-item-section>
   <!-- Display the changes made in the arc-->

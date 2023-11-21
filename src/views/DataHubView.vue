@@ -605,14 +605,26 @@ async function syncStudy(id: number, study: string, branch: string) {
 // checks weather the file should be editable or not
 function checkName(name: string) {
   let includes = false;
-  let formats = [".pdf", ".xml", ".zip", ".gz", ".html", ".css", ".mp4", ".raw", ".docx", ".db", ".dll", ".pdb"];
+  let formats = [
+    ".pdf",
+    ".xml",
+    ".zip",
+    ".gz",
+    ".html",
+    ".css",
+    ".mp4",
+    ".raw",
+    ".docx",
+    ".db",
+    ".dll",
+    ".pdb",
+  ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
       includes = true;
     }
   });
-  if(name.includes(".xlsx") && !name.includes("isa"))
-    includes = true;
+  if (name.includes(".xlsx") && !name.includes("isa")) includes = true;
   return includes;
 }
 </script>
@@ -679,6 +691,7 @@ function checkName(name: string) {
       >
       <!-- Reloads the arc -->
       <q-btn icon="refresh" @click="inspectArc(arcId)">Reload</q-btn>
+
       <!-- activates swate and annotation sheets-->
       <q-checkbox v-model="experimental">Experimental</q-checkbox></template
     >
@@ -706,252 +719,263 @@ function checkName(name: string) {
       header-class="bg-grey-33"
       default-opened>
       <div style="display: block; margin: 0 auto; max-width: 80%">
-      <!-- ERRORS -->
-      <q-item-section v-if="errors != null">{{ errors }}</q-item-section>
-      <q-separator />
-      <!-- CREATE ISA -->
-      <template v-if="showInput"
-        ><q-btn
-          icon="arrow_back"
-          style="background-color: antiquewhite"
-          @click="
-            showInput = false;
-            forcereload();
-          "></q-btn>
-        <q-input
-          outlined
-          v-model="ident"
-          label="An identifier for the isa file (e.g. GelBasedProteomicsWT)" />
-        <q-separator></q-separator>
+        <!-- ERRORS -->
+        <q-item-section v-if="errors != null">{{ errors }}</q-item-section>
+        <q-separator />
+        <!-- CREATE ISA -->
+        <template v-if="showInput"
+          ><q-btn
+            icon="arrow_back"
+            style="background-color: antiquewhite"
+            @click="
+              showInput = false;
+              forcereload();
+            "></q-btn>
+          <q-input
+            outlined
+            v-model="ident"
+            label="An identifier for the isa file (e.g. GelBasedProteomicsWT)" />
+          <q-separator></q-separator>
 
-        <q-btn
-          icon="send"
-          style="background-color: lightcyan"
-          @click="
-            addIsa(
-              arcId,
-              ident,
-              pathHistory[pathHistory.length - 1],
-              arcBranch
-            );
-            showInput = false;
-            ident = '';
-            forcereload();
-          "
-          :disable="ident.length == 0"
-          :key="refresher"></q-btn
-        ><span style="margin-left: 1em" v-if="ident.length == 0"
-          >Please provide an identifier!</span
-        >
-      </template>
-      <!-- SEARCH BAR -->
-      <q-input
-        v-model="search"
-        label="Search"
-        v-if="arcList.length == 0"
-        value="name"
-        @update:model-value="(newValue:string) => sortArcs(newValue)"
-        ><template v-slot:append> <q-icon name="search"></q-icon></template
-      ></q-input>
-      <!-- PATH; RETURN ARROW; CREATE ISA -->
-      <q-item-section
-        style="padding-bottom: 2em"
-        v-if="pathHistory.length > 1"
-        :key="refresher"
-        ><q-breadcrumbs
-          ><span>Path:</span>
-          <q-breadcrumbs-el
-            v-for="item in pathHistory[pathHistory.length - 1].split('/')"
-            >{{ item }}</q-breadcrumbs-el
+          <q-btn
+            icon="send"
+            style="background-color: lightcyan"
+            @click="
+              addIsa(
+                arcId,
+                ident,
+                pathHistory[pathHistory.length - 1],
+                arcBranch
+              );
+              showInput = false;
+              ident = '';
+              forcereload();
+            "
+            :disable="ident.length == 0"
+            :key="refresher"></q-btn
+          ><span style="margin-left: 1em" v-if="ident.length == 0"
+            >Please provide an identifier!</span
           >
-        </q-breadcrumbs>
-        <q-btn
-          icon="arrow_back"
-          @click="
-            inspectTree(arcId, pathHistory[pathHistory.length - 2], false);
-            showInput = false;
-            forcereload();
-          "
+        </template>
+        <!-- SEARCH BAR -->
+        <q-input
+          v-model="search"
+          label="Search"
+          v-if="arcList.length == 0"
+          value="name"
+          @update:model-value="(newValue:string) => sortArcs(newValue)"
+          ><template v-slot:append> <q-icon name="search"></q-icon></template
+        ></q-input>
+        <!-- PATH; RETURN ARROW; CREATE ISA -->
+        <q-item-section
+          style="padding-bottom: 2em"
           v-if="pathHistory.length > 1"
-          style="background-color: antiquewhite">
-          Return
-        </q-btn>
-        <q-btn
-          icon="add"
-          v-if="pathHistory[pathHistory.length - 1] == 'studies'"
-          style="background-color: aliceblue"
-          @click="
-            showInput = true;
-            forcereload();
-          "
-          >Add Study</q-btn
-        >
-        <q-btn
-          icon="add"
-          v-if="pathHistory[pathHistory.length - 1] == 'assays'"
-          style="background-color: aliceblue"
-          @click="
-            showInput = true;
-            forcereload();
-          "
-          >Add Assay</q-btn
-        ></q-item-section
-      >
-      <!-- TREE VIEW OF ARC -->
-      <q-item-section
-        v-if="arcList.length != 0"
-        v-for="(item, i) in arcList"
-        :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
-        <q-item-section>
-          <q-item-section
-            ><q-btn
-              icon="folder_open"
-              v-if="item.type == 'tree'"
-              @click="inspectTree(arcId, item.path, true)"
-              >{{ item.name }}</q-btn
+          :key="refresher"
+          ><q-breadcrumbs
+            ><span>Path:</span>
+            <q-breadcrumbs-el
+              v-for="item in pathHistory[pathHistory.length - 1].split('/')"
+              >{{ item }}</q-breadcrumbs-el
             >
-            <!-- if its an study or assay file, there will be an extra option to use swate -->
-            <q-list
-              bordered
-              v-else-if="
-                experimental &&
-                (item.name == 'isa.study.xlsx' || item.name == 'isa.assay.xlsx')
-              "
-              icon="expand_more"
-              ><q-item style="text-align: center"
-                ><q-item-section avatar
-                  ><q-icon name="expand_more"></q-icon></q-item-section
-                ><q-item-section
-                  ><q-item-label>{{
-                    item.name.toUpperCase()
-                  }}</q-item-label></q-item-section
-                ></q-item
+          </q-breadcrumbs>
+          <q-btn
+            icon="arrow_back"
+            @click="
+              inspectTree(arcId, pathHistory[pathHistory.length - 2], false);
+              showInput = false;
+              forcereload();
+            "
+            v-if="pathHistory.length > 1"
+            style="background-color: antiquewhite">
+            Return
+          </q-btn>
+          <q-btn
+            icon="add"
+            v-if="pathHistory[pathHistory.length - 1] == 'studies'"
+            style="background-color: aliceblue"
+            @click="
+              showInput = true;
+              forcereload();
+            "
+            >Add Study</q-btn
+          >
+          <q-btn
+            icon="add"
+            v-if="pathHistory[pathHistory.length - 1] == 'assays'"
+            style="background-color: aliceblue"
+            @click="
+              showInput = true;
+              forcereload();
+            "
+            >Add Assay</q-btn
+          ></q-item-section
+        >
+        <!-- TREE VIEW OF ARC -->
+        <q-item-section
+          v-if="arcList.length != 0"
+          v-for="(item, i) in arcList"
+          :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+          <q-item-section>
+            <q-item-section
+              ><q-btn
+                icon="folder_open"
+                v-if="item.type == 'tree'"
+                @click="inspectTree(arcId, item.path, true)"
+                >{{ item.name }}</q-btn
               >
-              <q-item
-                ><q-item-section
-                  ><q-btn
-                    icon="table_chart"
-                    @click="
-                      getTemplates();
-                      isaProperties.repoId = arcId;
-                      isaProperties.path = item.path;
-                      isaProperties.repoTarget = git.site.value;
-                    "
-                    >Create new Sheet</q-btn
-                  ><q-btn
-                    icon="edit"
-                    @click="getSheets(item.path, arcId, arcBranch)"
-                    >Edit Sheet</q-btn
-                  ><q-btn
-                    icon="edit"
-                    @click="getFile(arcId, item.path, arcBranch)"
-                    >Edit Metadata</q-btn
-                  ></q-item-section
-                ></q-item
+              <!-- if its an study or assay file, there will be an extra option to use swate -->
+              <q-list
+                bordered
+                v-else-if="
+                  experimental &&
+                  (item.name == 'isa.study.xlsx' ||
+                    item.name == 'isa.assay.xlsx')
+                "
+                icon="expand_more"
+                ><q-item style="text-align: center"
+                  ><q-item-section avatar
+                    ><q-icon name="expand_more"></q-icon></q-item-section
+                  ><q-item-section
+                    ><q-item-label>{{
+                      item.name.toUpperCase()
+                    }}</q-item-label></q-item-section
+                  ></q-item
+                >
+                <q-item
+                  ><q-item-section
+                    ><q-btn
+                      icon="table_chart"
+                      @click="
+                        getTemplates();
+                        isaProperties.repoId = arcId;
+                        isaProperties.path = item.path;
+                        isaProperties.repoTarget = git.site.value;
+                      "
+                      >Create new Sheet</q-btn
+                    ><q-btn
+                      icon="edit"
+                      @click="getSheets(item.path, arcId, arcBranch)"
+                      >Edit Sheet</q-btn
+                    ><q-btn
+                      icon="edit"
+                      @click="getFile(arcId, item.path, arcBranch)"
+                      >Edit Metadata</q-btn
+                    ></q-item-section
+                  ></q-item
+                >
+              </q-list>
+              <q-btn
+                v-else-if="
+                  item.name.includes('LICENSE') || item.name.includes('LICENCE')
+                "
+                disabled
+                >{{ item.name }}</q-btn
               >
-            </q-list>
-            <q-btn v-else-if="item.name.includes('LICENSE') || item.name.includes('LICENCE')" disabled>{{
-              item.name
-            }}</q-btn>
-            <q-btn v-else-if="item.name == '.gitkeep'" disabled>{{
-              item.name
-            }}</q-btn>
-            <q-btn v-else-if="checkName(item.name)" disabled>{{
-              item.name
-            }}</q-btn>
-            <q-btn
-              v-else
-              icon="edit"
-              @click="getFile(arcId, item.path, arcBranch)">
-              <template v-if="item.name.length > 60">{{ item.name.slice(0,60) }}...</template>
-              <template v-else>{{ item.name }}</template>
-            </q-btn>
+              <q-btn v-else-if="item.name == '.gitkeep'" disabled>{{
+                item.name
+              }}</q-btn>
+              <q-btn v-else-if="checkName(item.name)" disabled>{{
+                item.name
+              }}</q-btn>
+              <q-btn
+                v-else
+                icon="edit"
+                @click="getFile(arcId, item.path, arcBranch)">
+                <template v-if="item.name.length > 60"
+                  >{{ item.name.slice(0, 60) }}...</template
+                >
+                <template v-else>{{ item.name }}</template>
+              </q-btn>
+            </q-item-section>
           </q-item-section>
         </q-item-section>
-      </q-item-section>
 
-      <!-- LIST OF ARCS -->
-      <q-list style="padding: 1em" separator v-if="arcList.length == 0">
-        <!-- the user arc gets highlighted with a yellow background-->
-        <q-item
-          v-for="(item, i) in searchList"
-          :style="
-            item.namespace.name === username
-              ? 'background-color: lightyellow;'
-              : i % 2 === 1
-              ? 'background-color:#fafafa;'
-              : ''
-          "
-          :clickable="appProperties.loggedIn"
-          @click="
-            arcBranch = item.default_branch;
-            arcProperties.branch = arcBranch;
-            arcProperties.identifier = item.name;
-            arcProperties.url = item.http_url_to_repo;
-            inspectArc(item.id);
-          ">
-          <!-- load the avatar if there is one -->
-          <q-item-section avatar>
-            <q-avatar v-if="item.avatar_url != null">
-              <img :src="item.avatar_url" />
-            </q-avatar>
-            <q-avatar
-              :color="item.isOwner ? 'primary' : 'secondary'"
-              text-color="white"
-              v-else
-              >{{ item.namespace.name[0] }}</q-avatar
-            >
-          </q-item-section>
-          <!-- Arcs are displayed with name, id; then creation date and description; on the bottom is the name of the creator -->
-          <q-item-section>
-            <q-item-label style="font-weight: bold"
-              >{{ item.name }}, ID: {{ item.id }}</q-item-label
-            >
-            <div class="q-pa-xs q-gutter-md" v-if="item.topics.length > 0">
-              <q-badge outline v-for="i in item.topics" color="brown">{{
-                i
-              }}</q-badge>
-            </div>
-            <q-item-label style="color: #666"
-              >[{{ item.created_at }}]</q-item-label
-            >
-            <q-item-label v-if="item.description != null">
-              <template v-if="item.description.length > 200">{{ item.description.slice(0,200) }}...</template>
-              <template v-else>{{ item.description }}</template>
-            </q-item-label>
+        <!-- LIST OF ARCS -->
+        <q-list style="padding: 1em" separator v-if="arcList.length == 0">
+          <!-- the user arc gets highlighted with a yellow background-->
+          <q-item
+            v-for="(item, i) in searchList"
+            :style="
+              item.namespace.name === username
+                ? 'background-color: lightyellow;'
+                : i % 2 === 1
+                ? 'background-color:#fafafa;'
+                : ''
+            "
+            :clickable="appProperties.loggedIn"
+            @click="
+              arcBranch = item.default_branch;
+              arcProperties.branch = arcBranch;
+              arcProperties.identifier = item.name;
+              arcProperties.url = item.http_url_to_repo;
+              inspectArc(item.id);
+            ">
+            <!-- load the avatar if there is one -->
+            <q-item-section avatar>
+              <q-avatar v-if="item.avatar_url != null">
+                <img :src="item.avatar_url" />
+              </q-avatar>
+              <q-avatar
+                :color="item.isOwner ? 'primary' : 'secondary'"
+                text-color="white"
+                v-else
+                >{{ item.namespace.name[0] }}</q-avatar
+              >
+            </q-item-section>
+            <!-- Arcs are displayed with name, id; then creation date and description; on the bottom is the name of the creator -->
+            <q-item-section>
+              <q-item-label style="font-weight: bold"
+                >{{ item.name }}, ID: {{ item.id }}</q-item-label
+              >
+              <div class="q-pa-xs q-gutter-md" v-if="item.topics.length > 0">
+                <q-badge outline v-for="i in item.topics" color="brown">{{
+                  i
+                }}</q-badge>
+              </div>
+              <q-item-label style="color: #666"
+                >[{{ item.created_at }}]</q-item-label
+              >
+              <q-item-label v-if="item.description != null">
+                <template v-if="item.description.length > 200"
+                  >{{ item.description.slice(0, 200) }}...</template
+                >
+                <template v-else>{{ item.description }}</template>
+              </q-item-label>
 
-            <q-item-label
-              :style="'color:#666;' + (item.isOwner ? 'font-weight:bold;' : '')"
-              >{{ item.namespace.name }}</q-item-label
-            >
-          </q-item-section>
-          <q-item-section avatar>
-            <q-btn
-              unelevated
-              color="secondary"
-              v-on:click="openArc(item.http_url_to_repo)"
-              icon="search"
-              ><q-tooltip>Open in new Tab</q-tooltip></q-btn
-            >
-          </q-item-section>
-          <q-item-section avatar>
-            <q-btn
-              unelevated
-              color="secondary"
-              v-on:click="
-                arcBranch = item.default_branch;
-                arcProperties.branch = arcBranch;
-                arcProperties.identifier = item.name;
-                arcProperties.url = item.http_url_to_repo;
-                inspectArc(item.id);
-              "
-              icon="expand_more"
-              :disable="!appProperties.loggedIn"
-              ><q-tooltip>Expand</q-tooltip></q-btn
-            >
-          </q-item-section>
-        </q-item>
-      </q-list>
+              <q-item-label
+                :style="
+                  'color:#666;' + (item.isOwner ? 'font-weight:bold;' : '')
+                "
+                >{{ item.namespace.name }}</q-item-label
+              >
+            </q-item-section>
+            <q-item-section avatar>
+              <q-btn
+                unelevated
+                color="secondary"
+                v-on:click="openArc(item.http_url_to_repo)"
+                icon="search"
+                ><q-tooltip>Open in new Tab</q-tooltip></q-btn
+              >
+            </q-item-section>
+            <q-item-section avatar>
+              <q-btn
+                unelevated
+                color="secondary"
+                v-on:click="
+                  arcBranch = item.default_branch;
+                  arcProperties.branch = arcBranch;
+                  arcProperties.identifier = item.name;
+                  arcProperties.url = item.http_url_to_repo;
+                  inspectArc(item.id);
+                "
+                icon="expand_more"
+                :disable="!appProperties.loggedIn"
+                ><q-tooltip>Expand</q-tooltip></q-btn
+              >
+            </q-item-section>
+          </q-item>
+        </q-list>
       </div>
     </q-expansion-item>
     <!-- SYNC ASSAY TO STUDY-->

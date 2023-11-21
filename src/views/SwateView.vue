@@ -16,6 +16,9 @@ let errors = "";
 // if the search for terms should be extended or not
 let advanced = ref(false);
 
+// hide term columns
+let hidden = ref(false);
+
 let keyNumber = ref(0);
 
 // the term to search for
@@ -178,7 +181,13 @@ async function getSuggestions() {
 
 <template>
   <p :key="keyNumber">{{ errors }}</p>
-  <a href="https://www.ebi.ac.uk/ols4" target="_blank">Ontology Lookup</a> <a href="https://github.com/nfdi4plants/nfdi4plants_ontology/blob/main/dpbo.obo" target="_blank" style="margin-left: 1em;">DataPLANT Ontology</a>
+  <a href="https://www.ebi.ac.uk/ols4" target="_blank">Ontology Lookup</a>
+  <a
+    href="https://github.com/nfdi4plants/nfdi4plants_ontology/blob/main/dpbo.obo"
+    target="_blank"
+    style="margin-left: 1em"
+    >DataPLANT Ontology</a
+  >
   <div>
     <q-scroll-area style="height: 800px; max-width: 100%" :key="keyNumber">
       <!-- The table to enter the values with swate is a default html table -->
@@ -210,16 +219,46 @@ async function getSuggestions() {
         size="2em"
         v-show="loading"
         :key="keyNumber"></q-spinner>
+      <q-checkbox v-model="hidden">Hide Terms</q-checkbox>
       <table style="width: max-content; border-collapse: collapse">
         <thead>
           <tr>
             <!-- Each table header column is a entry in the template array -->
-            <th v-for="(column, i) in templateProperties.template">
-              {{ column.Type }}
+            <th
+              v-for="(column, i) in templateProperties.template"
+              v-show="!(column.Type.startsWith('Term') && hidden)">
+              <!-- Input and Output columns are editable (e.g. to exchange source name to image file)-->
+              <template
+                v-if="
+                  column.Type.startsWith('Input') ||
+                  column.Type.startsWith('Output')
+                "
+                ><input
+                  type="text"
+                  style="width: 100%; height: unset; border: 0px"
+                  v-model="column.Type"
+              /></template>
+              <template v-else>
+                {{ column.Type.split("[")[0] }}<br />
+                <template v-if="column.Type.startsWith('Term')">
+                  <a
+                    :href="
+                      'http://purl.obolibrary.org/obo/' +
+                      column.Type.split('[')[1].split(']')[0]
+                    "
+                    style="font-size: small"
+                    target="_blank"
+                    >[{{ column.Type.split("[")[1] }}</a
+                  ></template
+                ><template v-else>[{{ column.Type.split("[")[1] }}</template>
+              </template>
+
               <!-- if the type is neither a term accession or a unit, insert a search button -->
               <!-- also the parameter should not be of type "unit" -->
               <template v-if="checkName(column.Type)"
                 ><q-btn
+                  icon="search"
+                  round
                   @click="
                     showSearch = true;
                     searchType = searchName(column.Type);
@@ -227,16 +266,17 @@ async function getSuggestions() {
                     templateProperties.id = i;
                     keyNumber += 1;
                   "
-                  >search</q-btn
-                ></template
-              >
+                  size="xs"></q-btn
+              ></template>
             </th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(row, j) in templateProperties.content[0]">
             <!-- insert a second row containing the cell values for the headers -->
-            <td v-for="(column, i) in templateProperties.template">
+            <td
+              v-for="(column, i) in templateProperties.template"
+              v-show="!(column.Type.startsWith('Term') && hidden)">
               <div
                 style="
                   display: flex;
@@ -249,7 +289,12 @@ async function getSuggestions() {
                 ">
                 <input
                   type="text"
-                  style="width: 100%; height: unset; border: 0px"
+                  style="
+                    width: 100%;
+                    height: unset;
+                    border: 0px;
+                    font-size: small;
+                  "
                   v-model="templateProperties.content[i][j]" />
               </div>
             </td>
@@ -264,6 +309,7 @@ async function getSuggestions() {
 td,
 th {
   border: 1px solid;
-  padding: 10px;
+  padding: 1px;
+  font-size: small;
 }
 </style>
