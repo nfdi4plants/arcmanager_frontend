@@ -9,6 +9,14 @@ const arcProperties = reactive({
 
   // url of the arc
   url: '',
+
+  // list of changes in the arc
+  changes: "",
+
+  // list containing the names of studies and assays
+  studies: [""],
+  assays: [""]
+
 });
 
 export default arcProperties;

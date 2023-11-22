@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from "vue-router";
 import { setCssVar } from "quasar";
 setCssVar("primary", "#2d3e50");
-import { onMounted, ref, reactive } from "vue";
-import ToolbarButton from "./components/ToolbarButton.vue";
+import { ref, reactive } from "vue";
 
 import isaProperties from "./IsaProperties";
 
@@ -18,6 +16,10 @@ import logoURL from "./assets/dpLogo2_w.png";
 import IsaEditView from "./views/IsaEditView.vue";
 import templateProperties from "./TemplateProperties";
 import appProperties from "./AppProperties";
+import arcProperties from "./ArcProperties";
+import fileProperties from "./FileProperties";
+import sheetProperties from "./SheetProperties";
+import termProperties from "./TermProperties";
 
 let fontSize = "large";
 
@@ -28,10 +30,9 @@ const layoutProperties = reactive({
   splitterModel: 300,
 });
 
-//let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
-let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
+let backend = appProperties.backend + "projects/";
 
-let target = ref("Dev");
+let target = ref("");
 let showInput = false;
 // Name of the new arc
 let arcName = ref("");
@@ -42,13 +43,52 @@ let invId = ref("");
 
 let loading = false;
 
-let loginOptions = ["Dev", "Freiburg", "Tübingen", "PlantMicrobe"];
+let drawerWidth = ref(600);
+
+let windowWidth = window.innerWidth;
+
+window.addEventListener("resize", () => {
+  windowWidth = window.innerWidth;
+  checkMini(windowWidth);
+});
+
+function checkMini(width: number) {
+  if (width < 1800) drawerWidth.value = 300;
+  else drawerWidth.value = 600;
+}
+checkMini(windowWidth);
+
+// the different login options with name and description
+let loginOptions = [
+  {
+    label: "nfdi4plants.ORG",
+    value: "freiburg",
+    description:
+      "nfdi4plants reference DataHUB hosted at the University of Freiburg",
+  },
+  {
+    label: "nfdi4plants.DE",
+    value: "tuebingen",
+    description:
+      "nfdi4plants high-availability DataHUB hosted at the University of Tuebingen",
+  },
+  {
+    label: "PlantMicrobe",
+    value: "plantmicrobe",
+    description: "DataHUB for the transregio project TRR356",
+  },
+  {
+    label: "Dev",
+    value: "dev",
+    description: "Development server for testing purposes",
+  },
+];
 
 // here we trick vue js to reload the component
-const arclist = ref(0);
+const refresher = ref(0);
 const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the page
-  arclist.value += 1;
+  refresher.value += 1;
 };
 async function createArc() {
   loading = true;
@@ -71,15 +111,23 @@ async function createArc() {
   loading = false;
   forcereload();
 }
+// clean right side view
+function cleanIsaView() {
+  // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
+  templateProperties.templates = templateProperties.template = [];
+  termProperties.terms = [];
+  isaProperties.entries = [];
+  isaProperties.entry = [];
+  fileProperties.content = "";
+  sheetProperties.names = sheetProperties.sheets = [];
+  sheetProperties.name = "";
+  arcProperties.changes = "";
+  forcereload();
+}
 
-async function uploadFile(file: any) {
-  let reader = new FileReader();
-  reader.readAsDataURL(file.target.files[0]);
-
-  reader.onload = function () {
-    let result = reader.result?.toString();
-    let resultContent = result?.split(",")[1];
-  };
+// if you tried to login and there is an error, the error will be stored in the cookies
+if (document.cookie.includes("error")) {
+  window.alert(document.cookie.split("error=")[1]);
 }
 </script>
 
@@ -117,11 +165,14 @@ async function uploadFile(file: any) {
                   showInput = false;
                   forcereload();
                 "
-                :key="arclist"></q-icon>
+                :key="refresher"></q-icon>
             </q-item-section>
             <q-item-section style="margin: 0.6em 0 0 -1.2em">
               <q-item-label
-                ><b style="font-size: 1.4em">ARCitect Web</b></q-item-label
+                ><b style="font-size: 1.4em">ARCitect Web</b>
+                <q-badge outline align="middle" color="teal">
+                  v 0.3.0
+                </q-badge></q-item-label
               >
             </q-item-section>
           </q-item>
@@ -130,30 +181,45 @@ async function uploadFile(file: any) {
             v-model="target"
             v-if="!appProperties.loggedIn"
             :options="loginOptions"
-            label="DataHub" />
+            label="DataHUB">
+            <template v-slot:option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.label }}</q-item-label>
+                  <q-item-label caption>{{
+                    scope.opt.description
+                  }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template></q-select
+          >
           <q-separator></q-separator>
 
           <LoginView :site="target" />
 
           <q-separator />
-
-          <ToolbarButton
-            text="New ARC"
-            icon="add_circle"
-            @clicked="
+          <!-- New Arc Button-->
+          <q-item
+            v-ripple
+            clickable
+            v-on:click="
               showInput = true;
-              isaProperties.entry = [];
-              isaProperties.entries = [];
+              cleanIsaView();
               forcereload();
             "
-            :key="arclist"></ToolbarButton>
+            :disable="!appProperties.loggedIn">
+            <q-item-section avatar>
+              <q-icon color="grey-7" name="add_circle"></q-icon>
+            </q-item-section>
+            <q-item-section style="margin-left: -1.2em">New ARC</q-item-section>
+          </q-item>
         </q-list>
         <q-spinner-gears
           color="primary"
           size="5em"
           style="margin-left: 1cm"
           v-show="loading"
-          :key="arclist"></q-spinner-gears>
+          :key="refresher"></q-spinner-gears>
       </q-scroll-area>
     </q-drawer>
 
@@ -165,8 +231,7 @@ async function uploadFile(file: any) {
       bordered
       :breakpoint="0"
       class="bg-grey-3"
-      :width="600"
-      :mini-width="300">
+      :width="drawerWidth">
       <q-scroll-area class="fit" style="height: 95%; width: 95%">
         <IsaView></IsaView>
       </q-scroll-area>
@@ -188,8 +253,12 @@ async function uploadFile(file: any) {
           <q-input
             outlined
             v-model="invId"
-            label="An identifier of your ARC for the isa file (e.g. hhu_talinum_fruticosum)" />
-          <q-separator></q-separator>
+            label="An identifier of your ARC for the isa file (e.g. hhu_talinum_fruticosum)"
+            :rules="[
+              (val) => !val.includes(' ') || 'No whitespace allowed!',
+            ]" />
+          <q-separator
+            style="margin-top: 1em; margin-bottom: 1em"></q-separator>
 
           <q-btn
             icon="send"
@@ -200,9 +269,20 @@ async function uploadFile(file: any) {
               arcDesc = arcName = invId = '';
               forcereload();
             "
-            :key="arclist"></q-btn>
+            :disable="
+              arcName.length == 0 || arcDesc.length == 0 || invId.length == 0
+            "
+            :key="refresher"></q-btn>
+          <!-- Hints to fill out the empty input fields -->
+          <span style="margin-left: 1em" v-if="arcName.length == 0"
+            >Please provide a name for the ARC!</span
+          ><span style="margin-left: 1em" v-else-if="arcDesc.length == 0"
+            >Please provide a description for the ARC!</span
+          ><span style="margin-left: 1em" v-else-if="invId.length == 0"
+            >Please provide an identifier for the ARC!</span
+          >
         </template>
-        <DataHubView :site="target" v-else :key="arclist">dataview</DataHubView>
+        <DataHubView :site="target" v-else :key="refresher"></DataHubView>
 
         <IsaEditView v-if="isaProperties.entry.length > 0"></IsaEditView>
 

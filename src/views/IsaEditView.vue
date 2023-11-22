@@ -1,10 +1,10 @@
 <script lang="ts" setup>
+import appProperties from "@/AppProperties";
 import arcProperties from "@/ArcProperties";
 import isaProperties from "@/IsaProperties";
 import { ref } from "vue";
 
-//let backend = "http://localhost:8000/arcmanager/api/v1/projects/";
-let backend = "https://nfdi4plants.de/arcmanager/api/v1/projects/";
+let backend = appProperties.backend + "projects/";
 
 let loading = false;
 // send the updated entry fields to the backend to save and commit the update
@@ -17,7 +17,7 @@ async function sendToBackend() {
   });
 
   const response = await fetch(backend + "saveFile", {
-    method: "POST",
+    method: "PUT",
     // body for the backend containing all necessary data
     body: JSON.stringify({
       isaInput: isaProperties.entry,

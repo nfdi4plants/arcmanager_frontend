@@ -13,6 +13,9 @@ const templateProperties = reactive({
   // id of the cell to overwrite
   id: 0,
 
+  // id of the row to overwrite
+  rowId: 1
+
 });
 
 export default templateProperties;
