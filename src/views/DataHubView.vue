@@ -88,6 +88,29 @@ if (document.cookie.includes("logged_in=true")) {
 }
 
 let fileInput = ref();
+
+// opens the explore page of the selected git in a new tab (only when you're not logged in currently)
+function openGit(target: string) {
+  errors = "";
+  forcereload();
+  switch (target) {
+    case "freiburg":
+      window.open("https://git.nfdi4plants.org/explore");
+      break;
+    case "tuebingen":
+      window.open("https://gitlab.nfdi4plants.de/explore");
+      break;
+    case "dev":
+      window.open("https://gitdev.nfdi4plants.org/explore");
+      break;
+    case "plantmicrobe":
+      window.open("https://gitlab.plantmicrobe.de/explore");
+      break;
+    default:
+      errors = "Please select a DataHub first!";
+      forcereload();
+  }
+}
 // get a list of all arcs in the gitlab
 async function fetchArcs() {
   loading = true;
@@ -173,6 +196,7 @@ function cleanIsaView() {
   // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
   templateProperties.templates = templateProperties.template = [];
   termProperties.terms = [];
+  termProperties.buildingBlocks = termProperties.unitTerms = [];
   isaProperties.entries = [];
   isaProperties.entry = [];
   fileProperties.content = "";
@@ -412,6 +436,7 @@ function sortArcs(searchTerm: string) {
 // uploads the file to the hub
 async function fileUpload() {
   loading = true;
+  forcereload();
   let resultContent = "";
 
   // read out the given file input
@@ -638,7 +663,15 @@ function checkName(name: string) {
       style="background-color: aquamarine; max-width: 200px"
       dense
       >Load the Arcs</q-btn
-    ><q-checkbox
+    ><q-btn
+      icon="open_in_new"
+      dense
+      style="background-color: lightskyblue"
+      v-if="arcList.length == 0 && !appProperties.loggedIn"
+      @click="openGit(git.site.value)"
+      >Explore Git</q-btn
+    >
+    <q-checkbox
       style="padding-left: 10px"
       left-label
       v-model="owned"
@@ -646,13 +679,17 @@ function checkName(name: string) {
       v-show="arcList.length == 0 && appProperties.loggedIn"
       @update:model-value="fetchArcs" />
     <template v-if="arcList.length != 0">
+      <!-- File Upload with a limit of 100 mb-->
       <q-file
         style="max-width: 200px; background-color: lightgoldenrodyellow"
         v-model="fileInput"
         outlined
-        label="Upload File (<10 mb)"
-        max-file-size="10000000"
-        @update:model-value="fileUpload"
+        label="Upload File (<100 mb)"
+        max-file-size="104857600"
+        @update:model-value="
+          fileUpload();
+          loading = true;
+        "
         @rejected="
           errors = 'ERROR: File too big!';
           forcereload();

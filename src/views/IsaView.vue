@@ -144,13 +144,98 @@ function setTemplate(templateId: string) {
 
 // if a term is chosen the values of the columns header and the term accession will be set to the chosen values
 function setTerm(name: string, accession: string, ontology: string) {
-  console.log(templateProperties.content);
-  templateProperties.content[templateProperties.id].pop();
-  templateProperties.content[templateProperties.id + 1].pop();
-  templateProperties.content[templateProperties.id + 2].pop();
-  templateProperties.content[templateProperties.id].push(name);
-  templateProperties.content[templateProperties.id + 1].push(ontology);
-  templateProperties.content[templateProperties.id + 2].push(accession);
+  templateProperties.content[templateProperties.id].splice(
+    templateProperties.rowId - 1,
+    1,
+    name
+  );
+  templateProperties.content[templateProperties.id + 1].splice(
+    templateProperties.rowId - 1,
+    1,
+    ontology
+  );
+  templateProperties.content[templateProperties.id + 2].splice(
+    templateProperties.rowId - 1,
+    1,
+    accession
+  );
+}
+
+// if a term is chosen the values of the columns header and the term accession will be set to the chosen values
+function setBB(name: string, accession: string) {
+  errors = "";
+
+  // the new block will be inserted right before the output column
+  templateProperties.template.splice(
+    templateProperties.template.length - 1,
+    0,
+    {
+      Type: "Parameter" + " [" + name + "]",
+      Accession: accession,
+    },
+    {
+      Type: "Term Source REF" + " [" + accession + "]",
+    },
+    {
+      Type: "Term Accession Number" + " [" + accession + "]",
+    }
+  );
+
+  // fill the new columns with empty field with the same amount of rows the table already has
+  let emptyCells: string[] = [];
+  let emptyCells2: string[] = [];
+  let emptyCells3: string[] = [];
+  templateProperties.content[0].forEach(() => {
+    emptyCells.push("");
+    emptyCells2.push("");
+    emptyCells3.push("");
+  });
+  templateProperties.content.splice(
+    templateProperties.content.length - 1,
+    0,
+    emptyCells,
+    emptyCells2,
+    emptyCells3
+  );
+}
+
+function setUnit(name: string, accession: string, ontology: string) {
+  errors = "";
+  // if the building block has no unit so far, you can add one
+  if (
+    !templateProperties.template[
+      templateProperties.template.length - 4
+    ].Type.startsWith("Unit")
+  ) {
+    templateProperties.template.splice(
+      templateProperties.template.length - 3,
+      0,
+      {
+        Type: "Unit" + " [" + name + "]",
+      }
+    );
+
+    // fill the new unit columns with the terms and names
+    let unitCells: string[] = [];
+    let refCells: string[] = [];
+    let accNumberCells: string[] = [];
+    templateProperties.content[0].forEach(() => {
+      unitCells.push(name);
+      refCells.push(ontology);
+      accNumberCells.push(accession);
+    });
+    templateProperties.content.splice(
+      templateProperties.content.length - 3,
+      2,
+      unitCells,
+      refCells,
+      accNumberCells
+    );
+    // if there is already a unit column, throw an error
+  } else {
+    errors = "ERROR: Building block already has a Unit!";
+    keyNumber.value += 1;
+  }
 }
 
 // load the selected sheet and display it
@@ -158,6 +243,7 @@ async function selectSheet(name: string, index: number) {
   sheetProperties.name = name;
   templateProperties.template = [];
   templateProperties.content = [];
+  templateProperties.rowId = 1;
   errors = "";
   // create the table column by column
   for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
@@ -204,6 +290,7 @@ async function selectSheet(name: string, index: number) {
         templateProperties.templates = templates.templates;
       });
   }
+  sheetProperties.sheets = sheetProperties.names = [];
 }
 
 // check if the right side is empty
@@ -213,7 +300,9 @@ function checkEmptyIsaView() {
     fileProperties.content != "" ||
     sheetProperties.sheets.length > 0 ||
     templateProperties.templates.length > 0 ||
-    termProperties.terms.length > 0
+    termProperties.terms.length > 0 ||
+    termProperties.buildingBlocks.length > 0 ||
+    termProperties.unitTerms.length > 0
   )
     return false;
   return true;
@@ -253,6 +342,12 @@ function onPaste(e) {
   <q-toolbar-title v-if="templateProperties.templates.length > 0"
     >Templates</q-toolbar-title
   >
+  <q-toolbar-title v-if="termProperties.unitTerms.length > 0"
+    >Units</q-toolbar-title
+  >
+  <q-toolbar-title v-if="termProperties.buildingBlocks.length > 0"
+    >Building blocks</q-toolbar-title
+  >
   <q-toolbar-title
     v-if="errors != ''"
     :key="keyNumber"
@@ -289,14 +384,19 @@ function onPaste(e) {
       :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
       <q-expansion-item>
         <template #header>
-          {{ term["Name"] }} (<a
-            :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
-            target="_blank"
-            style="font-size: medium"
-            >{{ term["Accession"] }}</a
-          >)
-          <template v-if="term['IsObsolete']">
-            <span style="color: red; margin-left: 1mm">Obsolete</span></template
+          <span style="font-size: medium"
+            >{{ term["Name"] }}
+            <a
+              :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
+              target="_blank"
+              style="font-size: medium"
+              >({{ term["Accession"] }})</a
+            >
+            <template v-if="term['IsObsolete']">
+              <span style="color: red; margin-left: 1mm"
+                >Obsolete</span
+              ></template
+            ></span
           >
         </template>
         <q-card
@@ -309,6 +409,83 @@ function onPaste(e) {
               "
               :disable="term['Name'] == 'No Term was found!'"
               >Insert</q-btn
+            ></q-card-section
+          >
+        </q-card>
+      </q-expansion-item>
+    </q-item>
+  </q-list>
+  <!-- IF there is a list of terms for building blocks-->
+  <q-list bordered>
+    <!-- if its a list of unit terms-->
+    <q-item
+      clickable
+      v-if="termProperties.unitTerms.length > 0"
+      v-for="(term, i) in termProperties.unitTerms.slice(0, 1000)"
+      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      <q-expansion-item>
+        <template #header>
+          <span style="font-size: medium"
+            >{{ term["Name"] }}
+            <a
+              :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
+              target="_blank"
+              style="font-size: medium"
+              >({{ term["Accession"] }})</a
+            >
+            <template v-if="term['IsObsolete']">
+              <span style="color: red; margin-left: 1mm"
+                >Obsolete</span
+              ></template
+            ></span
+          >
+        </template>
+        <q-card
+          ><q-card-section>{{ term["Description"] }}</q-card-section>
+          <q-card-section
+            ><q-btn
+              style="background-color: #f2f2f2"
+              @click="
+                setUnit(term['Name'], term['Accession'], term['FK_Ontology'])
+              "
+              :disable="term['Name'] == 'No Term was found!'"
+              >Select</q-btn
+            ></q-card-section
+          >
+        </q-card>
+      </q-expansion-item>
+    </q-item>
+    <!-- else if its a list of building blocks-->
+    <q-item
+      clickable
+      v-else-if="termProperties.buildingBlocks.length > 0"
+      v-for="(term, i) in termProperties.buildingBlocks.slice(0, 1000)"
+      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      <q-expansion-item>
+        <template #header>
+          <span style="font-size: medium"
+            >{{ term["Name"] }}
+            <a
+              :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
+              target="_blank"
+              style="font-size: medium"
+              >({{ term["Accession"] }})</a
+            >
+            <template v-if="term['IsObsolete']">
+              <span style="color: red; margin-left: 1mm"
+                >Obsolete</span
+              ></template
+            ></span
+          >
+        </template>
+        <q-card
+          ><q-card-section>{{ term["Description"] }}</q-card-section>
+          <q-card-section
+            ><q-btn
+              style="background-color: #f2f2f2"
+              @click="setBB(term['Name'], term['Accession'])"
+              :disable="term['Name'] == 'No Term was found!'"
+              >Select</q-btn
             ></q-card-section
           >
         </q-card>

@@ -24,11 +24,23 @@ let keyNumber = ref(0);
 // the term to search for
 let search = ref("");
 
-// show the search bar
+// show the search bar for terms
 let showSearch = false;
+
+// show the building block area
+let showBuildingBlock = false;
+
+// set to true if the building block has a unit
+let bbUnit = ref(false);
+
+// the type of unit for the building block
+let unitSearch = ref("");
 
 // the type of term to be search
 let searchType = "";
+
+// ids of the rows to overwrite
+let rowIds = [1];
 
 // the accession value of the type
 let searchAccession = "";
@@ -142,21 +154,28 @@ function extendTemplate() {
       }
     }
   });
+
+  rowIds.push(rowIds.length + 1);
+  keyNumber.value += 1;
 }
 
-async function getSuggestions() {
+async function getSuggestionsByParent() {
   loading = true;
+  errors = "";
   keyNumber.value += 1;
 
   // reset terms and templates to clear up IsaView
   templateProperties.templates = [];
-  termProperties.terms = [];
+  termProperties.terms =
+    termProperties.buildingBlocks =
+    termProperties.unitTerms =
+      [];
   sheetProperties.sheets = sheetProperties.names = [];
 
   // get the list of terms
   const response = await fetch(
     backend +
-      "getTermSuggestions?parentName=" +
+      "getTermSuggestionsByParentTerm?parentName=" +
       searchType +
       "&parentTermAccession=" +
       searchAccession
@@ -177,6 +196,79 @@ async function getSuggestions() {
   loading = false;
   keyNumber.value += 1;
 }
+
+// suggestions for the building blocks
+async function getSuggestions() {
+  loading = true;
+  errors = "";
+  keyNumber.value += 1;
+
+  // reset terms and templates to clear up IsaView
+  templateProperties.templates = [];
+  termProperties.terms = [];
+  sheetProperties.sheets = sheetProperties.names = [];
+  termProperties.unitTerms = [];
+
+  const terms = await fetch(
+    backend + "getTermSuggestions?input=" + search.value
+  );
+
+  let data = await terms.json();
+  if (!terms.ok) {
+    errors = "ERROR: " + data["detail"];
+  }
+
+  // if the list of terms is empty
+  if (data.length == 0) {
+    termProperties.buildingBlocks = [{ Name: "No Term was found!" }];
+  }
+  // save the list of terms
+  else {
+    termProperties.buildingBlocks = data;
+  }
+  loading = false;
+  keyNumber.value += 1;
+}
+
+// suggestions for the units of building blocks
+async function getUnitSuggestions() {
+  loading = true;
+  errors = "";
+  keyNumber.value += 1;
+
+  // reset terms and templates to clear up IsaView
+  templateProperties.templates = [];
+  termProperties.terms = [];
+  sheetProperties.sheets = sheetProperties.names = [];
+  termProperties.buildingBlocks = [];
+
+  const terms = await fetch(
+    backend + "getTermSuggestions?input=" + unitSearch.value
+  );
+  let data = await terms.json();
+  if (!terms.ok) {
+    errors = "ERROR: " + data["detail"];
+  }
+
+  // if the list of terms is empty
+  if (data.length == 0) {
+    termProperties.unitTerms = [{ Name: "No Term was found!" }];
+  }
+  // save the list of terms
+  else {
+    termProperties.unitTerms = data;
+  }
+  loading = false;
+  keyNumber.value += 1;
+}
+
+// fills the rowIds array with all possible row ids
+function setIds() {
+  rowIds = Array.from(
+    { length: templateProperties.content[0].length },
+    (_, i) => i + 1
+  );
+}
 </script>
 
 <template>
@@ -189,9 +281,10 @@ async function getSuggestions() {
     >DataPLANT Ontology</a
   >
   <div>
-    <q-scroll-area style="height: 800px; max-width: 100%" :key="keyNumber">
-      <!-- The table to enter the values with swate is a default html table -->
+    <q-scroll-area style="height: 650px; max-width: 100%" :key="keyNumber">
+      <!-- Display the search area for default terms-->
       <template v-if="showSearch">
+        <span>Search term:</span>
         <q-input v-model="search" :label="searchType"
           ><template v-slot:append>
             <q-icon name="search"></q-icon></template></q-input
@@ -199,8 +292,39 @@ async function getSuggestions() {
           >Search</q-btn
         >
         <q-checkbox v-model="advanced">Extended search</q-checkbox>
-        <q-btn @click="getSuggestions()">Get suggestions</q-btn>
+        <q-btn
+          @click="getSuggestionsByParent()"
+          style="background-color: azure; margin-left: 1em"
+          >Get suggestions</q-btn
+        ><q-select
+          v-model="templateProperties.rowId"
+          :options="rowIds"
+          label="select row to overwrite"
+          dense
+          options-dense
+          style="width: 4cm"></q-select>
       </template>
+      <!-- show search area for inserting a new building block-->
+      <template v-else-if="showBuildingBlock">
+        <span>Add building block:</span
+        ><q-checkbox v-model="bbUnit">Unit?</q-checkbox>
+        <q-input v-model="search" label="Search building blocks"></q-input
+        ><q-btn @click="getSuggestions()" :disable="search.length == 0"
+          >Search</q-btn
+        >
+        <q-input
+          v-show="bbUnit"
+          v-model="unitSearch"
+          label="Search building block unit"></q-input
+        ><q-btn
+          v-show="bbUnit"
+          @click="getUnitSuggestions()"
+          :disable="unitSearch.length == 0"
+          >Search unit</q-btn
+        >
+      </template>
+      <q-separator></q-separator>
+      <!-- Area for sheet naming and other options-->
       <q-input
         type="text"
         v-model="sheetProperties.name"
@@ -220,6 +344,19 @@ async function getSuggestions() {
         v-show="loading"
         :key="keyNumber"></q-spinner>
       <q-checkbox v-model="hidden">Hide Terms</q-checkbox>
+      <q-btn
+        icon="add"
+        style="margin-left: 1em; background-color: cornsilk"
+        dense
+        @click="
+          showBuildingBlock = true;
+          search = '';
+          showSearch = false;
+          keyNumber += 1;
+        "
+        >building block</q-btn
+      >
+      <!-- The table to enter the values with swate is a default html table -->
       <table style="width: max-content; border-collapse: collapse">
         <thead>
           <tr>
@@ -260,7 +397,10 @@ async function getSuggestions() {
                   icon="search"
                   round
                   @click="
+                    setIds();
                     showSearch = true;
+                    showBuildingBlock = false;
+                    search = '';
                     searchType = searchName(column.Type);
                     searchAccession = column.Accession;
                     templateProperties.id = i;
