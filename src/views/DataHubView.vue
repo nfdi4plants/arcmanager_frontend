@@ -655,6 +655,7 @@ function checkName(name: string) {
     ".db",
     ".dll",
     ".pdb",
+    ".pptx",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {

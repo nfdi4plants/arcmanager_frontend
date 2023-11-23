@@ -380,9 +380,7 @@ function setIds() {
                 {{ column.Type.split("(")[0] }}<br />
                 <template
                   v-if="
-                    column.Type.startsWith('Term') &&
-                    column.Type.includes('(') &&
-                    column.Accession != ''
+                    column.Type.startsWith('Term') && column.Type.includes('(')
                   "
                   ><a
                     :href="
@@ -395,15 +393,16 @@ function setIds() {
                   ></template
                 >
 
-                <template v-else>[{{ column.Type.split("(")[1] }}</template>
+                <template v-else
+                  ><template v-if="column.Type.includes(')')">(</template
+                  >{{ column.Type.split("(")[1] }}</template
+                >
               </template>
               <!-- if there are no round brackets, there must be square brackets-->
               <template v-else>
                 {{ column.Type.split("[")[0] }}<br /><template
                   v-if="
-                    column.Type.startsWith('Term') &&
-                    column.Type.includes('[') &&
-                    column.Accession != ''
+                    column.Type.startsWith('Term') && column.Type.includes('[')
                   ">
                   <a
                     :href="
@@ -414,7 +413,11 @@ function setIds() {
                     target="_blank"
                     >[{{ column.Type.split("[")[1] }}</a
                   ></template
-                ><template v-else>[{{ column.Type.split("[")[1] }}</template>
+                ><template v-else>
+                  <template v-if="column.Type.includes(']')"
+                    >[</template
+                  > </template
+                >{{ column.Type.split("[")[1] }}
               </template>
 
               <!-- if the type is neither a term accession or a unit, insert a search button -->

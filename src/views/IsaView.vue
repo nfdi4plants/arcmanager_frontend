@@ -81,6 +81,7 @@ async function commitFile() {
 
 function setTemplate(templateId: string) {
   errors = "";
+  loading = true;
   keyNumber.value += 1;
   fetch(backend + "getTemplate?id=" + templateId)
     .then((response) => response.json())
@@ -140,6 +141,8 @@ function setTemplate(templateId: string) {
       templateProperties.template.push({ Type: "Output [Sample Name]" });
       templateProperties.content.push([""]);
     });
+  loading = false;
+  keyNumber.value += 1;
 }
 
 // if a term is chosen the values of the columns header and the term accession will be set to the chosen values
@@ -257,13 +260,13 @@ async function selectSheet(name: string, index: number) {
       let accession = "";
       try {
         // retrieve the accession (get the word between the square brackets)
-        accession = sheetProperties.sheets[index].columns[i]
+        accession = sheetProperties.sheets[index].columns[i + 1]
           .split("[")[1]
           .split("]")[0];
       } catch (error) {
         try {
           // retrieve the accession (get the word between the round brackets)
-          accession = sheetProperties.sheets[index].columns[i]
+          accession = sheetProperties.sheets[index].columns[i + 1]
             .split("(")[1]
             .split(")")[0];
         } catch (error) {
