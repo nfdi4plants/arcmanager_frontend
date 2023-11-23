@@ -125,15 +125,15 @@ function setTemplate(templateId: string) {
         }
         // insert the term source ref column
         templateProperties.template.push({
-          Type: "Term Source REF [" + element["ColumnTerm"].TermAccession + "]",
+          Type: "Term Source REF (" + element["ColumnTerm"].TermAccession + ")",
         });
 
         // insert the term accession column
         templateProperties.template.push({
           Type:
-            "Term Accession Number [" +
+            "Term Accession Number (" +
             element["ColumnTerm"].TermAccession +
-            "]",
+            ")",
         });
       });
       // insert the output column at the end
@@ -257,13 +257,13 @@ async function selectSheet(name: string, index: number) {
       let accession = "";
       try {
         // retrieve the accession (get the word between the square brackets)
-        accession = sheetProperties.sheets[index].columns[i + 1]
+        accession = sheetProperties.sheets[index].columns[i]
           .split("[")[1]
           .split("]")[0];
       } catch (error) {
         try {
           // retrieve the accession (get the word between the round brackets)
-          accession = sheetProperties.sheets[index].columns[i + 1]
+          accession = sheetProperties.sheets[index].columns[i]
             .split("(")[1]
             .split(")")[0];
         } catch (error) {
@@ -302,7 +302,6 @@ async function selectSheet(name: string, index: number) {
       });
   }
   sheetProperties.sheets = sheetProperties.names = [];
-  console.log(templateProperties.template);
 }
 
 // check if the right side is empty

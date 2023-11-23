@@ -375,26 +375,11 @@ function setIds() {
                   style="width: 100%; height: unset; border: 0px"
                   v-model="column.Type"
               /></template>
-              <template v-else>
-                {{ column.Type.split("[")[0] }}<br />
+              <!-- if there are round brackets-->
+              <template v-else-if="column.Type.includes('(')">
+                {{ column.Type.split("(")[0] }}<br />
                 <template
                   v-if="
-                    column.Type.startsWith('Term') &&
-                    column.Type.includes('[') &&
-                    column.Accession != ''
-                  ">
-                  <a
-                    :href="
-                      'http://purl.obolibrary.org/obo/' +
-                      column.Type.split('[')[1].split(']')[0]
-                    "
-                    style="font-size: small"
-                    target="_blank"
-                    >[{{ column.Type.split("[")[1] }}</a
-                  ></template
-                >
-                <template
-                  v-else-if="
                     column.Type.startsWith('Term') &&
                     column.Type.includes('(') &&
                     column.Accession != ''
@@ -409,7 +394,27 @@ function setIds() {
                     >({{ column.Type.split("(")[1] }}</a
                   ></template
                 >
-                <template v-else>[{{ column.Type.split("[")[1] }}</template>
+
+                <template v-else>[{{ column.Type.split("(")[1] }}</template>
+              </template>
+              <!-- if there are no round brackets, there must be square brackets-->
+              <template v-else>
+                {{ column.Type.split("[")[0] }}<br /><template
+                  v-if="
+                    column.Type.startsWith('Term') &&
+                    column.Type.includes('[') &&
+                    column.Accession != ''
+                  ">
+                  <a
+                    :href="
+                      'http://purl.obolibrary.org/obo/' +
+                      column.Type.split('[')[1].split(']')[0]
+                    "
+                    style="font-size: small"
+                    target="_blank"
+                    >[{{ column.Type.split("[")[1] }}</a
+                  ></template
+                ><template v-else>[{{ column.Type.split("[")[1] }}</template>
               </template>
 
               <!-- if the type is neither a term accession or a unit, insert a search button -->
