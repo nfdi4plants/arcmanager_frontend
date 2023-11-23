@@ -249,7 +249,11 @@ async function selectSheet(name: string, index: number) {
   for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
     let element = sheetProperties.sheets[index].columns[i];
     let words = element.split(" [");
-    if (words[0] != "Term Accession Number " && words[0] != "Unit ") {
+    if (
+      words[0] != "Term Accession Number " &&
+      words[0] != "Unit " &&
+      words[0] != "Term Source REF "
+    ) {
       let accession = "";
       try {
         // retrieve the accession (get the word between the square brackets)
@@ -257,7 +261,14 @@ async function selectSheet(name: string, index: number) {
           .split("[")[1]
           .split("]")[0];
       } catch (error) {
-        accession = "";
+        try {
+          // retrieve the accession (get the word between the round brackets)
+          accession = sheetProperties.sheets[index].columns[i + 1]
+            .split("(")[1]
+            .split(")")[0];
+        } catch (error) {
+          accession = "";
+        }
       }
       templateProperties.template.push({
         Type: element,
@@ -291,6 +302,7 @@ async function selectSheet(name: string, index: number) {
       });
   }
   sheetProperties.sheets = sheetProperties.names = [];
+  console.log(templateProperties.template);
 }
 
 // check if the right side is empty
@@ -305,6 +317,8 @@ function checkEmptyIsaView() {
     termProperties.unitTerms.length > 0
   )
     return false;
+
+  errors = "";
   return true;
 }
 

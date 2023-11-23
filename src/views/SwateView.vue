@@ -377,7 +377,12 @@ function setIds() {
               /></template>
               <template v-else>
                 {{ column.Type.split("[")[0] }}<br />
-                <template v-if="column.Type.startsWith('Term')">
+                <template
+                  v-if="
+                    column.Type.startsWith('Term') &&
+                    column.Type.includes('[') &&
+                    column.Accession != ''
+                  ">
                   <a
                     :href="
                       'http://purl.obolibrary.org/obo/' +
@@ -387,7 +392,24 @@ function setIds() {
                     target="_blank"
                     >[{{ column.Type.split("[")[1] }}</a
                   ></template
-                ><template v-else>[{{ column.Type.split("[")[1] }}</template>
+                >
+                <template
+                  v-else-if="
+                    column.Type.startsWith('Term') &&
+                    column.Type.includes('(') &&
+                    column.Accession != ''
+                  "
+                  ><a
+                    :href="
+                      'http://purl.obolibrary.org/obo/' +
+                      column.Type.split('(')[1].split(')')[0]
+                    "
+                    style="font-size: small"
+                    target="_blank"
+                    >({{ column.Type.split("(")[1] }}</a
+                  ></template
+                >
+                <template v-else>[{{ column.Type.split("[")[1] }}</template>
               </template>
 
               <!-- if the type is neither a term accession or a unit, insert a search button -->

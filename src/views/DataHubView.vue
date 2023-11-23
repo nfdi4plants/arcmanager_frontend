@@ -489,9 +489,12 @@ async function fileUpload() {
 // if you click the 'create new sheet' button, you will get a list containing all the current templates
 async function getTemplates() {
   cleanIsaView();
+  loading = true;
   assaySync = studySync = false;
+  forcereload();
+
   // retrieve the templates
-  fetch(backend + "getTemplates")
+  await fetch(backend + "getTemplates")
     .then((response) => response.json())
     .then((templates) => {
       if (templates.templates.length == 0) {
@@ -501,17 +504,23 @@ async function getTemplates() {
       // save the templates
       templateProperties.templates = templates.templates;
     });
+
+  loading = false;
+  forcereload();
 }
 
 // get a list of all the swate sheets
 async function getSheets(path: string, id: number, branch: string) {
   cleanIsaView();
   assaySync = studySync = false;
+  loading = true;
+  forcereload();
+
   isaProperties.path = path;
   isaProperties.repoId = id;
   arcProperties.branch = branch;
   // retrieve the sheets
-  fetch(
+  await fetch(
     backend + "getSheets?path=" + path + "&id=" + id + "&branch=" + branch,
     { credentials: "include" }
   )
@@ -525,6 +534,9 @@ async function getSheets(path: string, id: number, branch: string) {
       sheetProperties.sheets = sheets[0];
       sheetProperties.names = sheets[1];
     });
+
+  loading = false;
+  forcereload();
 }
 
 // get a list of all assays and studies
