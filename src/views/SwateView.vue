@@ -48,6 +48,7 @@ let searchAccession = "";
 // get a list of all found terms for the given input
 async function getTerms(input: string) {
   loading = true;
+  appProperties.showIsaView = true;
   keyNumber.value += 1;
 
   // reset terms and templates to clear up IsaView
@@ -146,21 +147,36 @@ function extendTemplate() {
           templateProperties.content[i - 1][0]
         );
       }
-    } else {
-      if (templateProperties.template[i].Type.toString().startsWith("Term")) {
-        templateProperties.content[i].push(templateProperties.content[i][0]);
-      } else {
-        templateProperties.content[i].push(null);
+      // add the term values for the two term columns after
+      while (
+        templateProperties.template[i + 1].Type.toString().startsWith("Term")
+      ) {
+        templateProperties.content[i + 1].push(
+          templateProperties.content[i + 1][0]
+        );
+        i += 1;
       }
+    } else {
+      // skip adding an empty field if its a term column related to a unit
+      if (
+        !templateProperties.template[i].Type.toString().startsWith("Term") ||
+        !(
+          templateProperties.template[i - 1].Type.toString().startsWith(
+            "Unit"
+          ) ||
+          templateProperties.template[i - 2].Type.toString().startsWith("Unit")
+        )
+      )
+        templateProperties.content[i].push(null);
     }
   });
-
   rowIds.push(rowIds.length + 1);
   keyNumber.value += 1;
 }
 
 async function getSuggestionsByParent() {
   loading = true;
+  appProperties.showIsaView = true;
   errors = "";
   keyNumber.value += 1;
 
@@ -200,6 +216,7 @@ async function getSuggestionsByParent() {
 // suggestions for the building blocks
 async function getSuggestions() {
   loading = true;
+  appProperties.showIsaView = true;
   errors = "";
   keyNumber.value += 1;
 
@@ -233,6 +250,7 @@ async function getSuggestions() {
 // suggestions for the units of building blocks
 async function getUnitSuggestions() {
   loading = true;
+  appProperties.showIsaView = true;
   errors = "";
   keyNumber.value += 1;
 
@@ -414,10 +432,9 @@ function setIds() {
                     >[{{ column.Type.split("[")[1] }}</a
                   ></template
                 ><template v-else>
-                  <template v-if="column.Type.includes(']')"
-                    >[</template
-                  > </template
-                >{{ column.Type.split("[")[1] }}
+                  <template v-if="column.Type.includes(']')">[</template>
+                  {{ column.Type.split("[")[1] }}</template
+                >
               </template>
 
               <!-- if the type is neither a term accession or a unit, insert a search button -->

@@ -24,10 +24,8 @@ import termProperties from "./TermProperties";
 let fontSize = "large";
 
 const layoutProperties = reactive({
-  showToolbar: true,
+  showLeft: true,
   toolbarMinimized: false,
-  showHelp: true,
-  splitterModel: 300,
 });
 
 let backend = appProperties.backend + "projects/";
@@ -43,7 +41,7 @@ let invId = ref("");
 
 let loading = false;
 
-let drawerWidth = ref(600);
+let drawerWidth = ref(1000);
 
 let windowWidth = window.innerWidth;
 
@@ -53,8 +51,8 @@ window.addEventListener("resize", () => {
 });
 
 function checkMini(width: number) {
-  if (width < 1800) drawerWidth.value = 300;
-  else drawerWidth.value = 600;
+  if (width < 1800) drawerWidth.value = 600;
+  else drawerWidth.value = 1000;
 }
 checkMini(windowWidth);
 
@@ -136,7 +134,7 @@ if (document.cookie.includes("error")) {
   <q-layout view="hHh LpR fFf" class="no-selection">
     <!-- LEFT SIDE: LOGO, SELECT HUB, LOGIN, CREATE ARC -->
     <q-drawer
-      v-model="layoutProperties.showToolbar"
+      v-model="layoutProperties.showLeft"
       show-if-above
       :mini="layoutProperties.toolbarMinimized"
       :width="190"
@@ -165,13 +163,13 @@ if (document.cookie.includes("error")) {
                   showInput = false;
                   forcereload();
                 "
-                :key="refresher"></q-icon>
+                :key="refresher + 1"></q-icon>
             </q-item-section>
             <q-item-section style="margin: 0.6em 0 0 -1.2em">
               <q-item-label
                 ><b style="font-size: 1.4em">ARCitect Web</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.3.1
+                  v 0.3.2
                 </q-badge></q-item-label
               >
             </q-item-section>
@@ -219,20 +217,24 @@ if (document.cookie.includes("error")) {
           size="5em"
           style="margin-left: 1cm"
           v-show="loading"
-          :key="refresher"></q-spinner-gears>
+          :key="refresher + 2"></q-spinner-gears>
       </q-scroll-area>
     </q-drawer>
 
     <!-- RIGHT SIDE: ISA VIEW/FILE CONTENT VIEW-->
     <q-drawer
-      show-if-above
-      v-model="layoutProperties.showHelp"
+      v-model="appProperties.showIsaView"
       side="right"
       bordered
       :breakpoint="0"
       class="bg-grey-3"
       :width="drawerWidth">
       <q-scroll-area class="fit" style="height: 95%; width: 95%">
+        <q-btn
+          flat
+          size="xs"
+          icon="keyboard_double_arrow_right"
+          @click="appProperties.showIsaView = false"></q-btn>
         <IsaView></IsaView>
       </q-scroll-area>
     </q-drawer>
@@ -272,7 +274,7 @@ if (document.cookie.includes("error")) {
             :disable="
               arcName.length == 0 || arcDesc.length == 0 || invId.length == 0
             "
-            :key="refresher"></q-btn>
+            :key="refresher + 3"></q-btn>
           <!-- Hints to fill out the empty input fields -->
           <span style="margin-left: 1em" v-if="arcName.length == 0"
             >Please provide a name for the ARC!</span
@@ -282,11 +284,19 @@ if (document.cookie.includes("error")) {
             >Please provide an identifier for the ARC!</span
           >
         </template>
-        <DataHubView :site="target" v-else :key="refresher"></DataHubView>
+        <template v-else>
+          <q-btn
+            flat
+            class="float-right"
+            icon="keyboard_double_arrow_left"
+            v-show="!appProperties.showIsaView"
+            @click="appProperties.showIsaView = true"></q-btn>
+          <DataHubView :site="target" :key="refresher"></DataHubView>
 
-        <IsaEditView v-if="isaProperties.entry.length > 0"></IsaEditView>
+          <IsaEditView v-if="isaProperties.entry.length > 0"></IsaEditView>
 
-        <SwateView v-if="templateProperties.template.length > 1"></SwateView>
+          <SwateView v-if="templateProperties.template.length > 1"></SwateView
+        ></template>
       </q-page>
     </q-page-container>
   </q-layout>

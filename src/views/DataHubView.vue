@@ -114,6 +114,7 @@ function openGit(target: string) {
 // get a list of all arcs in the gitlab
 async function fetchArcs() {
   loading = true;
+  appProperties.showIsaView = false;
   searchList = [];
   // if not logged in, show only public arcs
   if (!appProperties.loggedIn) {
@@ -228,7 +229,6 @@ async function inspectArc(id: number) {
     data.Arc.forEach((element: any) => {
       arcList.push(element);
     });
-    console.log(arcList);
 
     pathHistory = [];
     pathHistory.push("");
@@ -265,6 +265,7 @@ async function getChanges(id: number) {
 async function inspectTree(id: number, path: string, expand?: boolean) {
   loading = true;
   assaySync = studySync = false;
+  showInput = false;
   forcereload();
   try {
     const response = await fetch(
@@ -296,6 +297,7 @@ async function inspectTree(id: number, path: string, expand?: boolean) {
 // gets the file on the arc
 async function getFile(id: number, path: string, branch: string) {
   loading = true;
+  appProperties.showIsaView = true;
 
   // cleanup views
   assaySync = studySync = false;
@@ -490,6 +492,7 @@ async function fileUpload() {
 async function getTemplates() {
   cleanIsaView();
   loading = true;
+  appProperties.showIsaView = true;
   assaySync = studySync = false;
   forcereload();
 
@@ -514,6 +517,7 @@ async function getSheets(path: string, id: number, branch: string) {
   cleanIsaView();
   assaySync = studySync = false;
   loading = true;
+  appProperties.showIsaView = true;
   forcereload();
 
   isaProperties.path = path;
@@ -693,55 +697,60 @@ function checkName(name: string) {
       @update:model-value="fetchArcs" />
     <template v-if="arcList.length != 0">
       <!-- File Upload with a limit of 100 mb-->
-      <q-file
-        style="max-width: 200px; background-color: lightgoldenrodyellow"
-        v-model="fileInput"
-        outlined
-        label="Upload File (<100 mb)"
-        max-file-size="104857600"
-        @update:model-value="
-          fileUpload();
-          loading = true;
-        "
-        @rejected="
-          errors = 'ERROR: File too big!';
-          forcereload();
-        "
-        :key="refresher"></q-file>
-      <q-btn
-        @click="openArc(arcProperties.url)"
-        icon="open_in_new"
-        style="background-color: lightskyblue; max-width: 200px"
-        :key="refresher"
-        >Open</q-btn
-      >
-      <q-btn
-        style="background-color: orange"
-        icon="sync_alt"
-        @click="
-          assaySync = !assaySync;
-          studySync = false;
-          forcereload();
-          getAssaysAndStudies(arcId);
-        "
-        :key="refresher"
-        >Sync Assay/Study</q-btn
-      >
-      <q-btn
-        style="background-color: gainsboro"
-        icon="sync"
-        @click="
-          studySync = !studySync;
-          assaySync = false;
-          forcereload();
-          getAssaysAndStudies(arcId);
-        "
-        :key="refresher"
-        >Sync Study/Invest</q-btn
-      >
-      <!-- Reloads the arc -->
-      <q-btn icon="refresh" @click="inspectArc(arcId)">Reload</q-btn>
-
+      <q-btn-group>
+        <q-file
+          style="max-width: 180px; background-color: lightgoldenrodyellow"
+          v-model="fileInput"
+          dense
+          outlined
+          label="Upload File (<100 mb)"
+          max-file-size="104857600"
+          @update:model-value="
+            fileUpload();
+            loading = true;
+          "
+          @rejected="
+            errors = 'ERROR: File too big!';
+            forcereload();
+          "
+          :key="refresher"></q-file>
+        <q-btn
+          @click="openArc(arcProperties.url)"
+          icon="open_in_new"
+          glossy
+          style="background-color: lightskyblue; max-width: 200px"
+          :key="refresher + 1"
+          >Open</q-btn
+        >
+        <q-btn
+          style="background-color: orange"
+          icon="sync_alt"
+          glossy
+          @click="
+            assaySync = !assaySync;
+            studySync = false;
+            forcereload();
+            getAssaysAndStudies(arcId);
+          "
+          :key="refresher + 2"
+          >Sync Assay/Study</q-btn
+        >
+        <q-btn
+          style="background-color: gainsboro"
+          icon="sync"
+          glossy
+          @click="
+            studySync = !studySync;
+            assaySync = false;
+            forcereload();
+            getAssaysAndStudies(arcId);
+          "
+          :key="refresher + 3"
+          >Sync Study/Invest</q-btn
+        >
+        <!-- Reloads the arc -->
+        <q-btn icon="refresh" @click="inspectArc(arcId)" glossy>Reload</q-btn>
+      </q-btn-group>
       <!-- activates swate and annotation sheets-->
       <q-checkbox v-model="experimental">Experimental</q-checkbox></template
     >
@@ -751,7 +760,7 @@ function checkName(name: string) {
       color="primary"
       size="3em"
       v-show="loading"
-      :key="refresher"></q-spinner>
+      :key="refresher + 4"></q-spinner>
   </div>
 
   <q-list bordered dense class="rounded-borders">
@@ -761,7 +770,7 @@ function checkName(name: string) {
     >
     <!-- LIST WITH ALL ARCS AND ARC TREE VIEW-->
     <q-expansion-item
-      :key="refresher"
+      :key="refresher + 5"
       expand-separator
       icon="cloud_download"
       label="List ARCs"
@@ -781,6 +790,7 @@ function checkName(name: string) {
               showInput = false;
               forcereload();
             "></q-btn>
+          <span style="margin-left: 1em">Add Isa:</span>
           <q-input
             outlined
             v-model="ident"
@@ -802,7 +812,7 @@ function checkName(name: string) {
               forcereload();
             "
             :disable="ident.length == 0"
-            :key="refresher"></q-btn
+            :key="refresher + 6"></q-btn
           ><span style="margin-left: 1em" v-if="ident.length == 0"
             >Please provide an identifier!</span
           >
@@ -820,7 +830,7 @@ function checkName(name: string) {
         <q-item-section
           style="padding-bottom: 2em"
           v-if="pathHistory.length > 1"
-          :key="refresher"
+          :key="refresher + 7"
           ><q-breadcrumbs
             ><span>Path:</span>
             <q-breadcrumbs-el
@@ -828,117 +838,120 @@ function checkName(name: string) {
               >{{ item }}</q-breadcrumbs-el
             >
           </q-breadcrumbs>
-          <q-btn
-            icon="arrow_back"
+          <q-item
+            dense
+            clickable
             @click="
               inspectTree(arcId, pathHistory[pathHistory.length - 2], false);
               showInput = false;
               forcereload();
             "
             v-if="pathHistory.length > 1"
-            style="background-color: antiquewhite">
-            Return
-          </q-btn>
-          <q-btn
-            icon="add"
-            v-if="pathHistory[pathHistory.length - 1] == 'studies'"
-            style="background-color: aliceblue"
-            @click="
-              showInput = true;
-              forcereload();
-            "
-            >Add Study</q-btn
-          >
-          <q-btn
-            icon="add"
-            v-if="pathHistory[pathHistory.length - 1] == 'assays'"
-            style="background-color: aliceblue"
-            @click="
-              showInput = true;
-              forcereload();
-            "
-            >Add Assay</q-btn
-          ></q-item-section
+            style="background-color: hsl(0, 0%, 95%)"
+            ><q-item-section avatar
+              ><q-icon name="arrow_back"></q-icon
+            ></q-item-section>
+            <q-item-section>Return</q-item-section>
+            <q-item-section
+              side
+              v-if="
+                pathHistory[pathHistory.length - 1] == 'assays' ||
+                pathHistory[pathHistory.length - 1] == 'studies'
+              ">
+              <div class="text-grey-8 q-gutter-xs">
+                <q-btn
+                  dense
+                  flat
+                  size="12px"
+                  icon="add"
+                  style="background-color: lightgreen"
+                  @click="
+                    showInput = true;
+                    forcereload();
+                  "
+                  >Add</q-btn
+                >
+              </div></q-item-section
+            >
+          </q-item></q-item-section
         >
         <!-- TREE VIEW OF ARC -->
-        <q-item-section
+        <q-item
           v-if="arcList.length != 0"
           v-for="(item, i) in arcList"
-          :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
-          <q-item-section>
+          :style="i % 2 === 1 ? 'background-color:hsl(0, 0%, 95%);' : ''"
+          clickable
+          @click="
+            if (item.type == 'tree') {
+              inspectTree(arcId, item.path, true);
+            } else {
+              getFile(arcId, item.path, arcBranch);
+            }
+          "
+          :disable="
+            item.name.includes('LICENSE') ||
+            item.name.includes('LICENCE') ||
+            item.name == '.gitkeep' ||
+            checkName(item.name)
+          ">
+          <template v-if="item.type == 'tree'">
+            <q-item-section avatar top
+              ><q-avatar icon="folder"></q-avatar
+            ></q-item-section>
             <q-item-section
-              ><q-btn
-                icon="folder_open"
-                v-if="item.type == 'tree'"
-                @click="inspectTree(arcId, item.path, true)"
-                >{{ item.name }}</q-btn
-              >
-              <!-- if its an study or assay file, there will be an extra option to use swate -->
-              <q-list
-                bordered
-                v-else-if="
-                  experimental &&
-                  (item.name == 'isa.study.xlsx' ||
-                    item.name == 'isa.assay.xlsx')
-                "
-                icon="expand_more"
-                ><q-item style="text-align: center"
-                  ><q-item-section avatar
-                    ><q-icon name="expand_more"></q-icon></q-item-section
-                  ><q-item-section
-                    ><q-item-label>{{
-                      item.name.toUpperCase()
-                    }}</q-item-label></q-item-section
-                  ></q-item
+              ><q-item-label>{{ item.name }}</q-item-label></q-item-section
+            >
+          </template>
+          <template
+            v-else-if="
+              experimental &&
+              (item.name == 'isa.study.xlsx' || item.name == 'isa.assay.xlsx')
+            "
+            ><q-item-section avatar
+              ><q-icon name="description"></q-icon></q-item-section
+            ><q-item-section
+              ><q-item-label>{{ item.name }}</q-item-label></q-item-section
+            ><q-item-section side top
+              ><div class="text-grey-8 q-gutter-xs">
+                <q-btn
+                  icon="add_box"
+                  class="gt-xs"
+                  size="12px"
+                  flat
+                  dense
+                  @click="
+                    getTemplates();
+                    isaProperties.repoId = arcId;
+                    isaProperties.path = item.path;
+                    isaProperties.repoTarget = git.site.value;
+                  "
+                  >Add Sheet</q-btn
+                ><q-btn
+                  icon="edit"
+                  class="gt-xs"
+                  size="12px"
+                  flat
+                  dense
+                  @click="getSheets(item.path, arcId, arcBranch)"
+                  >Edit Sheet</q-btn
                 >
-                <q-item
-                  ><q-item-section
-                    ><q-btn
-                      icon="table_chart"
-                      @click="
-                        getTemplates();
-                        isaProperties.repoId = arcId;
-                        isaProperties.path = item.path;
-                        isaProperties.repoTarget = git.site.value;
-                      "
-                      >Create new Sheet</q-btn
-                    ><q-btn
-                      icon="edit"
-                      @click="getSheets(item.path, arcId, arcBranch)"
-                      >Edit Sheet</q-btn
-                    ><q-btn
-                      icon="edit"
-                      @click="getFile(arcId, item.path, arcBranch)"
-                      >Edit Metadata</q-btn
-                    ></q-item-section
-                  ></q-item
-                >
-              </q-list>
-              <q-btn
-                v-else-if="
-                  item.name.includes('LICENSE') || item.name.includes('LICENCE')
-                "
-                disabled
-                >{{ item.name }}</q-btn
-              >
-              <q-btn v-else-if="item.name == '.gitkeep'" disabled>{{
-                item.name
-              }}</q-btn>
-              <q-btn v-else-if="checkName(item.name)" disabled>{{
-                item.name
-              }}</q-btn>
-              <q-btn
-                v-else
-                icon="edit"
-                @click="getFile(arcId, item.path, arcBranch)">
-                <template v-if="item.name.length > 60"
+              </div></q-item-section
+            ></template
+          >
+          <template v-else>
+            <q-item-section avatar top
+              ><q-avatar icon="description"></q-avatar
+            ></q-item-section>
+            <q-item-section
+              ><q-item-label
+                ><template v-if="item.name.length > 60"
                   >{{ item.name.slice(0, 60) }}...</template
                 >
-                <template v-else>{{ item.name }}</template>
-              </q-btn>
-            </q-item-section>
-          </q-item-section>
-        </q-item-section>
+                <template v-else>{{ item.name }}</template></q-item-label
+              ></q-item-section
+            >
+          </template>
+        </q-item>
 
         <!-- LIST OF ARCS -->
         <q-list style="padding: 1em" separator v-if="arcList.length == 0">

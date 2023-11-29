@@ -247,6 +247,7 @@ async function selectSheet(name: string, index: number) {
   templateProperties.template = [];
   templateProperties.content = [];
   templateProperties.rowId = 1;
+  appProperties.showIsaView = false;
   errors = "";
   // create the table column by column
   for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
@@ -377,20 +378,23 @@ function onPaste(e) {
     v-show="loading"
     :key="keyNumber"></q-spinner>
   <!-- Isa File content; limit the size of input fields to first 1000-->
-  <q-item-section
+  <!-- Only allow editing for non headline fields (not in all caps)-->
+  <q-item
+    dense
+    :clickable="item[0] != item[0].toUpperCase()"
+    @click="setEntry(item, i)"
     v-if="isaProperties.entries.length != 0"
     v-for="(item, i) in isaProperties.entries.slice(0, 1000)"
     :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
-    <q-item-section v-for="entry in item">
-      <q-item-section>{{ entry }}</q-item-section>
+    <q-item-section v-for="(entry, i) in item">
+      <q-item-section>
+        <template v-if="i > 0 && entry != null"
+          >{{ entry.toString().slice(0, 15)
+          }}<template v-if="entry.length > 15">...</template></template
+        ><template v-else>{{ entry }}</template></q-item-section
+      >
     </q-item-section>
-    <!-- Only allow editing for non headline fields (not in all caps)-->
-    <q-btn
-      v-if="item[0] != item[0].toUpperCase()"
-      style="width: 5px; height: auto"
-      icon="edit"
-      @click="setEntry(item, i)"></q-btn>
-  </q-item-section>
+  </q-item>
   <!-- IF there is a list of terms-->
   <q-list bordered>
     <q-item
@@ -588,7 +592,10 @@ function onPaste(e) {
         @click="commitFile()"
         :disable="
           fileProperties.name == '413' ||
-          fileProperties.content.includes('git-lfs')
+          // if its an lfs file, it should not be editable
+          fileProperties.content.includes(
+            'version https://git-lfs.github.com/spec/v1'
+          )
         "
         >Save</q-btn
       ></template
@@ -604,3 +611,9 @@ function onPaste(e) {
     </q-card>
   </q-item-section>
 </template>
+
+<style scoped>
+* {
+  font-size: medium;
+}
+</style>
