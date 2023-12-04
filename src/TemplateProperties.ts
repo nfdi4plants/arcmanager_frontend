@@ -4,6 +4,9 @@ const templateProperties = reactive({
   // list of all templates
   templates: [],
 
+  // list of the filtered templates
+  filtered: [],
+
   // the chosen template
   template: [{}],
 

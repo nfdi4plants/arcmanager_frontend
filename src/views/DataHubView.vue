@@ -506,6 +506,7 @@ async function getTemplates() {
       }
       // save the templates
       templateProperties.templates = templates.templates;
+      templateProperties.filtered = templates.templates;
     });
 
   loading = false;
@@ -585,23 +586,22 @@ async function syncAssay(
 
   // send sync request to the backend with the given paths
   try {
-    const response = await fetch(
-      backend +
-        "syncAssay?id=" +
-        id +
-        "&pathToStudy=" +
-        studyPath +
-        "&pathToAssay=" +
-        assayPath +
-        "&assayName=" +
-        assay +
-        "&branch=" +
-        branch,
-      { credentials: "include" }
-    );
-    const data = await response.json();
-    if (!response.ok)
+    const response = await fetch(backend + "syncAssay", {
+      credentials: "include",
+      method: "PATCH",
+      body: JSON.stringify({
+        id: id,
+        pathToStudy: studyPath,
+        pathToAssay: assayPath,
+        assayName: assay,
+        branch: branch,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
       throw new Error(response.statusText + ", " + data["detail"]);
+    }
   } catch (error) {
     errors = error;
   }
@@ -620,21 +620,21 @@ async function syncStudy(id: number, study: string, branch: string) {
 
   // send the sync request with the given study path
   try {
-    const response = await fetch(
-      backend +
-        "syncStudy?id=" +
-        id +
-        "&pathToStudy=" +
-        studyPath +
-        "&studyName=" +
-        study +
-        "&branch=" +
-        branch,
-      { credentials: "include" }
-    );
-    const data = await response.json();
-    if (!response.ok)
+    const response = await fetch(backend + "syncStudy", {
+      credentials: "include",
+      method: "PATCH",
+      body: JSON.stringify({
+        id: id,
+        pathToStudy: studyPath,
+        studyName: study,
+        branch: branch,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
       throw new Error(response.statusText + ", " + data["detail"]);
+    }
   } catch (error) {
     errors = error;
   }
@@ -657,6 +657,7 @@ function checkName(name: string) {
     ".raw",
     ".docx",
     ".db",
+    ".sqlite",
     ".dll",
     ".pdb",
     ".pptx",

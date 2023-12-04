@@ -24,6 +24,9 @@ let errors = "";
 
 let showChanges = ref(false);
 
+// field for searchbar
+let search = ref("");
+
 // edit the fields of the entry
 const setEntry = (entry: string[], id: number) => {
   // clear old entry arrays
@@ -82,6 +85,8 @@ async function commitFile() {
 function setTemplate(templateId: string) {
   errors = "";
   loading = true;
+  appProperties.showIsaView = false;
+  search.value = "";
   keyNumber.value += 1;
   fetch(backend + "getTemplate?id=" + templateId)
     .then((response) => response.json())
@@ -247,8 +252,10 @@ async function selectSheet(name: string, index: number) {
   templateProperties.template = [];
   templateProperties.content = [];
   templateProperties.rowId = 1;
-  appProperties.showIsaView = false;
   errors = "";
+
+  if (sheetProperties.sheets[index].columns.length > 0)
+    appProperties.showIsaView = false;
   // create the table column by column
   for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
     let element = sheetProperties.sheets[index].columns[i];
@@ -350,6 +357,24 @@ function onPaste(e) {
     _onPaste_StripFormatting_IEPaste = false;
   }
 }
+
+// sort the templates to include only the templates containing the searchTerm
+function sortTemplates(searchTerm: string) {
+  templateProperties.filtered = [];
+  templateProperties.templates.forEach((element) => {
+    // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
+    let searchString =
+      element["Name"].toLowerCase() +
+      " " +
+      element["Organisation"].toLowerCase() +
+      " " +
+      element["Description"].toString().toLowerCase() +
+      element["Authors"].toLowerCase();
+    if (searchString.includes(searchTerm.toLowerCase())) {
+      templateProperties.filtered.push(element);
+    }
+  });
+}
 </script>
 
 <template>
@@ -396,10 +421,9 @@ function onPaste(e) {
     </q-item-section>
   </q-item>
   <!-- IF there is a list of terms-->
-  <q-list bordered>
+  <q-list bordered v-if="termProperties.terms.length > 0">
     <q-item
       clickable
-      v-if="termProperties.terms.length > 0"
       v-for="(term, i) in termProperties.terms.slice(0, 1000)"
       :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
       <q-expansion-item>
@@ -436,7 +460,12 @@ function onPaste(e) {
     </q-item>
   </q-list>
   <!-- IF there is a list of terms for building blocks-->
-  <q-list bordered>
+  <q-list
+    bordered
+    v-if="
+      termProperties.unitTerms.length > 0 ||
+      termProperties.buildingBlocks.length > 0
+    ">
     <!-- if its a list of unit terms-->
     <q-item
       clickable
@@ -513,9 +542,8 @@ function onPaste(e) {
     </q-item>
   </q-list>
   <!-- list of different sheets -->
-  <q-list bordered>
+  <q-list bordered v-if="sheetProperties.names.length > 0">
     <q-item
-      v-if="sheetProperties.names.length > 0"
       v-for="(name, i) in sheetProperties.names"
       :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
       <q-expansion-item>
@@ -534,11 +562,18 @@ function onPaste(e) {
     </q-item>
   </q-list>
   <!-- IF there is a list of templates -->
-  <q-list bordered>
+  <q-list bordered v-if="templateProperties.templates.length > 0">
+    <q-input
+      v-model="search"
+      label="Search"
+      value="name"
+      @update:model-value="(newValue:string) => sortTemplates(newValue)"
+      style="background-color: white"
+      ><template v-slot:append> <q-icon name="search"></q-icon></template
+    ></q-input>
     <q-item
       clickable
-      v-if="templateProperties.templates.length > 0"
-      v-for="(template, i) in templateProperties.templates"
+      v-for="(template, i) in templateProperties.filtered"
       :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
       <q-expansion-item>
         <template #header>

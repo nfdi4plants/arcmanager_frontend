@@ -77,10 +77,7 @@ let keyNumber = ref(0);
     <q-separator />
     <q-btn
       icon="save"
-      @click="
-        console.log(isaProperties.entry);
-        sendToBackend();
-      "
+      @click="sendToBackend()"
       style="background-color: whitesmoke"
       >Save</q-btn
     ></q-item-section

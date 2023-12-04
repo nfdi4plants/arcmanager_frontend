@@ -169,7 +169,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.4em">ARCitect Web</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.3.2
+                  v 0.3.3
                 </q-badge></q-item-label
               >
             </q-item-section>
