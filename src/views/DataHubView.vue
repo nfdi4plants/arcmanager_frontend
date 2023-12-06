@@ -250,12 +250,15 @@ async function getChanges(id: number) {
     })
       .then((response) => {
         if (response.ok) {
-          return response.text();
+          return response.json();
         }
       })
-      .then((text) => {
-        // include html line breaks
-        if (text) arcProperties.changes = text.replace(/\n/g, "<br />");
+      .then((changes) => {
+        if (changes) {
+          changes.forEach((element) => {
+            arcProperties.changes += element.toString() + "<br />";
+          });
+        }
       });
   } catch (error) {
     errors = error;

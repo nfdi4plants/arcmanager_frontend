@@ -167,7 +167,7 @@ if (document.cookie.includes("error")) {
             </q-item-section>
             <q-item-section style="margin: 0.6em 0 0 -1.2em">
               <q-item-label
-                ><b style="font-size: 1.4em">ARCitect Web</b>
+                ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
                   v 0.3.3
                 </q-badge></q-item-label
