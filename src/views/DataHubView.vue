@@ -216,6 +216,7 @@ async function inspectArc(id: number) {
   searchList = list;
   cleanIsaView();
   arcProperties.studies = arcProperties.assays = [];
+  arcProperties.changes = "";
   forcereload();
   try {
     const response = await fetch(backend + "arc_tree?id=" + id, {
@@ -395,18 +396,16 @@ async function addIsa(
 ) {
   loading = true;
   forcereload();
-  await fetch(
-    backend +
-      "createISA?identifier=" +
-      identifier +
-      "&id=" +
-      id +
-      "&type=" +
-      type +
-      "&branch=" +
-      branch,
-    { credentials: "include" }
-  )
+  await fetch(backend + "createISA", {
+    credentials: "include",
+    method: "POST",
+    body: JSON.stringify({
+      identifier: identifier,
+      id: id,
+      type: type,
+      branch: branch,
+    }),
+  })
     .then((response) => response.json())
     .then((data) => {
       console.log(data);

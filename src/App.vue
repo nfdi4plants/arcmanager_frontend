@@ -91,16 +91,15 @@ const forcereload = () => {
 async function createArc() {
   loading = true;
   forcereload();
-  await fetch(
-    backend +
-      "createArc?name=" +
-      arcName.value +
-      "&description=" +
-      arcDesc.value +
-      "&investIdentifier=" +
-      invId.value,
-    { credentials: "include" }
-  )
+  await fetch(backend + "createArc", {
+    credentials: "include",
+    method: "POST",
+    body: JSON.stringify({
+      name: arcName.value,
+      description: arcDesc.value,
+      investIdentifier: invId.value,
+    }),
+  })
     .then((response) => response.json())
     .then((data) => {
       console.log(data);
@@ -169,7 +168,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.3.3
+                  v 0.3.4
                 </q-badge></q-item-label
               >
             </q-item-section>

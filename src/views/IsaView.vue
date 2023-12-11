@@ -59,7 +59,7 @@ async function commitFile() {
       "&branch=" +
       arcProperties.branch,
     {
-      method: "POST",
+      method: "PUT",
       // body for the backend containing all necessary data
       body: JSON.stringify({
         content: fileProperties.content,
