@@ -191,6 +191,11 @@ async function fetchArcs() {
   }
 }
 
+// opens the url of the arc in a new tab
+const openArc = (url: string) => {
+  window.open(url);
+};
+
 // cleans the right side
 function cleanIsaView() {
   // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
@@ -726,8 +731,7 @@ function checkName(name: string) {
           :key="refresher" />
         <q-btn
           id="open"
-          :href="arcProperties.url"
-          target="_blank"
+          @click="openArc(arcProperties.url)"
           icon="open_in_new"
           glossy
           :key="refresher + 1"
