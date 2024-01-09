@@ -25,8 +25,8 @@ var errors: any;
 // show only arcs with writing permission
 var owned = ref(false);
 
-// show experimental features
-var experimental = ref(true);
+// enable git lfs
+var lfs = ref(false);
 
 // list of all the content of the specific arc
 var arcList: any[] = [];
@@ -70,6 +70,9 @@ let search = ref("");
 
 // the filtered list, that will be displayed
 let searchList: any[] = [];
+
+// namespace of the arc
+let namespace = ref("");
 
 // here we trick vue js to reload the component
 const refresher = ref(0);
@@ -115,6 +118,7 @@ function openGit(target: string) {
 async function fetchArcs() {
   loading = true;
   appProperties.showIsaView = false;
+  lfs.value = false;
   searchList = [];
   // if not logged in, show only public arcs
   if (!appProperties.loggedIn) {
@@ -187,11 +191,6 @@ async function fetchArcs() {
   }
 }
 
-// opens the url of the arc in a new tab
-const openArc = (url: string) => {
-  window.open(url);
-};
-
 // cleans the right side
 function cleanIsaView() {
   // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
@@ -224,7 +223,9 @@ async function inspectArc(id: number) {
     });
     const data = await response.json();
     if (!response.ok)
-      throw new Error(response.statusText + ", " + data["detail"]);
+      throw new Error(
+        response.statusText + ", " + data["detail"].toString().slice(0, 110)
+      );
 
     arcList = [];
     data.Arc.forEach((element: any) => {
@@ -469,6 +470,8 @@ async function fileUpload() {
         id: arcId,
         branch: arcBranch,
         path: filePath,
+        namespace: namespace.value,
+        lfs: lfs.value,
       }),
       credentials: "include",
     });
@@ -483,7 +486,7 @@ async function fileUpload() {
       fileProperties.id = 0;
       errors = "";
       // get the updated view of the arc
-      await inspectArc(arcId);
+      await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
     }
   };
   loading = false;
@@ -678,11 +681,11 @@ function checkName(name: string) {
   <!-- FETCH ARC/FILE UPLOAD BUTTON/OPEN ARC/SYNC ASSAYS/STUDIES RELOAD-->
   <div class="q-pa-xs row q-gutter-sm">
     <q-btn
+      id="arcFetch"
       @click="fetchArcs(), forcereload()"
       icon="downloading"
-      style="background-color: aquamarine; max-width: 200px"
       dense
-      >Load the Arcs</q-btn
+      >Load Arcs</q-btn
     ><q-btn
       icon="open_in_new"
       dense
@@ -702,31 +705,36 @@ function checkName(name: string) {
       <!-- File Upload with a limit of 100 mb-->
       <q-btn-group>
         <q-file
-          style="max-width: 180px; background-color: lightgoldenrodyellow"
+          :style="
+            $q.dark.isActive
+              ? 'background-color: midnightblue'
+              : 'background-color: lightgoldenrodyellow'
+          "
           v-model="fileInput"
           dense
-          outlined
-          label="Upload File (<100 mb)"
-          max-file-size="104857600"
+          borderless
+          label="Upload File"
+          max-files="1"
           @update:model-value="
             fileUpload();
             loading = true;
           "
           @rejected="
-            errors = 'ERROR: File too big!';
+            errors = 'ERROR: File too big or too many selected!';
             forcereload();
           "
-          :key="refresher"></q-file>
+          :key="refresher" />
         <q-btn
-          @click="openArc(arcProperties.url)"
+          id="open"
+          :href="arcProperties.url"
+          target="_blank"
           icon="open_in_new"
           glossy
-          style="background-color: lightskyblue; max-width: 200px"
           :key="refresher + 1"
           >Open</q-btn
         >
         <q-btn
-          style="background-color: orange"
+          id="assay"
           icon="sync_alt"
           glossy
           @click="
@@ -739,7 +747,7 @@ function checkName(name: string) {
           >Sync Assay/Study</q-btn
         >
         <q-btn
-          style="background-color: gainsboro"
+          id="study"
           icon="sync"
           glossy
           @click="
@@ -755,17 +763,16 @@ function checkName(name: string) {
         <q-btn icon="refresh" @click="inspectArc(arcId)" glossy>Reload</q-btn>
       </q-btn-group>
       <!-- activates swate and annotation sheets-->
-      <q-checkbox v-model="experimental">Experimental</q-checkbox></template
+      <q-checkbox v-model="lfs">LFS</q-checkbox></template
     >
 
     <!-- LOADING SPINNER --><q-spinner
       id="loader"
-      color="primary"
-      size="3em"
+      size="2em"
       v-show="loading"
       :key="refresher + 4"></q-spinner>
   </div>
-
+  <p v-if="lfs">Note: Large file uploads may take a while!</p>
   <q-list bordered dense class="rounded-borders">
     <!-- USERNAME -->
     <q-item v-if="username.length > 1"
@@ -788,7 +795,7 @@ function checkName(name: string) {
         <template v-if="showInput"
           ><q-btn
             icon="arrow_back"
-            style="background-color: antiquewhite"
+            class="return"
             @click="
               showInput = false;
               forcereload();
@@ -797,12 +804,13 @@ function checkName(name: string) {
           <q-input
             outlined
             v-model="ident"
+            :rules="[(val) => !val.includes(' ') || 'No whitespace allowed!']"
             label="An identifier for the isa file (e.g. GelBasedProteomicsWT)" />
           <q-separator></q-separator>
 
           <q-btn
             icon="send"
-            style="background-color: lightcyan"
+            class="send"
             @click="
               addIsa(
                 arcId,
@@ -827,6 +835,7 @@ function checkName(name: string) {
           v-if="arcList.length == 0"
           value="name"
           @update:model-value="(newValue:string) => sortArcs(newValue)"
+          :disable="list.length == 0"
           ><template v-slot:append> <q-icon name="search"></q-icon></template
         ></q-input>
         <!-- PATH; RETURN ARROW; CREATE ISA -->
@@ -850,7 +859,7 @@ function checkName(name: string) {
               forcereload();
             "
             v-if="pathHistory.length > 1"
-            style="background-color: hsl(0, 0%, 95%)"
+            id="path"
             ><q-item-section avatar
               ><q-icon name="arrow_back"></q-icon
             ></q-item-section>
@@ -861,13 +870,13 @@ function checkName(name: string) {
                 pathHistory[pathHistory.length - 1] == 'assays' ||
                 pathHistory[pathHistory.length - 1] == 'studies'
               ">
-              <div class="text-grey-8 q-gutter-xs">
+              <div class="q-gutter-xs">
                 <q-btn
+                  id="add"
                   dense
                   flat
                   size="12px"
                   icon="add"
-                  style="background-color: lightgreen"
                   @click="
                     showInput = true;
                     forcereload();
@@ -882,7 +891,7 @@ function checkName(name: string) {
         <q-item
           v-if="arcList.length != 0"
           v-for="(item, i) in arcList"
-          :style="i % 2 === 1 ? 'background-color:hsl(0, 0%, 95%);' : ''"
+          :class="i % 2 === 1 ? 'alt' : ''"
           clickable
           @click="
             if (item.type == 'tree') {
@@ -907,8 +916,7 @@ function checkName(name: string) {
           </template>
           <template
             v-else-if="
-              experimental &&
-              (item.name == 'isa.study.xlsx' || item.name == 'isa.assay.xlsx')
+              item.name == 'isa.study.xlsx' || item.name == 'isa.assay.xlsx'
             "
             ><q-item-section avatar
               ><q-icon name="description"></q-icon></q-item-section
@@ -958,22 +966,23 @@ function checkName(name: string) {
 
         <!-- LIST OF ARCS -->
         <q-list style="padding: 1em" separator v-if="arcList.length == 0">
-          <!-- the user arc gets highlighted with a yellow background-->
+          <!-- the user arc gets highlighted with a yellow/blue background-->
           <q-item
             v-for="(item, i) in searchList"
-            :style="
+            :class="
               item.namespace.name === username
-                ? 'background-color: lightyellow;'
+                ? 'own'
                 : i % 2 === 1
-                ? 'background-color:#fafafa;'
-                : ''
+                ? 'alt'
+                : 'clean'
             "
-            :clickable="appProperties.loggedIn"
+            :clickable="appProperties.loggedIn && item.id != 1"
             @click="
               arcBranch = item.default_branch;
               arcProperties.branch = arcBranch;
               arcProperties.identifier = item.name;
               arcProperties.url = item.http_url_to_repo;
+              namespace = item.path_with_namespace;
               inspectArc(item.id);
             ">
             <!-- load the avatar if there is one -->
@@ -994,13 +1003,14 @@ function checkName(name: string) {
                 >{{ item.name }}, ID: {{ item.id }}</q-item-label
               >
               <div class="q-pa-xs q-gutter-md" v-if="item.topics.length > 0">
-                <q-badge outline v-for="i in item.topics" color="brown">{{
-                  i
-                }}</q-badge>
+                <q-badge
+                  outline
+                  v-for="i in item.topics"
+                  :color="$q.dark.isActive ? 'orange' : 'brown'"
+                  >{{ i }}</q-badge
+                >
               </div>
-              <q-item-label style="color: #666"
-                >[{{ item.created_at }}]</q-item-label
-              >
+              <q-item-label class="text">[{{ item.created_at }}]</q-item-label>
               <q-item-label v-if="item.description != null">
                 <template v-if="item.description.length > 200"
                   >{{ item.description.slice(0, 200) }}...</template
@@ -1009,8 +1019,9 @@ function checkName(name: string) {
               </q-item-label>
 
               <q-item-label
+                class="text"
                 :style="
-                  'color:#666;' + (item.isOwner ? 'font-weight:bold;' : '')
+                  item.namespace.name === username ? 'font-weight:bold;' : ''
                 "
                 >{{ item.namespace.name }}</q-item-label
               >
@@ -1019,7 +1030,8 @@ function checkName(name: string) {
               <q-btn
                 unelevated
                 color="secondary"
-                v-on:click="openArc(item.http_url_to_repo)"
+                :href="item.http_url_to_repo"
+                target="_blank"
                 icon="search"
                 ><q-tooltip>Open in new Tab</q-tooltip></q-btn
               >
@@ -1057,7 +1069,7 @@ function checkName(name: string) {
             assaySync = false;
             forcereload();
           "
-          style="background-color: antiquewhite">
+          class="return">
           Return
         </q-btn>
         <div class="q-gutter-md row">
@@ -1094,7 +1106,7 @@ function checkName(name: string) {
             studySync = false;
             forcereload();
           "
-          style="background-color: antiquewhite">
+          class="return">
           Return
         </q-btn>
         <div class="q-gutter-md row">
@@ -1118,3 +1130,76 @@ function checkName(name: string) {
     </template>
   </q-list>
 </template>
+<style>
+/* LIGHT MODE */
+.body--light #arcFetch {
+  background-color: aquamarine;
+  max-width: 200px;
+}
+
+.body--light .own {
+  background-color: lightyellow;
+}
+
+.body--light .text {
+  color: #666;
+}
+
+.body--light #path {
+  background-color: hsl(0, 0%, 95%);
+}
+
+.body--light #add {
+  background-color: lightgreen;
+}
+
+/* Light mode button group*/
+.body--light #open {
+  background-color: lightskyblue;
+  max-width: 200px;
+}
+
+.body--light #assay {
+  background-color: orange;
+}
+
+.body--light #study {
+  background-color: gainsboro;
+}
+
+/* DARK MODE */
+.body--dark #arcFetch {
+  background-color: dodgerblue;
+  max-width: 200px;
+}
+
+.body--dark .own {
+  background-color: #000031;
+}
+
+.body--dark .text {
+  color: #999;
+}
+
+.body--dark #path {
+  background-color: hsl(0, 0%, 5%);
+}
+
+.body--dark #add {
+  background-color: green;
+}
+
+/* Dark mode button group */
+.body--dark #open {
+  background-color: dodgerblue;
+  max-width: 200px;
+}
+
+.body--dark #assay {
+  background-color: peru;
+}
+
+.body--dark #study {
+  background-color: gray;
+}
+</style>

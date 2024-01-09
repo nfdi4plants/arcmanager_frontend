@@ -9,7 +9,10 @@ const appProperties = reactive({
   //backend: "http://localhost:8000/arcmanager/api/v1/",
 
   // displays the right side
-  showIsaView: false
+  showIsaView: false,
+
+  // displays dark mode
+  dark: false
 });
 
 export default appProperties;

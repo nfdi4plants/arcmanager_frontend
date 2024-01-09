@@ -291,10 +291,23 @@ async function selectSheet(name: string, index: number) {
       });
     }
     let cellContent: string[] = [];
-    // load in the cell data row by row
-    for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
-      cellContent.push(sheetProperties.sheets[index].data[j][i]);
+
+    // if the sheet has more than hundred rows, only show the last 100 to save memory
+    if (sheetProperties.sheets[index].data.length < 100) {
+      // load in the cell data row by row
+      for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
+        cellContent.push(sheetProperties.sheets[index].data[j][i]);
+      }
+    } else {
+      for (
+        let j = sheetProperties.sheets[index].data.length - 100;
+        j < sheetProperties.sheets[index].data.length;
+        j++
+      ) {
+        cellContent.push(sheetProperties.sheets[index].data[j][i]);
+      }
     }
+
     templateProperties.content.push(cellContent);
   }
   // if the content is empty, get a list of templates and display them
@@ -310,6 +323,7 @@ async function selectSheet(name: string, index: number) {
         }
         // save the templates
         templateProperties.templates = templates.templates;
+        templateProperties.filtered = templates.templates;
       });
   }
   sheetProperties.sheets = sheetProperties.names = [];
@@ -361,7 +375,7 @@ function onPaste(e) {
 // sort the templates to include only the templates containing the searchTerm
 function sortTemplates(searchTerm: string) {
   templateProperties.filtered = [];
-  templateProperties.templates.forEach((element) => {
+  templateProperties.templates.forEach((element: any) => {
     // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
     let searchString =
       element["Name"].toLowerCase() +
@@ -398,7 +412,6 @@ function sortTemplates(searchTerm: string) {
   >
   <q-spinner
     id="loader"
-    color="primary"
     size="2em"
     v-show="loading"
     :key="keyNumber"></q-spinner>
@@ -410,7 +423,7 @@ function sortTemplates(searchTerm: string) {
     @click="setEntry(item, i)"
     v-if="isaProperties.entries.length != 0"
     v-for="(item, i) in isaProperties.entries.slice(0, 1000)"
-    :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+    :class="i % 2 === 1 ? 'alt' : ''">
     <q-item-section v-for="(entry, i) in item">
       <q-item-section>
         <template v-if="i > 0 && entry != null"
@@ -425,7 +438,7 @@ function sortTemplates(searchTerm: string) {
     <q-item
       clickable
       v-for="(term, i) in termProperties.terms.slice(0, 1000)"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      :class="i % 2 === 1 ? 'alt' : ''">
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
@@ -447,7 +460,7 @@ function sortTemplates(searchTerm: string) {
           ><q-card-section>{{ term["Description"] }}</q-card-section>
           <q-card-section
             ><q-btn
-              style="background-color: #f2f2f2"
+              class="alt"
               @click="
                 setTerm(term['Name'], term['Accession'], term['FK_Ontology'])
               "
@@ -471,7 +484,7 @@ function sortTemplates(searchTerm: string) {
       clickable
       v-if="termProperties.unitTerms.length > 0"
       v-for="(term, i) in termProperties.unitTerms.slice(0, 1000)"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      :class="i % 2 === 1 ? 'alt;' : ''">
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
@@ -509,7 +522,7 @@ function sortTemplates(searchTerm: string) {
       clickable
       v-else-if="termProperties.buildingBlocks.length > 0"
       v-for="(term, i) in termProperties.buildingBlocks.slice(0, 1000)"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      :class="i % 2 === 1 ? 'alt;' : ''">
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
@@ -545,7 +558,7 @@ function sortTemplates(searchTerm: string) {
   <q-list bordered v-if="sheetProperties.names.length > 0">
     <q-item
       v-for="(name, i) in sheetProperties.names"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      :class="i % 2 === 1 ? 'alt' : ''">
       <q-expansion-item>
         <template #header>
           <q-btn @click="selectSheet(name, i)">{{ name }}</q-btn>
@@ -554,9 +567,14 @@ function sortTemplates(searchTerm: string) {
           ><q-card-section>{{
             sheetProperties.sheets[i]["columns"]
           }}</q-card-section
-          ><q-card-section>{{
-            sheetProperties.sheets[i]["data"]
-          }}</q-card-section>
+          ><q-card-section
+            >{{ sheetProperties.sheets[i]["data"].slice(0, 100)
+            }}<template v-if="sheetProperties.sheets[i]['data'].length > 100">
+              <i>
+                +{{ sheetProperties.sheets[i]["data"].length - 100 }}</i
+              ></template
+            ></q-card-section
+          >
         </q-card>
       </q-expansion-item>
     </q-item>
@@ -568,13 +586,12 @@ function sortTemplates(searchTerm: string) {
       label="Search"
       value="name"
       @update:model-value="(newValue:string) => sortTemplates(newValue)"
-      style="background-color: white"
       ><template v-slot:append> <q-icon name="search"></q-icon></template
     ></q-input>
     <q-item
       clickable
       v-for="(template, i) in templateProperties.filtered"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      :class="i % 2 === 1 ? 'alt' : ''">
       <q-expansion-item>
         <template #header>
           {{ template.Name }} ({{ template.Organisation }})
@@ -587,9 +604,7 @@ function sortTemplates(searchTerm: string) {
             >Updated last:
             {{ template.LastUpdated.slice(0, 10) }}</q-card-section
           ><q-card-section
-            ><q-btn
-              style="background-color: #f2f2f2"
-              @click="setTemplate(template.Id)"
+            ><q-btn class="alt" @click="setTemplate(template.Id)"
               >Import</q-btn
             ></q-card-section
           >
@@ -599,7 +614,21 @@ function sortTemplates(searchTerm: string) {
   </q-list>
   <!-- If its an non isa file, display the content-->
   <q-item-section v-if="fileProperties.content != ''">
-    <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
+    <q-toolbar-title
+      >{{ fileProperties.name
+      }}<q-badge
+        outline
+        style="margin-left: 1em"
+        color="blue"
+        v-if="
+          fileProperties.content.includes(
+            'version https://git-lfs.github.com/spec/v1'
+          )
+        "
+        >LFS</q-badge
+      ></q-toolbar-title
+    >
+
     <!-- IF its an png -->
     <q-img
       v-if="fileProperties.name.toLowerCase().includes('.png')"
@@ -650,5 +679,11 @@ function sortTemplates(searchTerm: string) {
 <style scoped>
 * {
   font-size: medium;
+}
+.body--dark .alt {
+  background-color: #050505;
+}
+.body--light .alt {
+  background-color: #fafafa;
 }
 </style>

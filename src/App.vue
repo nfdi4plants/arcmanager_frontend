@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { setCssVar } from "quasar";
+import { setCssVar, useQuasar } from "quasar";
 setCssVar("primary", "#2d3e50");
 import { ref, reactive } from "vue";
 
@@ -21,12 +21,14 @@ import fileProperties from "./FileProperties";
 import sheetProperties from "./SheetProperties";
 import termProperties from "./TermProperties";
 
-let fontSize = "large";
+const $q = useQuasar();
 
 const layoutProperties = reactive({
   showLeft: true,
   toolbarMinimized: false,
 });
+
+$q.dark.set(appProperties.dark);
 
 let backend = appProperties.backend + "projects/";
 
@@ -40,6 +42,9 @@ let arcDesc = ref("");
 let invId = ref("");
 
 let loading = false;
+
+// list with errors
+var errors: any;
 
 let drawerWidth = ref(1000);
 
@@ -87,11 +92,12 @@ const refresher = ref(0);
 const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the page
   refresher.value += 1;
+  $q.dark.set(appProperties.dark);
 };
 async function createArc() {
   loading = true;
   forcereload();
-  await fetch(backend + "createArc", {
+  const response = await fetch(backend + "createArc", {
     credentials: "include",
     method: "POST",
     body: JSON.stringify({
@@ -99,12 +105,17 @@ async function createArc() {
       description: arcDesc.value,
       investIdentifier: invId.value,
     }),
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      console.log(data);
-      isaProperties.entries = [];
-    });
+  });
+  let data = await response.json();
+  if (!response.ok) {
+    errors = "ERROR: " + data["detail"];
+    forcereload();
+  } else {
+    console.log(data);
+  }
+
+  isaProperties.entries = [];
+
   loading = false;
   forcereload();
 }
@@ -138,8 +149,7 @@ if (document.cookie.includes("error")) {
       :mini="layoutProperties.toolbarMinimized"
       :width="190"
       :breakpoint="500"
-      bordered
-      class="bg-grey-3">
+      bordered>
       <q-scroll-area
         class="fit"
         :horizontal-thumb-style="{ opacity: String(0) }">
@@ -150,6 +160,7 @@ if (document.cookie.includes("error")) {
             class="bg-primary text-white"
             @click="
               showInput = false;
+              errors = '';
               forcereload();
             "
             style="padding-top: 1em; padding-bottom: 1em">
@@ -160,6 +171,7 @@ if (document.cookie.includes("error")) {
                 :name="'img:' + logoURL"
                 @click="
                   showInput = false;
+                  errors = '';
                   forcereload();
                 "
                 :key="refresher + 1"></q-icon>
@@ -168,7 +180,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.3.4
+                  v 0.4.0
                 </q-badge></q-item-label
               >
             </q-item-section>
@@ -201,18 +213,39 @@ if (document.cookie.includes("error")) {
             clickable
             v-on:click="
               showInput = true;
+              errors = '';
               cleanIsaView();
               forcereload();
             "
-            :disable="!appProperties.loggedIn">
+            v-show="appProperties.loggedIn">
             <q-item-section avatar>
               <q-icon color="grey-7" name="add_circle"></q-icon>
             </q-item-section>
             <q-item-section style="margin-left: -1.2em">New ARC</q-item-section>
           </q-item>
+          <q-item v-if="!appProperties.dark">
+            <q-btn
+              @click="
+                appProperties.dark = !appProperties.dark;
+                $q.dark.toggle();
+              "
+              round
+              outline
+              icon="dark_mode"></q-btn
+          ></q-item>
+          <q-item v-else>
+            <q-btn
+              @click="
+                appProperties.dark = !appProperties.dark;
+                $q.dark.toggle();
+              "
+              round
+              outline
+              color="yellow"
+              icon="light_mode"></q-btn>
+          </q-item>
         </q-list>
         <q-spinner-gears
-          color="primary"
           size="5em"
           style="margin-left: 1cm"
           v-show="loading"
@@ -226,7 +259,6 @@ if (document.cookie.includes("error")) {
       side="right"
       bordered
       :breakpoint="0"
-      class="bg-grey-3"
       :width="drawerWidth">
       <q-scroll-area class="fit" style="height: 95%; width: 95%">
         <q-btn
@@ -240,14 +272,16 @@ if (document.cookie.includes("error")) {
 
     <q-page-container>
       <q-page padding>
+        <q-item-section v-if="errors != null">{{ errors }}</q-item-section>
         <template v-if="showInput"
           ><q-btn
+            class="return"
             icon="arrow_back"
-            style="background-color: antiquewhite"
             @click="
               showInput = false;
               forcereload();
-            "></q-btn>
+            "
+            :key="refresher + 3"></q-btn>
           <p>Please fill out the form below to create the new ARC:</p>
           <q-input outlined v-model="arcName" label="Name of the ARC" />
           <q-input outlined v-model="arcDesc" label="Description of the ARC" />
@@ -262,8 +296,8 @@ if (document.cookie.includes("error")) {
             style="margin-top: 1em; margin-bottom: 1em"></q-separator>
 
           <q-btn
+            class="send"
             icon="send"
-            style="background-color: lightcyan"
             @click="
               createArc();
               showInput = false;
@@ -272,8 +306,7 @@ if (document.cookie.includes("error")) {
             "
             :disable="
               arcName.length == 0 || arcDesc.length == 0 || invId.length == 0
-            "
-            :key="refresher + 3"></q-btn>
+            "></q-btn>
           <!-- Hints to fill out the empty input fields -->
           <span style="margin-left: 1em" v-if="arcName.length == 0"
             >Please provide a name for the ARC!</span
@@ -304,5 +337,26 @@ if (document.cookie.includes("error")) {
 <style>
 * {
   font-size: large;
+}
+
+.body--light .return {
+  background-color: antiquewhite;
+}
+.body--dark .return {
+  background-color: peru;
+}
+
+.body--light .send {
+  background-color: lightcyan;
+}
+.body--dark .send {
+  background-color: steelblue;
+}
+
+.body--dark .alt {
+  background-color: #050505;
+}
+.body--light .alt {
+  background-color: #fafafa;
 }
 </style>

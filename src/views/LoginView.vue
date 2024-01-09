@@ -14,7 +14,6 @@ const forcereload = () => {
   refresher.value += 1;
 };
 
-
 async function Login() {
   // clear any error cookie
   document.cookie = "error=; expires=Thu, 01 Jan 1970 00:00:00 UTC";
@@ -35,21 +34,21 @@ async function logout() {
 
 <template>
   <q-item
+    id="login"
     v-if="!appProperties.loggedIn"
     clickable
     v-ripple
     @click="
       Login();
       forcereload();
-    "
-    :key="refresher"
-    style="background-color: lightcyan">
+    ">
     <q-item-section avatar>
-      <q-icon color="grey-7" name="login"></q-icon>
+      <q-icon name="login"></q-icon>
     </q-item-section>
     <q-item-section style="margin-left: -1.2em">Login</q-item-section>
   </q-item>
   <q-item
+    id="logout"
     v-if="appProperties.loggedIn"
     clickable
     v-ripple
@@ -57,13 +56,26 @@ async function logout() {
       logout();
       forcereload();
     "
-    :key="refresher"
-    style="background-color: lightpink">
+    :key="refresher">
     <q-item-section avatar>
-      <q-icon color="grey-7" name="logout"></q-icon>
+      <q-icon name="logout"></q-icon>
     </q-item-section>
     <q-item-section style="margin-left: -1.2em">Logout</q-item-section>
   </q-item>
 </template>
 
-<style></style>
+<style>
+.body--light #logout {
+  background-color: lightpink;
+}
+.body--dark #logout {
+  background-color: maroon;
+}
+
+.body--light #login {
+  background-color: lavender;
+}
+.body--dark #login {
+  background-color: teal;
+}
+</style>

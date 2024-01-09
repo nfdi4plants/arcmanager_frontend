@@ -310,9 +310,7 @@ function setIds() {
           >Search</q-btn
         >
         <q-checkbox v-model="advanced">Extended search</q-checkbox>
-        <q-btn
-          @click="getSuggestionsByParent()"
-          style="background-color: azure; margin-left: 1em"
+        <q-btn id="suggestion" @click="getSuggestionsByParent()"
           >Get suggestions</q-btn
         ><q-select
           v-model="templateProperties.rowId"
@@ -348,8 +346,8 @@ function setIds() {
         v-model="sheetProperties.name"
         placeholder="Name your sheet" />
       <q-btn
+        class="sheet"
         @click="saveSheet()"
-        style="background-color: bisque"
         :disable="sheetProperties.name.length == 0"
         >Save</q-btn
       ><span style="margin-left: 1em" v-if="sheetProperties.name.length == 0"
@@ -357,14 +355,14 @@ function setIds() {
       >
       <q-spinner
         id="loader"
-        color="primary"
         size="2em"
         v-show="loading"
         :key="keyNumber"></q-spinner>
       <q-checkbox v-model="hidden">Hide Terms</q-checkbox>
       <q-btn
+        class="sheet"
+        style="margin-left: 1em"
         icon="add"
-        style="margin-left: 1em; background-color: cornsilk"
         dense
         @click="
           showBuildingBlock = true;
@@ -492,11 +490,32 @@ function setIds() {
     </q-scroll-area>
   </div>
 </template>
-<style>
+<style scoped>
 td,
 th {
   border: 1px solid;
   padding: 1px;
   font-size: small;
+}
+
+.body--light .sheet {
+  background-color: cornsilk;
+}
+.body--dark .sheet {
+  background-color: sienna;
+}
+
+.body--light #suggestion {
+  background-color: azure;
+  margin-left: 1em;
+}
+.body--dark #suggestion {
+  background-color: darkcyan;
+  margin-left: 1em;
+}
+
+.body--dark input {
+  background-color: #121212;
+  color: white;
 }
 </style>
