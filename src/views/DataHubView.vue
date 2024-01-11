@@ -51,6 +51,9 @@ let username = "";
 // set to true if loading something
 let loading = false;
 
+// set to true if the uploader is active
+let uploading = false;
+
 // displays arc creation input field
 let showInput = false;
 
@@ -219,6 +222,7 @@ async function inspectArc(id: number) {
   search.value = "";
   searchList = list;
   cleanIsaView();
+  appProperties.showIsaView = false;
   arcProperties.studies = arcProperties.assays = [];
   arcProperties.changes = "";
   forcereload();
@@ -445,14 +449,32 @@ function sortArcs(searchTerm: string) {
 
 // uploads the file to the hub
 async function fileUpload() {
-  loading = true;
+  uploading = true;
   forcereload();
   let resultContent = "";
-
-  // read out the given file input
   let reader = new FileReader();
   reader.readAsDataURL(fileInput.value);
+  // read out the given file input
+  /*
 
+  let fileSize = fileInput.value.size;
+  let chunkSize = 1048576 // 1mb
+
+  let chunkNumber = Math.ceil(fileSize/chunkSize);
+  let start = 0;
+  let chunkEnd = start + chunkSize;
+
+  let base64String = ""
+  
+  for(let counter = 0; counter<chunkNumber; counter++){
+    let reader = new FileReader();
+    chunkEnd = Math.min(start+chunkSize, fileSize);
+    let chunk = fileInput.value.slice(start, chunkEnd);
+    reader.readAsDataURL(chunk)
+    
+    let contentRange = counter;
+    start = chunkEnd;
+    */
   reader.onload = async function () {
     let result = reader.result?.toString();
     resultContent = result?.split(",")[1];
@@ -477,6 +499,8 @@ async function fileUpload() {
         path: filePath,
         namespace: namespace.value,
         lfs: lfs.value,
+        //chunk: counter,
+        //chunkNumber: chunkNumber,
       }),
       credentials: "include",
     });
@@ -490,11 +514,15 @@ async function fileUpload() {
       fileProperties.name = fileProperties.path = fileProperties.content = "";
       fileProperties.id = 0;
       errors = "";
+      uploading = false;
       // get the updated view of the arc
       await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
     }
   };
-  loading = false;
+  //}
+
+  
+  uploading = false;
   forcereload();
 }
 
@@ -671,6 +699,7 @@ function checkName(name: string) {
     ".dll",
     ".pdb",
     ".pptx",
+    ".bt2"
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -722,13 +751,14 @@ function checkName(name: string) {
           max-files="1"
           @update:model-value="
             fileUpload();
-            loading = true;
+            uploading = true;
           "
           @rejected="
             errors = 'ERROR: File too big or too many selected!';
             forcereload();
           "
-          :key="refresher" />
+          :key="refresher"
+          :loading="uploading" />
         <q-btn
           id="open"
           @click="openArc(arcProperties.url)"
@@ -905,9 +935,6 @@ function checkName(name: string) {
             }
           "
           :disable="
-            item.name.includes('LICENSE') ||
-            item.name.includes('LICENCE') ||
-            item.name == '.gitkeep' ||
             checkName(item.name)
           ">
           <template v-if="item.type == 'tree'">
@@ -1052,7 +1079,7 @@ function checkName(name: string) {
                   inspectArc(item.id);
                 "
                 icon="expand_more"
-                :disable="!appProperties.loggedIn"
+                :disable="!appProperties.loggedIn || item.id == 1"
                 ><q-tooltip>Expand</q-tooltip></q-btn
               >
             </q-item-section>

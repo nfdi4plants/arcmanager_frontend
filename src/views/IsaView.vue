@@ -22,7 +22,7 @@ let keyNumber = ref(0);
 
 let errors = "";
 
-let showChanges = ref(false);
+let showChanges = ref(true);
 
 // field for searchbar
 let search = ref("");
@@ -389,6 +389,34 @@ function sortTemplates(searchTerm: string) {
     }
   });
 }
+
+function checkName(name:String){
+  let includes = false;
+  let formats = [
+    ".py",
+    ".csv",
+    ".yml",
+    ".cwl",
+    ".r ",
+    ".rproj",
+    ".lock",
+    "dockerfile",
+    ".fsx",
+    ".json",
+    ".fa",
+    ".gff",
+    ".sh",
+    "license",
+    "licence",
+    ".gitkeep" 
+  ];
+  formats.forEach((element) => {
+    if (name.toLowerCase().includes(element)) {
+      includes = true;
+    }
+  });
+  return includes;
+}
 </script>
 
 <template>
@@ -614,21 +642,29 @@ function sortTemplates(searchTerm: string) {
   </q-list>
   <!-- If its an non isa file, display the content-->
   <q-item-section v-if="fileProperties.content != ''">
-    <q-toolbar-title
+    <template v-if="
+          fileProperties.content.includes(
+            'version https://git-lfs.github.com/spec/v1'
+          )
+        "><q-toolbar-title
       >{{ fileProperties.name
       }}<q-badge
         outline
         style="margin-left: 1em"
         color="blue"
-        v-if="
-          fileProperties.content.includes(
-            'version https://git-lfs.github.com/spec/v1'
-          )
-        "
         >LFS</q-badge
       ></q-toolbar-title
     >
-
+    <q-editor
+        v-model="fileProperties.content"
+        style="white-space: pre-line"
+        @paste="onPaste"></q-editor>
+  </template>
+    <template v-else>
+      <q-toolbar-title
+      >{{ fileProperties.name
+      }}</q-toolbar-title
+    >
     <!-- IF its an png -->
     <q-img
       v-if="fileProperties.name.toLowerCase().includes('.png')"
@@ -650,20 +686,17 @@ function sortTemplates(searchTerm: string) {
       <q-editor
         v-model="fileProperties.content"
         style="white-space: pre-line"
+        :readonly="checkName(fileProperties.name)"
         @paste="onPaste"></q-editor>
       <q-btn
         icon="save"
         @click="commitFile()"
         :disable="
-          fileProperties.name == '413' ||
-          // if its an lfs file, it should not be editable
-          fileProperties.content.includes(
-            'version https://git-lfs.github.com/spec/v1'
-          )
+          fileProperties.name == '413' || checkName(fileProperties.name)
         "
         >Save</q-btn
       ></template
-    >
+    ></template>
   </q-item-section>
   <!-- Display the changes made in the arc-->
   <q-item-section
