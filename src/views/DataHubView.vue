@@ -814,7 +814,6 @@ function checkName(name: string) {
       :key="refresher + 5"
       color="red"></q-linear-progress>
     <p>Uploading file...</p>
-    <p>{{ progress }}</p>
   </template>
   <p v-if="lfs">Note: Large file uploads may take a while!</p>
   <q-list bordered dense class="rounded-borders">

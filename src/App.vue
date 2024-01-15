@@ -180,7 +180,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.4.0
+                  v 0.4.1
                 </q-badge></q-item-label
               >
             </q-item-section>
