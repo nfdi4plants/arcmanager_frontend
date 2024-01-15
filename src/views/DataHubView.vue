@@ -53,6 +53,7 @@ let loading = false;
 
 // set to true if the uploader is active
 let uploading = false;
+let progress = [];
 
 // displays arc creation input field
 let showInput = false;
@@ -450,78 +451,73 @@ function sortArcs(searchTerm: string) {
 // uploads the file to the hub
 async function fileUpload() {
   uploading = true;
+  // array to save the progress from backend
+  progress = [];
   forcereload();
   let resultContent = "";
-  let reader = new FileReader();
-  reader.readAsDataURL(fileInput.value);
-  // read out the given file input
-  /*
 
   let fileSize = fileInput.value.size;
-  let chunkSize = 1048576 // 1mb
+  //let chunkSize = 1048576; // 1mb
+  let chunkSize = 104857600; // 100mb
 
-  let chunkNumber = Math.ceil(fileSize/chunkSize);
+  let chunkNumber = Math.ceil(fileSize / chunkSize);
   let start = 0;
   let chunkEnd = start + chunkSize;
 
-  let base64String = ""
-  
-  for(let counter = 0; counter<chunkNumber; counter++){
+  fileProperties.name = fileInput.value.name;
+  for (let counter = 0; counter < chunkNumber; counter++) {
     let reader = new FileReader();
-    chunkEnd = Math.min(start+chunkSize, fileSize);
+    chunkEnd = Math.min(start + chunkSize, fileSize);
     let chunk = fileInput.value.slice(start, chunkEnd);
-    reader.readAsDataURL(chunk)
-    
-    let contentRange = counter;
+
     start = chunkEnd;
-    */
-  reader.onload = async function () {
-    let result = reader.result?.toString();
-    resultContent = result?.split(",")[1];
+    reader.readAsDataURL(chunk);
+    reader.onload = async function () {
+      let result = reader.result.toString();
+      resultContent = result.split(",")[1];
 
-    // save the file on the most recent path
-    let filePath = pathHistory[pathHistory.length - 1];
+      // save the file on the most recent path
+      let filePath = pathHistory[pathHistory.length - 1];
 
-    if (filePath == "") {
-      filePath += fileInput.value.name;
-    } else {
-      filePath += "/" + fileInput.value.name;
-    }
-    // send the file to the backend to upload it
-    const response = await fetch(backend + "uploadFile", {
-      method: "POST",
-      // body for the backend containing all necessary data
-      body: JSON.stringify({
-        name: fileInput.value.name,
-        content: resultContent,
-        id: arcId,
-        branch: arcBranch,
-        path: filePath,
-        namespace: namespace.value,
-        lfs: lfs.value,
-        //chunk: counter,
-        //chunkNumber: chunkNumber,
-      }),
-      credentials: "include",
-    });
-    if (!(await response).ok) {
-      let data = await response.json();
-      errors = "ERROR: " + data["detail"];
-      refresher.value += 1;
-    } else {
-      // if successful, reset the fileProperties and input value
-      fileInput.value = "";
-      fileProperties.name = fileProperties.path = fileProperties.content = "";
-      fileProperties.id = 0;
-      errors = "";
-      uploading = false;
-      // get the updated view of the arc
-      await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
-    }
-  };
-  //}
-
-  
+      if (filePath == "") {
+        filePath += fileProperties.name;
+      } else {
+        filePath += "/" + fileProperties.name;
+      }
+      // send the file to the backend to upload it
+      let response = await fetch(backend + "uploadFile", {
+        method: "POST",
+        // body for the backend containing all necessary data
+        body: JSON.stringify({
+          name: fileProperties.name,
+          content: resultContent,
+          id: arcId,
+          branch: arcBranch,
+          path: filePath,
+          namespace: namespace.value,
+          lfs: lfs.value,
+          chunk: counter,
+          chunkNumber: chunkNumber,
+        }),
+        credentials: "include",
+      });
+      if (!response.ok) {
+        let data = await response.json();
+        errors = "ERROR: " + data["detail"];
+        refresher.value += 1;
+      } else {
+        progress.push((await response.text()).split("%")[0].split('"')[1]);
+        forcereload();
+      }
+    };
+  }
+  fileInput.value = "";
+  fileProperties.path = fileProperties.content = "";
+  fileProperties.id = 0;
+  errors = "";
+  uploading = false;
+  // get the updated view of the arc
+  await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
   uploading = false;
   forcereload();
 }
@@ -699,7 +695,7 @@ function checkName(name: string) {
     ".dll",
     ".pdb",
     ".pptx",
-    ".bt2"
+    ".bt2",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -806,6 +802,20 @@ function checkName(name: string) {
       v-show="loading"
       :key="refresher + 4"></q-spinner>
   </div>
+  <template
+    v-if="
+      progress.length > 0 &&
+      progress[progress.length - 1] != '100' &&
+      progress[progress.length - 1] != null
+    ">
+    <q-linear-progress
+      style="margin-top: 1em"
+      :value="Number(progress[progress.length - 1]) / 100"
+      :key="refresher + 5"
+      color="red"></q-linear-progress>
+    <p>Uploading file...</p>
+    <p>{{ progress }}</p>
+  </template>
   <p v-if="lfs">Note: Large file uploads may take a while!</p>
   <q-list bordered dense class="rounded-borders">
     <!-- USERNAME -->
@@ -934,9 +944,7 @@ function checkName(name: string) {
               getFile(arcId, item.path, arcBranch);
             }
           "
-          :disable="
-            checkName(item.name)
-          ">
+          :disable="checkName(item.name)">
           <template v-if="item.type == 'tree'">
             <q-item-section avatar top
               ><q-avatar icon="folder"></q-avatar
