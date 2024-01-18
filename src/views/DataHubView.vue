@@ -94,7 +94,7 @@ if (document.cookie.includes("logged_in=true")) {
   );
 }
 
-let fileInput = ref();
+let fileInput = ref([]);
 
 // opens the explore page of the selected git in a new tab (only when you're not logged in currently)
 function openGit(target: string) {
@@ -451,92 +451,104 @@ function sortArcs(searchTerm: string) {
 // uploads the file to the hub
 async function fileUpload() {
   uploading = true;
+  // index and size of the largest file
+  let largestFile = fileInput.value.length - 1;
+  let largestFileSize = 0;
   // array to save the progress from backend
-  progress = [];
   forcereload();
+  for (let i = 0; i < fileInput.value.length; i++) {
+    // save the file on the most recent path
+    let filePath = pathHistory[pathHistory.length - 1];
+    $q.loading.show({
+      message: "Uploading the file(s)...",
+    });
 
-  fileProperties.name = fileInput.value.name;
-  // save the file on the most recent path
-  let filePath = pathHistory[pathHistory.length - 1];
-
-  let fileSize = fileInput.value.size;
-
-  if (filePath == "") {
-    filePath += fileProperties.name;
-  } else {
-    filePath += "/" + fileProperties.name;
-  }
-
-  const chunkSize = 100 * 1024 * 1024;
-  const totalChunks = Math.ceil(fileInput.value.size / chunkSize);
-  const chunkProgress = 1 / totalChunks;
-  progress = chunkProgress;
-
-  const selectedFile = fileInput.value;
-
-  let chunkNumber = 0;
-  let start = 0;
-  let end = start + chunkSize;
-
-  const uploadNextChunk = async () => {
-    end = Math.min(start + chunkSize, fileSize);
-    // set the progress to 99% for the last chunk
-    if (chunkNumber + 1 == totalChunks) {
-      progress = 0.99;
-    }
-
-    if (chunkNumber < totalChunks) {
-      const chunk = selectedFile.slice(start, end);
-      const formData = new FormData();
-
-      formData.append("file", chunk);
-      formData.append("chunkNumber", chunkNumber);
-      formData.append("totalChunks", totalChunks);
-      formData.append("name", fileProperties.name);
-      formData.append("id", arcId);
-      formData.append("branch", arcBranch);
-      formData.append("path", filePath);
-      formData.append("namespace", namespace.value);
-      formData.append("lfs", lfs.value);
-
-      fetch(backend + "uploadFile", {
-        method: "POST",
-        // body for the backend containing all necessary data
-        body: formData,
-        credentials: "include",
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          const temp = `Chunk ${
-            chunkNumber + 1
-          }/${totalChunks} uploaded successfully`;
-          // update progress if its not the last chunk
-          if (progress < 0.99)
-            progress = Number((chunkNumber + 1) * chunkProgress);
-          forcereload();
-          console.log(temp);
-          chunkNumber++;
-          start = end;
-          end = start + chunkSize;
-          uploadNextChunk();
-        })
-        .catch((error) => {
-          console.error("ERROR: ", error);
-        });
+    if (filePath == "") {
+      filePath += fileInput.value[i].name;
     } else {
-      progress = 1;
-      fileInput.value = null;
-      fileProperties.path = fileProperties.content = "";
-      fileProperties.id = 0;
-      errors = "";
-      uploading = false;
-      // get the updated view of the arc
-      await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
-      forcereload();
-      console.log("Upload complete");
+      filePath += "/" + fileInput.value[i].name;
     }
-  };
-  uploadNextChunk();
+
+    const chunkSize = 100 * 1024 * 1024;
+    const totalChunks = Math.ceil(fileInput.value[i].size / chunkSize);
+    const chunkProgress = 1 / totalChunks;
+    progress = chunkProgress;
+
+    const selectedFile = fileInput.value[i];
+
+    // find out which i value will have the most chunks (skip if amount of chunks is 1)
+    let fileSize = fileInput.value[i].size;
+    largestFileSize = Math.max(fileSize, largestFileSize);
+
+    if (largestFileSize == fileSize && totalChunks != 1) largestFile = i;
+
+    let chunkNumber = 0;
+    let start = 0;
+    let end = start + chunkSize;
+
+    const uploadNextChunk = async () => {
+      end = Math.min(start + chunkSize, fileSize);
+      // set the progress to 99% for the last chunk
+      if (chunkNumber + 1 == totalChunks) {
+        progress = 0.99;
+      }
+
+      if (chunkNumber < totalChunks) {
+        const chunk = selectedFile.slice(start, end);
+        const formData = new FormData();
+
+        formData.append("file", chunk);
+        formData.append("chunkNumber", chunkNumber);
+        formData.append("totalChunks", totalChunks);
+        formData.append("name", fileInput.value[i].name);
+        formData.append("id", arcId);
+        formData.append("branch", arcBranch);
+        formData.append("path", filePath);
+        formData.append("namespace", namespace.value);
+        formData.append("lfs", lfs.value);
+
+        await fetch(backend + "uploadFile", {
+          method: "POST",
+          // body for the backend containing all necessary data
+          body: formData,
+          credentials: "include",
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            const temp = `Chunk ${
+              chunkNumber + 1
+            }/${totalChunks} uploaded successfully`;
+            // update progress if its not the last chunk
+            if (progress != 0.99)
+              progress = Number((chunkNumber + 1) * chunkProgress);
+            forcereload();
+            console.log(temp);
+            chunkNumber++;
+            start = end;
+            end = start + chunkSize;
+            uploadNextChunk();
+          })
+          .catch((error) => {
+            console.error("ERROR: ", error);
+          });
+      } else {
+        progress = 1;
+        console.log("Upload complete");
+        if (i == largestFile) {
+          fileInput.value = [];
+          $q.loading.hide();
+          fileProperties.path = fileProperties.content = "";
+          fileProperties.id = 0;
+          errors = "";
+          uploading = false;
+          // get the updated view of the arc
+          await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
+          forcereload();
+        }
+      }
+    };
+    await uploadNextChunk();
+  }
 }
 
 // if you click the 'create new sheet' button, you will get a list containing all the current templates
@@ -761,7 +773,7 @@ function checkName(name: string) {
           dense
           borderless
           label="Upload File"
-          max-files="1"
+          multiple
           @update:model-value="
             fileUpload();
             uploading = true;
