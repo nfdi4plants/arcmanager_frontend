@@ -451,10 +451,11 @@ function sortArcs(searchTerm: string) {
 // uploads the file to the hub
 async function fileUpload() {
   uploading = true;
-  // index and size of the largest file
+
+  const chunkSize = 100 * 1024 * 1024;
+  // index of the largest file (default is the last file)
   let largestFile = fileInput.value.length - 1;
-  let largestFileSize = 0;
-  // array to save the progress from backend
+
   forcereload();
   for (let i = 0; i < fileInput.value.length; i++) {
     // save the file on the most recent path
@@ -469,18 +470,20 @@ async function fileUpload() {
       filePath += "/" + fileInput.value[i].name;
     }
 
-    const chunkSize = 100 * 1024 * 1024;
+    // amount of chunks for the largest file
+    let largestFileChunks = Math.ceil(
+      fileInput.value[largestFile].size / chunkSize
+    );
+
+    // amount of chunks for the current file
     const totalChunks = Math.ceil(fileInput.value[i].size / chunkSize);
     const chunkProgress = 1 / totalChunks;
     progress = chunkProgress;
-
+    let fileSize = fileInput.value[i].size;
     const selectedFile = fileInput.value[i];
 
     // find out which i value will have the most chunks (skip if amount of chunks is 1)
-    let fileSize = fileInput.value[i].size;
-    largestFileSize = Math.max(fileSize, largestFileSize);
-
-    if (largestFileSize == fileSize && totalChunks != 1) largestFile = i;
+    if (largestFileChunks < totalChunks && totalChunks != 1) largestFile = i;
 
     let chunkNumber = 0;
     let start = 0;
@@ -497,6 +500,7 @@ async function fileUpload() {
         const chunk = selectedFile.slice(start, end);
         const formData = new FormData();
 
+        // body for the backend containing all necessary data
         formData.append("file", chunk);
         formData.append("chunkNumber", chunkNumber);
         formData.append("totalChunks", totalChunks);
@@ -509,7 +513,6 @@ async function fileUpload() {
 
         await fetch(backend + "uploadFile", {
           method: "POST",
-          // body for the backend containing all necessary data
           body: formData,
           credentials: "include",
         })
@@ -534,6 +537,7 @@ async function fileUpload() {
       } else {
         progress = 1;
         console.log("Upload complete");
+        // when every file is uploaded, complete the process and clear the input
         if (i == largestFile) {
           fileInput.value = [];
           $q.loading.hide();

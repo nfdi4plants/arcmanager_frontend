@@ -64,19 +64,19 @@ checkMini(windowWidth);
 // the different login options with name and description
 let loginOptions = [
   {
-    label: "nfdi4plants.ORG",
-    value: "freiburg",
-    description:
-      "nfdi4plants reference DataHUB hosted at the University of Freiburg",
-  },
-  {
-    label: "nfdi4plants.DE",
+    label: "DataHUB (federated)",
     value: "tuebingen",
     description:
       "nfdi4plants high-availability DataHUB hosted at the University of Tuebingen",
   },
   {
-    label: "PlantMicrobe",
+    label: "DataHUB (reference)",
+    value: "freiburg",
+    description:
+      "nfdi4plants reference DataHUB hosted at the University of Freiburg",
+  },
+  {
+    label: "TRR356 PlantMicrobe",
     value: "plantmicrobe",
     description: "DataHUB for the transregio project TRR356",
   },
@@ -180,7 +180,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.4.2
+                  v 0.4.3
                 </q-badge></q-item-label
               >
             </q-item-section>
