@@ -249,8 +249,16 @@ if (document.cookie.includes("error")) {
           size="5em"
           style="margin-left: 1cm"
           v-show="loading"
-          :key="refresher + 2"></q-spinner-gears>
-      </q-scroll-area>
+          :key="refresher + 2"></q-spinner-gears> </q-scroll-area
+      ><q-footer bordered class="footer">
+        <a
+          class="footer"
+          href="https://nfdi4plants.org/nfdi4plants.knowledgebase/docs/ARCmanager-manual/index.html"
+          target="_blank"
+          style="margin-left: 30%"
+          >Manual</a
+        >
+      </q-footer>
     </q-drawer>
 
     <!-- RIGHT SIDE: ISA VIEW/FILE CONTENT VIEW-->
@@ -358,5 +366,14 @@ if (document.cookie.includes("error")) {
 }
 .body--light .alt {
   background-color: #fafafa;
+}
+
+.body--light .footer {
+  background-color: lightgray;
+  color: blue;
+}
+
+.body--dark .footer {
+  color: white;
 }
 </style>
