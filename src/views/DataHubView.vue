@@ -14,7 +14,7 @@ import sheetProperties from "@/SheetProperties";
 const $q = useQuasar();
 
 // Address of the backend
-let backend = appProperties.backend + "projects/";
+var backend = appProperties.backend + "projects/";
 
 // list with all arcs
 var list: any[] = [];
@@ -35,8 +35,6 @@ var arcId: number;
 // name of the main branch of the arc
 var arcBranch: string;
 
-// list of all the entries of the isa file
-isaProperties.entries = [];
 //list to safe every entry of the isa file
 var isaList: any[] = [];
 
@@ -44,39 +42,39 @@ var isaList: any[] = [];
 var pathHistory: string[] = [];
 
 // here we get the target git from App.vue
-let git = defineProps(["site"]);
+var git = defineProps(["site"]);
 
-let username = "";
+var username = "";
 
 // set to true if loading something
-let loading = false;
+var loading = false;
 
 // set to true if the uploader is active
-let uploading = false;
-let progress = 0;
+var uploading = false;
+var progress = 0;
 
 // displays arc creation input field
-let showInput = false;
+var showInput = false;
 
 // displays the sync input selection field
-let assaySync = false;
-let studySync = false;
+var assaySync = false;
+var studySync = false;
 
 // the selected study and assay
-let studySelect = ref("");
-let assaySelect = ref("");
+var studySelect = ref("");
+var assaySelect = ref("");
 
 // field for identifier
-let ident = ref("");
+var ident = ref("");
 
 // field for searchbar
-let search = ref("");
+var search = ref("");
 
 // the filtered list, that will be displayed
-let searchList: any[] = [];
+var searchList: any[] = [];
 
 // namespace of the arc
-let namespace = ref("");
+var namespace = ref("");
 
 // here we trick vue js to reload the component
 const refresher = ref(0);
@@ -94,7 +92,8 @@ if (document.cookie.includes("logged_in=true")) {
   );
 }
 
-let fileInput = ref([]);
+// array containing all the files to upload
+var fileInput = ref([]);
 
 // opens the explore page of the selected git in a new tab (only when you're not logged in currently)
 function openGit(target: string) {
@@ -126,6 +125,7 @@ async function fetchArcs() {
   searchList = [];
   // if not logged in, show only public arcs
   if (!appProperties.loggedIn) {
+    // if no datahub is selected, show an error
     if (git.site == "") {
       errors = "Please select a DataHub first!";
       loading = false;
@@ -133,9 +133,7 @@ async function fetchArcs() {
       errors = "Not logged in! Listing only public ARCs";
       searchList = [];
       try {
-        const response = await fetch(
-          backend + "public_arcs?target=" + git.site.value
-        );
+        const response = await fetch(`${backend}public_arcs?target=${git.site.value}`);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(response.statusText + ", " + data["detail"]);
@@ -448,7 +446,7 @@ function sortArcs(searchTerm: string) {
   });
 }
 
-// uploads the file to the hub
+// uploads the file(s) to the hub
 async function fileUpload() {
   uploading = true;
 
@@ -457,6 +455,7 @@ async function fileUpload() {
   let largestFile = fileInput.value.length - 1;
 
   forcereload();
+  // loop for the amount of selected files
   for (let i = 0; i < fileInput.value.length; i++) {
     // save the file on the most recent path
     let filePath = pathHistory[pathHistory.length - 1];
@@ -464,6 +463,7 @@ async function fileUpload() {
       message: "Uploading the file(s)...",
     });
 
+    // if the file is in a subfolder, include an "/"
     if (filePath == "") {
       filePath += fileInput.value[i].name;
     } else {
@@ -592,8 +592,7 @@ async function getSheets(path: string, id: number, branch: string) {
   isaProperties.repoId = id;
   arcProperties.branch = branch;
   // retrieve the sheets
-  await fetch(
-    backend + "getSheets?path=" + path + "&id=" + id + "&branch=" + branch,
+  await fetch(`${backend}getSheets?path=${path}&id=${id}&branch=${branch}`,
     { credentials: "include" }
   )
     .then((response) => response.json())
@@ -738,6 +737,21 @@ function checkName(name: string) {
   if (name.includes(".xlsx") && !name.includes("isa")) includes = true;
   return includes;
 }
+
+async function getArchive(id:number){
+  loading = true;
+  forcereload();
+  try {
+    const downloadLink = document.createElement("a");
+    downloadLink.href = `${arcProperties.url.split(".git")[0]}/-/archive/${arcBranch}/${arcProperties.identifier}-${arcBranch}.zip`;
+    downloadLink.click();
+  } catch (error) {
+    errors = error;
+  }
+  loading = false;
+  forcereload();
+}
+
 </script>
 
 <template>
@@ -748,7 +762,7 @@ function checkName(name: string) {
       @click="fetchArcs(), forcereload()"
       icon="downloading"
       dense
-      >Load Arcs</q-btn
+      ><template v-if="!appProperties.showIsaView">Load Arcs</template></q-btn
     ><q-btn
       icon="open_in_new"
       dense
@@ -771,8 +785,8 @@ function checkName(name: string) {
           :style="
             $q.dark.isActive
               ? 'background-color: midnightblue'
-              : 'background-color: lightgoldenrodyellow'
-          "
+              : 'background-color: lightgoldenrodyellow'"
+          style="max-width: 150px;"
           v-model="fileInput"
           dense
           borderless
@@ -795,8 +809,9 @@ function checkName(name: string) {
           icon="open_in_new"
           glossy
           :key="refresher + 1"
-          >Open</q-btn
+          ><template v-if="!appProperties.showIsaView">Open</template></q-btn
         >
+        <q-btn icon="download" @click="getArchive(arcId)" glossy color="teal-10"><template v-if="!appProperties.showIsaView">zip</template></q-btn>
         <q-btn
           id="assay"
           icon="sync_alt"
@@ -808,7 +823,7 @@ function checkName(name: string) {
             getAssaysAndStudies(arcId);
           "
           :key="refresher + 2"
-          >Sync Assay/Study</q-btn
+          ><template v-if="!appProperties.showIsaView">Sync Assay/Study</template></q-btn
         >
         <q-btn
           id="study"
@@ -821,10 +836,10 @@ function checkName(name: string) {
             getAssaysAndStudies(arcId);
           "
           :key="refresher + 3"
-          >Sync Study/Invest</q-btn
+          ><template v-if="!appProperties.showIsaView">Sync Study/Invest</template></q-btn
         >
         <!-- Reloads the arc -->
-        <q-btn icon="refresh" @click="inspectArc(arcId)" glossy>Reload</q-btn>
+        <q-btn icon="refresh" @click="inspectArc(arcId)" glossy><template v-if="!appProperties.showIsaView">Reload</template></q-btn>
       </q-btn-group>
       <!-- activates swate and annotation sheets-->
       <q-checkbox v-model="lfs">LFS</q-checkbox></template

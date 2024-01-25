@@ -14,18 +14,18 @@ setCssVar("primary", "#2d3e50");
 // list of the fields of the specific entry
 isaProperties.entry = [];
 
-let loading = false;
+var loading = false;
 
-let backend = appProperties.backend + "projects/";
+var backend = appProperties.backend + "projects/";
 
-let keyNumber = ref(0);
+var keyNumber = ref(0);
 
-let errors = "";
+var errors = "";
 
-let showChanges = ref(true);
+var showChanges = ref(true);
 
 // field for searchbar
-let search = ref("");
+var search = ref("");
 
 // edit the fields of the entry
 const setEntry = (entry: string[], id: number) => {
@@ -50,14 +50,7 @@ async function commitFile() {
   loading = true;
   keyNumber.value += 1;
 
-  const response = await fetch(
-    backend +
-      "commitFile?id=" +
-      fileProperties.id +
-      "&repoPath=" +
-      fileProperties.path +
-      "&branch=" +
-      arcProperties.branch,
+  const response = await fetch(`${backend}commitFile?id=${fileProperties.id}&repoPath=${fileProperties.path}&branch=${arcProperties.branch}`,
     {
       method: "PUT",
       // body for the backend containing all necessary data
@@ -102,11 +95,7 @@ function setTemplate(templateId: string) {
       data.forEach((element: any) => {
         // insert the columnHeader with type, name and accession set
         templateProperties.template.push({
-          Type:
-            element["ColumnHeader"].Type +
-            " [" +
-            element["ColumnHeader"].Name +
-            "]",
+          Type: `${element["ColumnHeader"].Type} [${element["ColumnHeader"].Name}]`,
           Accession: element["ColumnTerm"].TermAccession,
         });
 
@@ -178,14 +167,14 @@ function setBB(name: string, accession: string) {
     templateProperties.template.length - 1,
     0,
     {
-      Type: "Parameter" + " [" + name + "]",
+      Type: "Parameter [" + name + "]",
       Accession: accession,
     },
     {
-      Type: "Term Source REF" + " [" + accession + "]",
+      Type: "Term Source REF [" + accession + "]",
     },
     {
-      Type: "Term Accession Number" + " [" + accession + "]",
+      Type: "Term Accession Number [" + accession + "]",
     }
   );
 
@@ -219,7 +208,7 @@ function setUnit(name: string, accession: string, ontology: string) {
       templateProperties.template.length - 3,
       0,
       {
-        Type: "Unit" + " [" + name + "]",
+        Type: "Unit [" + name + "]",
       }
     );
 

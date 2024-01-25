@@ -3,9 +3,9 @@ import { ref } from "vue";
 
 import appProperties from "@/AppProperties";
 
-let login = defineProps(["site"]);
+var login = defineProps(["site"]);
 
-let backend = appProperties.backend;
+var backend = appProperties.backend;
 
 // here we trick vue js to reload the component
 const refresher = ref(0);

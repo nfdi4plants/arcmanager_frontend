@@ -30,25 +30,25 @@ const layoutProperties = reactive({
 
 $q.dark.set(appProperties.dark);
 
-let backend = appProperties.backend + "projects/";
+var backend = appProperties.backend + "projects/";
 
-let target = ref("");
-let showInput = false;
+var target = ref("");
+var showInput = false;
 // Name of the new arc
-let arcName = ref("");
+var arcName = ref("");
 // Description of the new arc
-let arcDesc = ref("");
+var arcDesc = ref("");
 // Identifier for the Investigation file
-let invId = ref("");
+var invId = ref("");
 
-let loading = false;
+var loading = false;
 
 // list with errors
 var errors: any;
 
-let drawerWidth = ref(1000);
+var drawerWidth = ref(1000);
 
-let windowWidth = window.innerWidth;
+var windowWidth = window.innerWidth;
 
 window.addEventListener("resize", () => {
   windowWidth = window.innerWidth;
@@ -62,7 +62,7 @@ function checkMini(width: number) {
 checkMini(windowWidth);
 
 // the different login options with name and description
-let loginOptions = [
+const loginOptions = [
   {
     label: "DataHUB (federated)",
     value: "tuebingen",
@@ -94,6 +94,7 @@ const forcereload = () => {
   refresher.value += 1;
   $q.dark.set(appProperties.dark);
 };
+// send the createArc request to the backend with all necessary identifiers
 async function createArc() {
   loading = true;
   forcereload();
@@ -141,7 +142,7 @@ if (document.cookie.includes("error")) {
 
 <template>
   <header></header>
-  <q-layout view="hHh LpR fFf" class="no-selection">
+  <q-layout view="hHh LpR fFr" class="no-selection">
     <!-- LEFT SIDE: LOGO, SELECT HUB, LOGIN, CREATE ARC -->
     <q-drawer
       v-model="layoutProperties.showLeft"
@@ -180,7 +181,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.4.3
+                  v 0.4.4
                 </q-badge></q-item-label
               >
             </q-item-section>
@@ -250,15 +251,7 @@ if (document.cookie.includes("error")) {
           style="margin-left: 1cm"
           v-show="loading"
           :key="refresher + 2"></q-spinner-gears> </q-scroll-area
-      ><q-footer bordered class="footer">
-        <a
-          class="footer"
-          href="https://nfdi4plants.org/nfdi4plants.knowledgebase/docs/ARCmanager-manual/index.html"
-          target="_blank"
-          style="margin-left: 30%"
-          >Manual</a
-        >
-      </q-footer>
+      >
     </q-drawer>
 
     <!-- RIGHT SIDE: ISA VIEW/FILE CONTENT VIEW-->
@@ -278,7 +271,18 @@ if (document.cookie.includes("error")) {
       </q-scroll-area>
     </q-drawer>
 
+    <!-- MAIN PART -->
     <q-page-container>
+      <!-- FOOTER -->
+      <q-footer bordered class="footer">
+        <a
+          class="footer"
+          href="https://nfdi4plants.org/nfdi4plants.knowledgebase/docs/ARCmanager-manual/index.html"
+          target="_blank"
+          style="margin-left: 45%"
+          >Manual</a
+        ><!--<a style="margin-left: 10%;" href="mailto:arcmanager.support@nfdi4plants.de" class="footer">Support&#128231;</a>-->
+      </q-footer>
       <q-page padding>
         <q-item-section v-if="errors != null">{{ errors }}</q-item-section>
         <template v-if="showInput"

@@ -7,9 +7,9 @@ import { useQuasar } from "quasar";
 
 const $q = useQuasar();
 
-let backend = appProperties.backend + "projects/";
+var backend = appProperties.backend + "projects/";
 
-let loading = false;
+var loading = false;
 // send the updated entry fields to the backend to save and commit the update
 async function sendToBackend() {
   loading = true;
@@ -33,8 +33,8 @@ async function sendToBackend() {
     credentials: "include",
   });
 
-  if (!(await response).ok) {
-    errors = "ERROR: " + (await response).statusText;
+  if (!response.ok) {
+    errors = "ERROR: " + response.statusText;
     keyNumber.value += 1;
   } else {
     isaProperties.entries[isaProperties.rowId] = isaProperties.entry;
