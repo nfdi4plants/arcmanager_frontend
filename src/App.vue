@@ -33,6 +33,7 @@ $q.dark.set(appProperties.dark);
 var backend = appProperties.backend + "projects/";
 
 var target = ref("");
+// displays arc creation field
 var showInput = false;
 // Name of the new arc
 var arcName = ref("");
@@ -181,7 +182,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.4.4
+                  v 0.5.0
                 </q-badge></q-item-label
               >
             </q-item-section>
@@ -250,8 +251,8 @@ if (document.cookie.includes("error")) {
           size="5em"
           style="margin-left: 1cm"
           v-show="loading"
-          :key="refresher + 2"></q-spinner-gears> </q-scroll-area
-      >
+          :key="refresher + 2"></q-spinner-gears>
+      </q-scroll-area>
     </q-drawer>
 
     <!-- RIGHT SIDE: ISA VIEW/FILE CONTENT VIEW-->

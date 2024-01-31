@@ -53,12 +53,48 @@ var loading = false;
 var uploading = false;
 var progress = 0;
 
-// displays arc creation input field
+// displays isa creation input field
 var showInput = false;
+
+// displays input field for folder creation
+var showFolderInput = false;
 
 // displays the sync input selection field
 var assaySync = false;
 var studySync = false;
+
+// displays the user select addition screen
+var user = false;
+// list containing all users
+var userList = [];
+// the slected user
+var userSelect = ref(null);
+
+// the different permissions you can select when you add a new member to a project
+const userPermissions = [
+  {
+    label: "Guest",
+    value: 10,
+  },
+  {
+    label: "Reporter",
+    value: 20,
+  },
+  {
+    label: "Developer",
+    value: 30,
+  },
+  {
+    label: "Maintainer",
+    value: 40,
+  },
+  {
+    label: "Owner",
+    value: 50,
+  },
+];
+// the permission level for the new user
+var permission = ref(null);
 
 // the selected study and assay
 var studySelect = ref("");
@@ -66,6 +102,9 @@ var assaySelect = ref("");
 
 // field for identifier
 var ident = ref("");
+
+// field for folder name
+var identFolder = ref("");
 
 // field for searchbar
 var search = ref("");
@@ -133,7 +172,9 @@ async function fetchArcs() {
       errors = "Not logged in! Listing only public ARCs";
       searchList = [];
       try {
-        const response = await fetch(`${backend}public_arcs?target=${git.site.value}`);
+        const response = await fetch(
+          `${backend}public_arcs?target=${git.site.value}`
+        );
         const data = await response.json();
         if (!response.ok) {
           throw new Error(response.statusText + ", " + data["detail"]);
@@ -155,7 +196,7 @@ async function fetchArcs() {
   } else {
     arcList = [];
     arcProperties.identifier = "";
-    assaySync = studySync = false;
+    assaySync = studySync = user = false;
 
     cleanIsaView();
     // reset Properties and histories
@@ -223,6 +264,7 @@ async function inspectArc(id: number) {
   cleanIsaView();
   appProperties.showIsaView = false;
   arcProperties.studies = arcProperties.assays = [];
+  user = showInput = assaySync = studySync = false;
   arcProperties.changes = "";
   forcereload();
   try {
@@ -274,11 +316,14 @@ async function getChanges(id: number) {
     errors = error;
   }
 }
+
 // get a tree view of the selected path of the arc
 async function inspectTree(id: number, path: string, expand?: boolean) {
   loading = true;
-  assaySync = studySync = false;
+  assaySync = studySync = user = false;
+  errors = "";
   showInput = false;
+  showFolderInput = false;
   forcereload();
   try {
     const response = await fetch(
@@ -313,7 +358,7 @@ async function getFile(id: number, path: string, branch: string) {
   appProperties.showIsaView = true;
 
   // cleanup views
-  assaySync = studySync = false;
+  assaySync = studySync = user = false;
   forcereload();
 
   cleanIsaView();
@@ -450,6 +495,7 @@ function sortArcs(searchTerm: string) {
 async function fileUpload() {
   uploading = true;
 
+  errors = "";
   const chunkSize = 100 * 1024 * 1024;
   // index of the largest file (default is the last file)
   let largestFile = fileInput.value.length - 1;
@@ -511,29 +557,37 @@ async function fileUpload() {
         formData.append("namespace", namespace.value);
         formData.append("lfs", lfs.value);
 
-        await fetch(backend + "uploadFile", {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        })
-          .then((response) => response.json())
-          .then((data) => {
+        try {
+          let response = await fetch(backend + "uploadFile", {
+            method: "POST",
+            body: formData,
+            credentials: "include",
+          });
+          let data = await response.json();
+          if (!response.ok) {
+            errors = response.statusText + ", " + data["detail"];
+            progress = 1;
+            $q.loading.hide();
+            uploading = false;
+          } else {
             const temp = `Chunk ${
               chunkNumber + 1
             }/${totalChunks} uploaded successfully`;
+
             // update progress if its not the last chunk
             if (progress != 0.99)
               progress = Number((chunkNumber + 1) * chunkProgress);
-            forcereload();
+
             console.log(temp);
             chunkNumber++;
             start = end;
             end = start + chunkSize;
             uploadNextChunk();
-          })
-          .catch((error) => {
-            console.error("ERROR: ", error);
-          });
+          }
+          forcereload();
+        } catch (error) {
+          console.error("ERROR: ", error);
+        }
       } else {
         progress = 1;
         console.log("Upload complete");
@@ -560,7 +614,7 @@ async function getTemplates() {
   cleanIsaView();
   loading = true;
   appProperties.showIsaView = true;
-  assaySync = studySync = false;
+  assaySync = studySync = user = false;
   forcereload();
 
   // retrieve the templates
@@ -583,7 +637,7 @@ async function getTemplates() {
 // get a list of all the swate sheets
 async function getSheets(path: string, id: number, branch: string) {
   cleanIsaView();
-  assaySync = studySync = false;
+  assaySync = studySync = user = false;
   loading = true;
   appProperties.showIsaView = true;
   forcereload();
@@ -592,9 +646,9 @@ async function getSheets(path: string, id: number, branch: string) {
   isaProperties.repoId = id;
   arcProperties.branch = branch;
   // retrieve the sheets
-  await fetch(`${backend}getSheets?path=${path}&id=${id}&branch=${branch}`,
-    { credentials: "include" }
-  )
+  await fetch(`${backend}getSheets?path=${path}&id=${id}&branch=${branch}`, {
+    credentials: "include",
+  })
     .then((response) => response.json())
     .then((sheets) => {
       if (sheets[0].length == 0) {
@@ -738,12 +792,14 @@ function checkName(name: string) {
   return includes;
 }
 
-async function getArchive(id:number){
+async function getArchive(id: number) {
   loading = true;
   forcereload();
   try {
     const downloadLink = document.createElement("a");
-    downloadLink.href = `${arcProperties.url.split(".git")[0]}/-/archive/${arcBranch}/${arcProperties.identifier}-${arcBranch}.zip`;
+    downloadLink.href = `${
+      arcProperties.url.split(".git")[0]
+    }/-/archive/${arcBranch}/${arcProperties.identifier}-${arcBranch}.zip`;
     downloadLink.click();
   } catch (error) {
     errors = error;
@@ -752,6 +808,184 @@ async function getArchive(id:number){
   forcereload();
 }
 
+// checks weather the file should be deletable or not
+function checkForDeletion(name: string) {
+  return (
+    name.includes("isa.investigation") ||
+    name.startsWith(".git") ||
+    name.includes("readme") ||
+    name.includes("license") ||
+    name.startsWith("assays") ||
+    name.startsWith("runs") ||
+    name.startsWith("studies") ||
+    name.startsWith("workflows") ||
+    name.startsWith(".arc") ||
+    name.includes("arc.cwl") ||
+    name.startsWith("dataset") ||
+    name.startsWith("protocols") ||
+    name.startsWith("resources")
+  );
+}
+
+// deletes the file on the given path
+async function deleteFile(
+  id: number,
+  path: string,
+  branch: string,
+  name: string
+) {
+  $q.dialog({
+    dark: appProperties.dark,
+    title: "Delete " + name,
+    message: "Are you sure you want to delete '" + name + "'?",
+    cancel: true,
+  }).onOk(async () => {
+    console.log("Deleting " + name + "...");
+    // send delete request to backend
+    let response = await fetch(
+      backend + "deleteFile?path=" + path + "&id=" + id + "&branch=" + branch,
+      {
+        method: "DELETE",
+        credentials: "include",
+      }
+    );
+    let data = await response.json();
+    if (!response.ok) errors = response.statusText + ", " + data["detail"];
+    else {
+      $q.notify(data);
+      await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
+    }
+    forcereload();
+  });
+}
+
+// deletes the entire folder on the given path
+async function deleteFolder(
+  id: number,
+  path: string,
+  branch: string,
+  name: string
+) {
+  $q.dialog({
+    dark: appProperties.dark,
+    title: "Delete " + name,
+    message: "Are you sure you want to delete the entirety of '" + name + "'?",
+    cancel: true,
+  }).onOk(async () => {
+    console.log("Deleting " + name + "...");
+    // send delete request to backend
+    let response = await fetch(
+      backend + "deleteFolder?path=" + path + "&id=" + id + "&branch=" + branch,
+      {
+        method: "DELETE",
+        credentials: "include",
+      }
+    );
+    let data = await response.json();
+    if (!response.ok) errors = response.statusText + ", " + data["detail"];
+    else {
+      $q.notify(data);
+      await inspectTree(arcId, pathHistory[pathHistory.length - 2]);
+    }
+    forcereload();
+  });
+}
+
+// create a new folder with the given identifier
+async function createFolder(
+  id: number,
+  identifier: string,
+  path: string,
+  branch: string
+) {
+  loading = true;
+  forcereload();
+  let response = await fetch(backend + "createFolder", {
+    credentials: "include",
+    method: "POST",
+    body: JSON.stringify({
+      identifier: identifier,
+      id: id,
+      path: path,
+      branch: branch,
+    }),
+  });
+  let data = await response.json();
+  if (!response.ok) {
+    errors = response.statusText + ", " + data["detail"];
+  } else {
+    // get the updated tree
+    inspectTree(id, path);
+
+    // get the updated changes, assays and studies
+    await getChanges(id);
+  }
+
+  loading = false;
+  forcereload();
+}
+
+// get a list of user
+async function getUser() {
+  loading = true;
+  forcereload();
+  userList = [];
+  userSelect.value = null;
+  permission.value = null;
+  try {
+    // get all users
+    let user = await fetch(backend + "getUser", {
+      credentials: "include",
+    });
+    let users = await user.json();
+    users.forEach((user) => {
+      userList.push({
+        label: user["username"],
+        value: user["id"],
+      });
+    });
+  } catch (error) {
+    errors = error;
+  }
+  // if there are no user found, return error
+  if (userList.length == 0) errors = "ERROR: No Assays found!";
+  // sort users alphabetically
+  userList.sort(function (a, b) {
+    let x = a.label.toLowerCase();
+    let y = b.label.toLowerCase();
+    if (x < y) {
+      return -1;
+    }
+    if (x > y) {
+      return 1;
+    }
+    return 0;
+  });
+  loading = false;
+  forcereload();
+}
+
+// add user as member to the project
+async function addUser(id: number, user: any, role: any) {
+  loading = true;
+  forcereload();
+  let response = await fetch(backend + "addUser", {
+    credentials: "include",
+    method: "POST",
+    body: JSON.stringify({
+      userId: user.value,
+      username: user.label,
+      id: id,
+      role: role.value,
+    }),
+  });
+  let data = await response.json();
+  if (!response.ok) errors = response.statusText + ", " + data["detail"];
+  else $q.notify(data);
+
+  loading = false;
+  forcereload();
+}
 </script>
 
 <template>
@@ -779,14 +1013,15 @@ async function getArchive(id:number){
       v-show="arcList.length == 0 && appProperties.loggedIn"
       @update:model-value="fetchArcs" />
     <template v-if="arcList.length != 0">
-      <!-- File Upload with a limit of 100 mb-->
       <q-btn-group>
+        <!-- File Upload -->
         <q-file
           :style="
             $q.dark.isActive
               ? 'background-color: midnightblue'
-              : 'background-color: lightgoldenrodyellow'"
-          style="max-width: 150px;"
+              : 'background-color: lightgoldenrodyellow'
+          "
+          style="max-width: 150px"
           v-model="fileInput"
           dense
           borderless
@@ -811,7 +1046,9 @@ async function getArchive(id:number){
           :key="refresher + 1"
           ><template v-if="!appProperties.showIsaView">Open</template></q-btn
         >
-        <q-btn icon="download" @click="getArchive(arcId)" glossy color="teal-10"><template v-if="!appProperties.showIsaView">zip</template></q-btn>
+        <q-btn icon="download" @click="getArchive(arcId)" glossy color="teal-10"
+          ><template v-if="!appProperties.showIsaView">zip</template></q-btn
+        >
         <q-btn
           id="assay"
           icon="sync_alt"
@@ -819,11 +1056,14 @@ async function getArchive(id:number){
           @click="
             assaySync = !assaySync;
             studySync = false;
+            user = false;
             forcereload();
             getAssaysAndStudies(arcId);
           "
           :key="refresher + 2"
-          ><template v-if="!appProperties.showIsaView">Sync Assay/Study</template></q-btn
+          ><template v-if="!appProperties.showIsaView"
+            >Sync Assay/Study</template
+          ></q-btn
         >
         <q-btn
           id="study"
@@ -832,14 +1072,33 @@ async function getArchive(id:number){
           @click="
             studySync = !studySync;
             assaySync = false;
+            user = false;
             forcereload();
             getAssaysAndStudies(arcId);
           "
           :key="refresher + 3"
-          ><template v-if="!appProperties.showIsaView">Sync Study/Invest</template></q-btn
+          ><template v-if="!appProperties.showIsaView"
+            >Sync Study/Invest</template
+          ></q-btn
         >
         <!-- Reloads the arc -->
-        <q-btn icon="refresh" @click="inspectArc(arcId)" glossy><template v-if="!appProperties.showIsaView">Reload</template></q-btn>
+        <q-btn icon="refresh" @click="inspectArc(arcId)" glossy
+          ><template v-if="!appProperties.showIsaView">Reload</template></q-btn
+        >
+        <q-btn
+          icon="add"
+          glossy
+          id="userAdd"
+          @click="
+            user = !user;
+            assaySync = studySync = false;
+            forcereload();
+            getUser();
+          "
+          ><template v-if="!appProperties.showIsaView"
+            >Add User</template
+          ></q-btn
+        >
       </q-btn-group>
       <!-- activates swate and annotation sheets-->
       <q-checkbox v-model="lfs">LFS</q-checkbox></template
@@ -917,6 +1176,43 @@ async function getArchive(id:number){
             >Please provide an identifier!</span
           >
         </template>
+        <!-- CREATE FOLDER -->
+        <template v-if="showFolderInput"
+          ><q-btn
+            icon="arrow_back"
+            class="return"
+            @click="
+              showFolderInput = false;
+              forcereload();
+            "></q-btn>
+          <span style="margin-left: 1em">Add Folder:</span>
+          <q-input
+            outlined
+            v-model="identFolder"
+            :rules="[(val) => !val.includes(' ') || 'No whitespace allowed!']"
+            label="A name for the folder" />
+          <q-separator></q-separator>
+
+          <q-btn
+            icon="send"
+            class="send"
+            @click="
+              createFolder(
+                arcId,
+                identFolder,
+                pathHistory[pathHistory.length - 1],
+                arcBranch
+              );
+              showFolderInput = false;
+              identFolder = '';
+              forcereload();
+            "
+            :disable="identFolder.length == 0"
+            :key="refresher + 10"></q-btn
+          ><span style="margin-left: 1em" v-if="identFolder.length == 0"
+            >Please provide a name!</span
+          >
+        </template>
         <!-- SEARCH BAR -->
         <q-input
           v-model="search"
@@ -944,7 +1240,7 @@ async function getArchive(id:number){
             clickable
             @click="
               inspectTree(arcId, pathHistory[pathHistory.length - 2], false);
-              showInput = false;
+              showInput = showFolderInput = false;
               forcereload();
             "
             v-if="pathHistory.length > 1"
@@ -968,6 +1264,7 @@ async function getArchive(id:number){
                   icon="add"
                   @click="
                     showInput = true;
+                    showFolderInput = false;
                     forcereload();
                   "
                   >Add</q-btn
@@ -997,6 +1294,17 @@ async function getArchive(id:number){
             <q-item-section
               ><q-item-label>{{ item.name }}</q-item-label></q-item-section
             >
+            <q-item-section side v-if="!checkForDeletion(item.name)"
+              ><q-btn
+                icon="close"
+                color="red"
+                round
+                dense
+                flat
+                @click="
+                  deleteFolder(arcId, item.path, arcBranch, item.name)
+                "></q-btn>
+            </q-item-section>
           </template>
           <template
             v-else-if="
@@ -1045,8 +1353,32 @@ async function getArchive(id:number){
                 <template v-else>{{ item.name }}</template></q-item-label
               ></q-item-section
             >
+            <q-item-section
+              side
+              v-if="!checkForDeletion(item.name.toLowerCase())">
+              <q-btn
+                icon="cancel"
+                color="red"
+                flat
+                dense
+                round
+                @click="
+                  deleteFile(arcId, item.path, arcBranch, item.name)
+                "></q-btn
+            ></q-item-section>
           </template>
         </q-item>
+        <!-- CREATE FOLDER BUTTON -->
+        <q-btn
+          icon="add"
+          v-if="arcList.length != 0"
+          @click="
+            showFolderInput = true;
+            showInput = false;
+            forcereload();
+          "
+          >New Folder</q-btn
+        >
 
         <!-- LIST OF ARCS -->
         <q-list style="padding: 1em" separator v-if="arcList.length == 0">
@@ -1212,6 +1544,54 @@ async function getArchive(id:number){
         </div>
       </div>
     </template>
+    <!-- ADD USER TO PROJECT -->
+    <template v-if="user"
+      ><div class="q-pa-md" v-show="userList.length > 0">
+        <q-btn
+          icon="arrow_back"
+          @click="
+            user = false;
+            forcereload();
+          "
+          class="return">
+          Return
+        </q-btn>
+        <div class="q-gutter-md row">
+          <q-select
+            v-model="userSelect"
+            :options="userList"
+            label="Users"
+            style="width: 200px"
+            :key="refresher + 11" />
+          <q-select
+            v-model="permission"
+            :options="userPermissions"
+            label="Role"
+            style="width: 200px"
+            :key="refresher + 12" />
+          <q-btn
+            @click="
+              user = false;
+              addUser(arcId, userSelect, permission);
+              userSelect = permission = null;
+              forcereload();
+            "
+            :disable="userSelect == null || permission == null"
+            glossy
+            >Add</q-btn
+          >
+        </div>
+        <br />
+        <span>
+          <a
+            href="https://gitlab.nfdi4plants.de/help/user/permissions"
+            target="_blank"
+            >Learn more</a
+          >
+          about role permissions
+        </span>
+      </div>
+    </template>
   </q-list>
 </template>
 <style>
@@ -1251,6 +1631,10 @@ async function getArchive(id:number){
   background-color: gainsboro;
 }
 
+.body--light #userAdd {
+  background-color: wheat;
+}
+
 /* DARK MODE */
 .body--dark #arcFetch {
   background-color: dodgerblue;
@@ -1285,5 +1669,9 @@ async function getArchive(id:number){
 
 .body--dark #study {
   background-color: gray;
+}
+
+.body--dark #userAdd {
+  background-color: darkslateblue;
 }
 </style>
