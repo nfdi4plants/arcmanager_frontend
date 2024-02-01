@@ -1,53 +1,53 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 
-let backend = appProperties.backend + "projects/";
-
 import templateProperties from "@/TemplateProperties";
 import termProperties from "@/TermProperties";
 import isaProperties from "@/IsaProperties";
 import sheetProperties from "@/SheetProperties";
 import appProperties from "@/AppProperties";
 
-let loading = false;
+var backend = appProperties.backend + "projects/";
+var loading = false;
 
-let errors = "";
+var errors = "";
 
 // if the search for terms should be extended or not
-let advanced = ref(false);
+var advanced = ref(false);
 
 // hide term columns
-let hidden = ref(false);
+var hidden = ref(false);
 
-let keyNumber = ref(0);
+var keyNumber = ref(0);
 
 // the term to search for
-let search = ref("");
+var search = ref("");
 
 // show the search bar for terms
-let showSearch = false;
+var showSearch = false;
 
 // show the building block area
-let showBuildingBlock = false;
+var showBuildingBlock = false;
 
 // set to true if the building block has a unit
-let bbUnit = ref(false);
+var bbUnit = ref(false);
 
 // the type of unit for the building block
-let unitSearch = ref("");
+var unitSearch = ref("");
 
 // the type of term to be search
-let searchType = "";
+var searchType = "";
 
 // ids of the rows to overwrite
-let rowIds = [1];
+var rowIds = [1];
 
 // the accession value of the type
-let searchAccession = "";
+var searchAccession = "";
 
 // get a list of all found terms for the given input
 async function getTerms(input: string) {
   loading = true;
+  appProperties.showIsaView = true;
   keyNumber.value += 1;
 
   // reset terms and templates to clear up IsaView
@@ -55,17 +55,7 @@ async function getTerms(input: string) {
   termProperties.terms = [];
 
   // get the list of terms
-  const response = await fetch(
-    backend +
-      "getTerms?input=" +
-      input +
-      "&advanced=" +
-      advanced.value +
-      "&parentName=" +
-      searchType +
-      "&parentTermAccession=" +
-      searchAccession
-  );
+  const response = await fetch(`${backend}getTerms?input=${input}&advanced=${advanced.value}&parentName=${searchType}&parentTermAccession=${searchAccession}`);
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
@@ -111,16 +101,14 @@ async function saveSheet() {
   keyNumber.value += 1;
 }
 function checkName(name: string) {
-  if (
+  return !(
     name.startsWith("Term") ||
     name.startsWith("Unit") ||
     name.startsWith("Source Name") ||
     name.startsWith("Sample Name") ||
     name.startsWith("Input") ||
     name.startsWith("Output")
-  )
-    return false;
-  return true;
+  );
 }
 function searchName(type: string) {
   if (type.includes("[")) {
@@ -135,7 +123,9 @@ function searchName(type: string) {
   return type;
 }
 function extendTemplate() {
+  // extend each column by a new cell
   templateProperties.template.forEach((element, i) => {
+    // if the column is a unit, fill the new cell with the name of the unit
     if (templateProperties.template[i].Type.toString().startsWith("Unit")) {
       templateProperties.content[i].push(templateProperties.content[i][0]);
       if (
@@ -146,21 +136,36 @@ function extendTemplate() {
           templateProperties.content[i - 1][0]
         );
       }
-    } else {
-      if (templateProperties.template[i].Type.toString().startsWith("Term")) {
-        templateProperties.content[i].push(templateProperties.content[i][0]);
-      } else {
-        templateProperties.content[i].push(null);
+      // add the term values for the two (or more) term columns after
+      while (
+        templateProperties.template[i + 1].Type.toString().startsWith("Term")
+      ) {
+        templateProperties.content[i + 1].push(
+          templateProperties.content[i + 1][0]
+        );
+        i += 1;
       }
+    } else {
+      // skip adding an empty field if its a term column related to a unit
+      if (
+        !templateProperties.template[i].Type.toString().startsWith("Term") ||
+        !(
+          templateProperties.template[i - 1].Type.toString().startsWith(
+            "Unit"
+          ) ||
+          templateProperties.template[i - 2].Type.toString().startsWith("Unit")
+        )
+      )
+        templateProperties.content[i].push(null);
     }
   });
-
   rowIds.push(rowIds.length + 1);
   keyNumber.value += 1;
 }
 
 async function getSuggestionsByParent() {
   loading = true;
+  appProperties.showIsaView = true;
   errors = "";
   keyNumber.value += 1;
 
@@ -173,13 +178,7 @@ async function getSuggestionsByParent() {
   sheetProperties.sheets = sheetProperties.names = [];
 
   // get the list of terms
-  const response = await fetch(
-    backend +
-      "getTermSuggestionsByParentTerm?parentName=" +
-      searchType +
-      "&parentTermAccession=" +
-      searchAccession
-  );
+  const response = await fetch(`${backend}getTermSuggestionsByParentTerm?parentName=${searchType}&parentTermAccession=${searchAccession}`);
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
@@ -200,6 +199,7 @@ async function getSuggestionsByParent() {
 // suggestions for the building blocks
 async function getSuggestions() {
   loading = true;
+  appProperties.showIsaView = true;
   errors = "";
   keyNumber.value += 1;
 
@@ -233,6 +233,7 @@ async function getSuggestions() {
 // suggestions for the units of building blocks
 async function getUnitSuggestions() {
   loading = true;
+  appProperties.showIsaView = true;
   errors = "";
   keyNumber.value += 1;
 
@@ -292,9 +293,7 @@ function setIds() {
           >Search</q-btn
         >
         <q-checkbox v-model="advanced">Extended search</q-checkbox>
-        <q-btn
-          @click="getSuggestionsByParent()"
-          style="background-color: azure; margin-left: 1em"
+        <q-btn id="suggestion" @click="getSuggestionsByParent()"
           >Get suggestions</q-btn
         ><q-select
           v-model="templateProperties.rowId"
@@ -330,8 +329,8 @@ function setIds() {
         v-model="sheetProperties.name"
         placeholder="Name your sheet" />
       <q-btn
+        class="sheet"
         @click="saveSheet()"
-        style="background-color: bisque"
         :disable="sheetProperties.name.length == 0"
         >Save</q-btn
       ><span style="margin-left: 1em" v-if="sheetProperties.name.length == 0"
@@ -339,14 +338,14 @@ function setIds() {
       >
       <q-spinner
         id="loader"
-        color="primary"
         size="2em"
         v-show="loading"
         :key="keyNumber"></q-spinner>
       <q-checkbox v-model="hidden">Hide Terms</q-checkbox>
       <q-btn
+        class="sheet"
+        style="margin-left: 1em"
         icon="add"
-        style="margin-left: 1em; background-color: cornsilk"
         dense
         @click="
           showBuildingBlock = true;
@@ -375,9 +374,35 @@ function setIds() {
                   style="width: 100%; height: unset; border: 0px"
                   v-model="column.Type"
               /></template>
+              <!-- if there are round brackets-->
+              <template v-else-if="column.Type.includes('(')">
+                {{ column.Type.split("(")[0] }}<br />
+                <template
+                  v-if="
+                    column.Type.startsWith('Term') && column.Type.includes('(')
+                  "
+                  ><a
+                    :href="
+                      'http://purl.obolibrary.org/obo/' +
+                      column.Type.split('(')[1].split(')')[0]
+                    "
+                    style="font-size: small"
+                    target="_blank"
+                    >({{ column.Type.split("(")[1] }}</a
+                  ></template
+                >
+
+                <template v-else
+                  ><template v-if="column.Type.includes(')')">(</template
+                  >{{ column.Type.split("(")[1] }}</template
+                >
+              </template>
+              <!-- if there are no round brackets, there must be square brackets-->
               <template v-else>
-                {{ column.Type.split("[")[0] }}<br />
-                <template v-if="column.Type.startsWith('Term')">
+                {{ column.Type.split("[")[0] }}<br /><template
+                  v-if="
+                    column.Type.startsWith('Term') && column.Type.includes('[')
+                  ">
                   <a
                     :href="
                       'http://purl.obolibrary.org/obo/' +
@@ -387,7 +412,10 @@ function setIds() {
                     target="_blank"
                     >[{{ column.Type.split("[")[1] }}</a
                   ></template
-                ><template v-else>[{{ column.Type.split("[")[1] }}</template>
+                ><template v-else>
+                  <template v-if="column.Type.includes(']')">[</template>
+                  {{ column.Type.split("[")[1] }}</template
+                >
               </template>
 
               <!-- if the type is neither a term accession or a unit, insert a search button -->
@@ -445,11 +473,32 @@ function setIds() {
     </q-scroll-area>
   </div>
 </template>
-<style>
+<style scoped>
 td,
 th {
   border: 1px solid;
   padding: 1px;
   font-size: small;
+}
+
+.body--light .sheet {
+  background-color: cornsilk;
+}
+.body--dark .sheet {
+  background-color: sienna;
+}
+
+.body--light #suggestion {
+  background-color: azure;
+  margin-left: 1em;
+}
+.body--dark #suggestion {
+  background-color: darkcyan;
+  margin-left: 1em;
+}
+
+.body--dark input {
+  background-color: #121212;
+  color: white;
 }
 </style>

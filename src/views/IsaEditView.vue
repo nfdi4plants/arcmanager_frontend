@@ -3,10 +3,13 @@ import appProperties from "@/AppProperties";
 import arcProperties from "@/ArcProperties";
 import isaProperties from "@/IsaProperties";
 import { ref } from "vue";
+import { useQuasar } from "quasar";
 
-let backend = appProperties.backend + "projects/";
+const $q = useQuasar();
 
-let loading = false;
+var backend = appProperties.backend + "projects/";
+
+var loading = false;
 // send the updated entry fields to the backend to save and commit the update
 async function sendToBackend() {
   loading = true;
@@ -30,13 +33,14 @@ async function sendToBackend() {
     credentials: "include",
   });
 
-  if (!(await response).ok) {
-    errors = "ERROR: " + (await response).statusText;
+  if (!response.ok) {
+    errors = "ERROR: " + response.statusText;
     keyNumber.value += 1;
   } else {
     isaProperties.entries[isaProperties.rowId] = isaProperties.entry;
     isaProperties.entry = [];
     errors = "";
+    $q.notify("Saved");
   }
   loading = false;
   keyNumber.value += 1;
@@ -59,7 +63,6 @@ let keyNumber = ref(0);
   {{ isaProperties.entry[0] }}
   <q-spinner
     id="loader"
-    color="primary"
     size="2em"
     v-show="loading"
     :key="keyNumber"></q-spinner>
@@ -70,19 +73,26 @@ let keyNumber = ref(0);
     >
   </q-item-section>
   <q-item-section>
-    <q-btn
-      icon="add"
-      style="background-color: lightgrey"
-      @click="addEntry()"></q-btn>
+    <q-btn id="add" icon="add" @click="addEntry()"></q-btn>
     <q-separator />
-    <q-btn
-      icon="save"
-      @click="
-        console.log(isaProperties.entry);
-        sendToBackend();
-      "
-      style="background-color: whitesmoke"
+    <q-btn id="save" icon="save" @click="sendToBackend()"
       >Save</q-btn
     ></q-item-section
   >
 </template>
+<style scoped>
+.body--light #add {
+  background-color: lightgrey;
+}
+
+.body--dark #add {
+  background-color: #2c2c2c;
+}
+.body--light #save {
+  background-color: whitesmoke;
+}
+
+.body--dark #save {
+  background-color: #171717;
+}
+</style>

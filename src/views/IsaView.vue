@@ -14,15 +14,18 @@ setCssVar("primary", "#2d3e50");
 // list of the fields of the specific entry
 isaProperties.entry = [];
 
-let loading = false;
+var loading = false;
 
-let backend = appProperties.backend + "projects/";
+var backend = appProperties.backend + "projects/";
 
-let keyNumber = ref(0);
+var keyNumber = ref(0);
 
-let errors = "";
+var errors = "";
 
-let showChanges = ref(false);
+var showChanges = ref(true);
+
+// field for searchbar
+var search = ref("");
 
 // edit the fields of the entry
 const setEntry = (entry: string[], id: number) => {
@@ -47,16 +50,9 @@ async function commitFile() {
   loading = true;
   keyNumber.value += 1;
 
-  const response = await fetch(
-    backend +
-      "commitFile?id=" +
-      fileProperties.id +
-      "&repoPath=" +
-      fileProperties.path +
-      "&branch=" +
-      arcProperties.branch,
+  const response = await fetch(`${backend}commitFile?id=${fileProperties.id}&repoPath=${fileProperties.path}&branch=${arcProperties.branch}`,
     {
-      method: "POST",
+      method: "PUT",
       // body for the backend containing all necessary data
       body: JSON.stringify({
         content: fileProperties.content,
@@ -81,6 +77,9 @@ async function commitFile() {
 
 function setTemplate(templateId: string) {
   errors = "";
+  loading = true;
+  appProperties.showIsaView = false;
+  search.value = "";
   keyNumber.value += 1;
   fetch(backend + "getTemplate?id=" + templateId)
     .then((response) => response.json())
@@ -96,11 +95,7 @@ function setTemplate(templateId: string) {
       data.forEach((element: any) => {
         // insert the columnHeader with type, name and accession set
         templateProperties.template.push({
-          Type:
-            element["ColumnHeader"].Type +
-            " [" +
-            element["ColumnHeader"].Name +
-            "]",
+          Type: `${element["ColumnHeader"].Type} [${element["ColumnHeader"].Name}]`,
           Accession: element["ColumnTerm"].TermAccession,
         });
 
@@ -125,21 +120,23 @@ function setTemplate(templateId: string) {
         }
         // insert the term source ref column
         templateProperties.template.push({
-          Type: "Term Source REF [" + element["ColumnTerm"].TermAccession + "]",
+          Type: "Term Source REF (" + element["ColumnTerm"].TermAccession + ")",
         });
 
         // insert the term accession column
         templateProperties.template.push({
           Type:
-            "Term Accession Number [" +
+            "Term Accession Number (" +
             element["ColumnTerm"].TermAccession +
-            "]",
+            ")",
         });
       });
       // insert the output column at the end
       templateProperties.template.push({ Type: "Output [Sample Name]" });
       templateProperties.content.push([""]);
     });
+  loading = false;
+  keyNumber.value += 1;
 }
 
 // if a term is chosen the values of the columns header and the term accession will be set to the chosen values
@@ -170,14 +167,14 @@ function setBB(name: string, accession: string) {
     templateProperties.template.length - 1,
     0,
     {
-      Type: "Parameter" + " [" + name + "]",
+      Type: "Parameter [" + name + "]",
       Accession: accession,
     },
     {
-      Type: "Term Source REF" + " [" + accession + "]",
+      Type: "Term Source REF [" + accession + "]",
     },
     {
-      Type: "Term Accession Number" + " [" + accession + "]",
+      Type: "Term Accession Number [" + accession + "]",
     }
   );
 
@@ -211,7 +208,7 @@ function setUnit(name: string, accession: string, ontology: string) {
       templateProperties.template.length - 3,
       0,
       {
-        Type: "Unit" + " [" + name + "]",
+        Type: "Unit [" + name + "]",
       }
     );
 
@@ -245,11 +242,18 @@ async function selectSheet(name: string, index: number) {
   templateProperties.content = [];
   templateProperties.rowId = 1;
   errors = "";
+
+  if (sheetProperties.sheets[index].columns.length > 0)
+    appProperties.showIsaView = false;
   // create the table column by column
   for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
     let element = sheetProperties.sheets[index].columns[i];
     let words = element.split(" [");
-    if (words[0] != "Term Accession Number " && words[0] != "Unit ") {
+    if (
+      words[0] != "Term Accession Number " &&
+      words[0] != "Unit " &&
+      words[0] != "Term Source REF "
+    ) {
       let accession = "";
       try {
         // retrieve the accession (get the word between the square brackets)
@@ -257,7 +261,14 @@ async function selectSheet(name: string, index: number) {
           .split("[")[1]
           .split("]")[0];
       } catch (error) {
-        accession = "";
+        try {
+          // retrieve the accession (get the word between the round brackets)
+          accession = sheetProperties.sheets[index].columns[i + 1]
+            .split("(")[1]
+            .split(")")[0];
+        } catch (error) {
+          accession = "";
+        }
       }
       templateProperties.template.push({
         Type: element,
@@ -269,10 +280,23 @@ async function selectSheet(name: string, index: number) {
       });
     }
     let cellContent: string[] = [];
-    // load in the cell data row by row
-    for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
-      cellContent.push(sheetProperties.sheets[index].data[j][i]);
+
+    // if the sheet has more than hundred rows, only show the last 100 to save memory
+    if (sheetProperties.sheets[index].data.length < 100) {
+      // load in the cell data row by row
+      for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
+        cellContent.push(sheetProperties.sheets[index].data[j][i]);
+      }
+    } else {
+      for (
+        let j = sheetProperties.sheets[index].data.length - 100;
+        j < sheetProperties.sheets[index].data.length;
+        j++
+      ) {
+        cellContent.push(sheetProperties.sheets[index].data[j][i]);
+      }
     }
+
     templateProperties.content.push(cellContent);
   }
   // if the content is empty, get a list of templates and display them
@@ -288,6 +312,7 @@ async function selectSheet(name: string, index: number) {
         }
         // save the templates
         templateProperties.templates = templates.templates;
+        templateProperties.filtered = templates.templates;
       });
   }
   sheetProperties.sheets = sheetProperties.names = [];
@@ -305,6 +330,8 @@ function checkEmptyIsaView() {
     termProperties.unitTerms.length > 0
   )
     return false;
+
+  errors = "";
   return true;
 }
 
@@ -333,6 +360,52 @@ function onPaste(e) {
     _onPaste_StripFormatting_IEPaste = false;
   }
 }
+
+// sort the templates to include only the templates containing the searchTerm
+function sortTemplates(searchTerm: string) {
+  templateProperties.filtered = [];
+  templateProperties.templates.forEach((element: any) => {
+    // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
+    let searchString =
+      element["Name"].toLowerCase() +
+      " " +
+      element["Organisation"].toLowerCase() +
+      " " +
+      element["Description"].toString().toLowerCase() +
+      element["Authors"].toLowerCase();
+    if (searchString.includes(searchTerm.toLowerCase())) {
+      templateProperties.filtered.push(element);
+    }
+  });
+}
+
+function checkName(name:String){
+  let includes = false;
+  let formats = [
+    ".py",
+    ".csv",
+    ".yml",
+    ".cwl",
+    ".r ",
+    ".rproj",
+    ".lock",
+    "dockerfile",
+    ".fsx",
+    ".json",
+    ".fa",
+    ".gff",
+    ".sh",
+    "license",
+    "licence",
+    ".gitkeep" 
+  ];
+  formats.forEach((element) => {
+    if (name.toLowerCase().includes(element)) {
+      includes = true;
+    }
+  });
+  return includes;
+}
 </script>
 
 <template>
@@ -356,32 +429,33 @@ function onPaste(e) {
   >
   <q-spinner
     id="loader"
-    color="primary"
     size="2em"
     v-show="loading"
     :key="keyNumber"></q-spinner>
   <!-- Isa File content; limit the size of input fields to first 1000-->
-  <q-item-section
+  <!-- Only allow editing for non headline fields (not in all caps)-->
+  <q-item
+    dense
+    :clickable="item[0] != item[0].toUpperCase()"
+    @click="setEntry(item, i)"
     v-if="isaProperties.entries.length != 0"
     v-for="(item, i) in isaProperties.entries.slice(0, 1000)"
-    :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
-    <q-item-section v-for="entry in item">
-      <q-item-section>{{ entry }}</q-item-section>
+    :class="i % 2 === 1 ? 'alt' : ''">
+    <q-item-section v-for="(entry, i) in item">
+      <q-item-section>
+        <template v-if="i > 0 && entry != null"
+          >{{ entry.toString().slice(0, 15)
+          }}<template v-if="entry.length > 15">...</template></template
+        ><template v-else>{{ entry }}</template></q-item-section
+      >
     </q-item-section>
-    <!-- Only allow editing for non headline fields (not in all caps)-->
-    <q-btn
-      v-if="item[0] != item[0].toUpperCase()"
-      style="width: 5px; height: auto"
-      icon="edit"
-      @click="setEntry(item, i)"></q-btn>
-  </q-item-section>
+  </q-item>
   <!-- IF there is a list of terms-->
-  <q-list bordered>
+  <q-list bordered v-if="termProperties.terms.length > 0">
     <q-item
       clickable
-      v-if="termProperties.terms.length > 0"
       v-for="(term, i) in termProperties.terms.slice(0, 1000)"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      :class="i % 2 === 1 ? 'alt' : ''">
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
@@ -403,7 +477,7 @@ function onPaste(e) {
           ><q-card-section>{{ term["Description"] }}</q-card-section>
           <q-card-section
             ><q-btn
-              style="background-color: #f2f2f2"
+              class="alt"
               @click="
                 setTerm(term['Name'], term['Accession'], term['FK_Ontology'])
               "
@@ -416,13 +490,18 @@ function onPaste(e) {
     </q-item>
   </q-list>
   <!-- IF there is a list of terms for building blocks-->
-  <q-list bordered>
+  <q-list
+    bordered
+    v-if="
+      termProperties.unitTerms.length > 0 ||
+      termProperties.buildingBlocks.length > 0
+    ">
     <!-- if its a list of unit terms-->
     <q-item
       clickable
       v-if="termProperties.unitTerms.length > 0"
       v-for="(term, i) in termProperties.unitTerms.slice(0, 1000)"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      :class="i % 2 === 1 ? 'alt;' : ''">
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
@@ -460,7 +539,7 @@ function onPaste(e) {
       clickable
       v-else-if="termProperties.buildingBlocks.length > 0"
       v-for="(term, i) in termProperties.buildingBlocks.slice(0, 1000)"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      :class="i % 2 === 1 ? 'alt;' : ''">
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
@@ -493,11 +572,10 @@ function onPaste(e) {
     </q-item>
   </q-list>
   <!-- list of different sheets -->
-  <q-list bordered>
+  <q-list bordered v-if="sheetProperties.names.length > 0">
     <q-item
-      v-if="sheetProperties.names.length > 0"
       v-for="(name, i) in sheetProperties.names"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      :class="i % 2 === 1 ? 'alt' : ''">
       <q-expansion-item>
         <template #header>
           <q-btn @click="selectSheet(name, i)">{{ name }}</q-btn>
@@ -506,20 +584,31 @@ function onPaste(e) {
           ><q-card-section>{{
             sheetProperties.sheets[i]["columns"]
           }}</q-card-section
-          ><q-card-section>{{
-            sheetProperties.sheets[i]["data"]
-          }}</q-card-section>
+          ><q-card-section
+            >{{ sheetProperties.sheets[i]["data"].slice(0, 100)
+            }}<template v-if="sheetProperties.sheets[i]['data'].length > 100">
+              <i>
+                +{{ sheetProperties.sheets[i]["data"].length - 100 }}</i
+              ></template
+            ></q-card-section
+          >
         </q-card>
       </q-expansion-item>
     </q-item>
   </q-list>
   <!-- IF there is a list of templates -->
-  <q-list bordered>
+  <q-list bordered v-if="templateProperties.templates.length > 0">
+    <q-input
+      v-model="search"
+      label="Search"
+      value="name"
+      @update:model-value="(newValue:string) => sortTemplates(newValue)"
+      ><template v-slot:append> <q-icon name="search"></q-icon></template
+    ></q-input>
     <q-item
       clickable
-      v-if="templateProperties.templates.length > 0"
-      v-for="(template, i) in templateProperties.templates"
-      :style="i % 2 === 1 ? 'background-color:#fafafa;' : ''">
+      v-for="(template, i) in templateProperties.filtered"
+      :class="i % 2 === 1 ? 'alt' : ''">
       <q-expansion-item>
         <template #header>
           {{ template.Name }} ({{ template.Organisation }})
@@ -532,9 +621,7 @@ function onPaste(e) {
             >Updated last:
             {{ template.LastUpdated.slice(0, 10) }}</q-card-section
           ><q-card-section
-            ><q-btn
-              style="background-color: #f2f2f2"
-              @click="setTemplate(template.Id)"
+            ><q-btn class="alt" @click="setTemplate(template.Id)"
               >Import</q-btn
             ></q-card-section
           >
@@ -544,7 +631,29 @@ function onPaste(e) {
   </q-list>
   <!-- If its an non isa file, display the content-->
   <q-item-section v-if="fileProperties.content != ''">
-    <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
+    <template v-if="
+          fileProperties.content.includes(
+            'version https://git-lfs.github.com/spec/v1'
+          )
+        "><q-toolbar-title
+      >{{ fileProperties.name
+      }}<q-badge
+        outline
+        style="margin-left: 1em"
+        color="blue"
+        >LFS</q-badge
+      ></q-toolbar-title
+    >
+    <q-editor
+        v-model="fileProperties.content"
+        style="white-space: pre-line"
+        @paste="onPaste"></q-editor>
+  </template>
+    <template v-else>
+      <q-toolbar-title
+      >{{ fileProperties.name
+      }}</q-toolbar-title
+    >
     <!-- IF its an png -->
     <q-img
       v-if="fileProperties.name.toLowerCase().includes('.png')"
@@ -566,17 +675,17 @@ function onPaste(e) {
       <q-editor
         v-model="fileProperties.content"
         style="white-space: pre-line"
+        :readonly="checkName(fileProperties.name)"
         @paste="onPaste"></q-editor>
       <q-btn
         icon="save"
         @click="commitFile()"
         :disable="
-          fileProperties.name == '413' ||
-          fileProperties.content.includes('git-lfs')
+          fileProperties.name == '413' || checkName(fileProperties.name)
         "
         >Save</q-btn
       ></template
-    >
+    ></template>
   </q-item-section>
   <!-- Display the changes made in the arc-->
   <q-item-section
@@ -588,3 +697,15 @@ function onPaste(e) {
     </q-card>
   </q-item-section>
 </template>
+
+<style scoped>
+* {
+  font-size: medium;
+}
+.body--dark .alt {
+  background-color: #050505;
+}
+.body--light .alt {
+  background-color: #fafafa;
+}
+</style>

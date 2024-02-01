@@ -4,11 +4,14 @@ const templateProperties = reactive({
   // list of all templates
   templates: [],
 
+  // list of the filtered templates
+  filtered: [],
+
   // the chosen template
   template: [{}],
 
   // the content of the cells of the chosen template
-  content: [""],
+  content: [[""]],
 
   // id of the cell to overwrite
   id: 0,
