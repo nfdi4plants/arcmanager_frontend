@@ -63,8 +63,8 @@ var showFolderInput = false;
 var assaySync = false;
 var studySync = false;
 
-// displays the user select addition screen
-var user = false;
+// displays the user management screen (-1 for disabled, 0 for add, 1 for remove, 2 for edit)
+var user = -1;
 // list containing all users
 var userList = [];
 // the slected user
@@ -196,8 +196,8 @@ async function fetchArcs() {
   } else {
     arcList = [];
     arcProperties.identifier = "";
-    assaySync = studySync = user = false;
-
+    assaySync = studySync = false;
+    user = -1;
     cleanIsaView();
     // reset Properties and histories
     isaProperties.entryOld = [];
@@ -264,7 +264,8 @@ async function inspectArc(id: number) {
   cleanIsaView();
   appProperties.showIsaView = false;
   arcProperties.studies = arcProperties.assays = [];
-  user = showInput = assaySync = studySync = false;
+  showInput = assaySync = studySync = false;
+  user = -1;
   arcProperties.changes = "";
   forcereload();
   try {
@@ -320,7 +321,8 @@ async function getChanges(id: number) {
 // get a tree view of the selected path of the arc
 async function inspectTree(id: number, path: string, expand?: boolean) {
   loading = true;
-  assaySync = studySync = user = false;
+  assaySync = studySync = false;
+  user = -1;
   errors = "";
   showInput = false;
   showFolderInput = false;
@@ -358,7 +360,8 @@ async function getFile(id: number, path: string, branch: string) {
   appProperties.showIsaView = true;
 
   // cleanup views
-  assaySync = studySync = user = false;
+  assaySync = studySync = false;
+  user = -1;
   forcereload();
 
   cleanIsaView();
@@ -614,7 +617,8 @@ async function getTemplates() {
   cleanIsaView();
   loading = true;
   appProperties.showIsaView = true;
-  assaySync = studySync = user = false;
+  assaySync = studySync = false;
+  user = -1;
   forcereload();
 
   // retrieve the templates
@@ -637,7 +641,8 @@ async function getTemplates() {
 // get a list of all the swate sheets
 async function getSheets(path: string, id: number, branch: string) {
   cleanIsaView();
-  assaySync = studySync = user = false;
+  assaySync = studySync = false;
+  user = -1;
   loading = true;
   appProperties.showIsaView = true;
   forcereload();
@@ -885,7 +890,7 @@ async function deleteFolder(
     if (!response.ok) errors = response.statusText + ", " + data["detail"];
     else {
       $q.notify(data);
-      await inspectTree(arcId, pathHistory[pathHistory.length - 2]);
+      await inspectTree(arcId, pathHistory[pathHistory.length - 2], false);
     }
     forcereload();
   });
@@ -925,7 +930,7 @@ async function createFolder(
   forcereload();
 }
 
-// get a list of user
+// get a list of all users
 async function getUser() {
   loading = true;
   forcereload();
@@ -935,6 +940,46 @@ async function getUser() {
   try {
     // get all users
     let user = await fetch(backend + "getUser", {
+      credentials: "include",
+    });
+    let users = await user.json();
+    users.forEach((user) => {
+      userList.push({
+        label: user["username"],
+        value: user["id"],
+      });
+    });
+  } catch (error) {
+    errors = error;
+  }
+  // if there are no user found, return error
+  if (userList.length == 0) errors = "ERROR: No Assays found!";
+  // sort users alphabetically
+  userList.sort(function (a, b) {
+    let x = a.label.toLowerCase();
+    let y = b.label.toLowerCase();
+    if (x < y) {
+      return -1;
+    }
+    if (x > y) {
+      return 1;
+    }
+    return 0;
+  });
+  loading = false;
+  forcereload();
+}
+
+// get a list of all users for the Arc
+async function getArcUser(id: number) {
+  loading = true;
+  forcereload();
+  userList = [];
+  userSelect.value = null;
+  permission.value = null;
+  try {
+    // get all users
+    let user = await fetch(backend + "getArcUser?id=" + id, {
       credentials: "include",
     });
     let users = await user.json();
@@ -986,10 +1031,48 @@ async function addUser(id: number, user: any, role: any) {
   loading = false;
   forcereload();
 }
+
+// remove a user from the project
+async function removeUser(id: number, user: any) {
+  loading = true;
+  forcereload();
+  let response = await fetch(
+    `${backend}removeUser?id=${id}&userId=${user.value}&username=${user.label}`,
+    {
+      credentials: "include",
+      method: "DELETE",
+    }
+  );
+  let data = await response.json();
+  if (!response.ok) errors = response.statusText + ", " + data["detail"];
+  else $q.notify(data);
+
+  loading = false;
+  forcereload();
+}
+
+// edit the role of a user of the project
+async function editUser(id: number, user: any, role: any) {
+  loading = true;
+  forcereload();
+  let response = await fetch(
+    `${backend}editUser?id=${id}&userId=${user.value}&username=${user.label}&role=${role.value}`,
+    {
+      credentials: "include",
+      method: "PUT",
+    }
+  );
+  let data = await response.json();
+  if (!response.ok) errors = response.statusText + ", " + data["detail"];
+  else $q.notify(data);
+
+  loading = false;
+  forcereload();
+}
 </script>
 
 <template>
-  <!-- FETCH ARC/FILE UPLOAD BUTTON/OPEN ARC/SYNC ASSAYS/STUDIES RELOAD-->
+  <!-- FETCH ARC/FILE UPLOAD BUTTON/OPEN ARC/ZIP/SYNC ASSAYS/STUDIES RELOAD USERADD-->
   <div class="q-pa-xs row q-gutter-sm">
     <q-btn
       id="arcFetch"
@@ -1025,7 +1108,7 @@ async function addUser(id: number, user: any, role: any) {
           v-model="fileInput"
           dense
           borderless
-          label="Upload File"
+          label="Upload File(s)"
           multiple
           @update:model-value="
             fileUpload();
@@ -1037,7 +1120,10 @@ async function addUser(id: number, user: any, role: any) {
           "
           :key="refresher"
           :loading="uploading"
-          :disable="progress > 0 && progress != 1 && progress != null" />
+          :disable="progress > 0 && progress != 1 && progress != null"
+          ><template v-slot:before> <q-icon name="file_upload" /> </template
+        ></q-file>
+        <!-- OPEN -->
         <q-btn
           id="open"
           @click="openArc(arcProperties.url)"
@@ -1046,9 +1132,11 @@ async function addUser(id: number, user: any, role: any) {
           :key="refresher + 1"
           ><template v-if="!appProperties.showIsaView">Open</template></q-btn
         >
+        <!-- ZIP -->
         <q-btn icon="download" @click="getArchive(arcId)" glossy color="teal-10"
           ><template v-if="!appProperties.showIsaView">zip</template></q-btn
         >
+        <!-- SYNC ASSAY-->
         <q-btn
           id="assay"
           icon="sync_alt"
@@ -1056,7 +1144,7 @@ async function addUser(id: number, user: any, role: any) {
           @click="
             assaySync = !assaySync;
             studySync = false;
-            user = false;
+            user = -1;
             forcereload();
             getAssaysAndStudies(arcId);
           "
@@ -1065,6 +1153,7 @@ async function addUser(id: number, user: any, role: any) {
             >Sync Assay/Study</template
           ></q-btn
         >
+        <!-- SYNC STUDY-->
         <q-btn
           id="study"
           icon="sync"
@@ -1072,7 +1161,7 @@ async function addUser(id: number, user: any, role: any) {
           @click="
             studySync = !studySync;
             assaySync = false;
-            user = false;
+            user = -1;
             forcereload();
             getAssaysAndStudies(arcId);
           "
@@ -1085,19 +1174,48 @@ async function addUser(id: number, user: any, role: any) {
         <q-btn icon="refresh" @click="inspectArc(arcId)" glossy
           ><template v-if="!appProperties.showIsaView">Reload</template></q-btn
         >
-        <q-btn
-          icon="add"
-          glossy
-          id="userAdd"
-          @click="
-            user = !user;
-            assaySync = studySync = false;
-            forcereload();
-            getUser();
-          "
-          ><template v-if="!appProperties.showIsaView"
-            >Add User</template
-          ></q-btn
+        <!-- USER MANAGEMENT-->
+        <q-btn icon="person" glossy id="user"
+          ><template v-if="!appProperties.showIsaView">Members</template
+          ><q-menu>
+            <q-list style="min-width: 100px">
+              <q-item
+                clickable
+                v-close-popup
+                @click="
+                  user = 0;
+                  assaySync = studySync = false;
+                  forcereload();
+                  getUser();
+                ">
+                <q-item-section>Add User</q-item-section>
+              </q-item>
+              <q-separator />
+              <q-item
+                clickable
+                v-close-popup
+                @click="
+                  user = 1;
+                  assaySync = studySync = false;
+                  forcereload();
+                  getArcUser(arcId);
+                ">
+                <q-item-section>Remove User</q-item-section>
+              </q-item>
+              <q-separator />
+              <q-item
+                clickable
+                v-close-popup
+                @click="
+                  user = 2;
+                  assaySync = studySync = false;
+                  forcereload();
+                  getArcUser(arcId);
+                ">
+                <q-item-section>Edit User</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu></q-btn
         >
       </q-btn-group>
       <!-- activates swate and annotation sheets-->
@@ -1370,7 +1488,9 @@ async function addUser(id: number, user: any, role: any) {
         </q-item>
         <!-- CREATE FOLDER BUTTON -->
         <q-btn
-          icon="add"
+          icon="create_new_folder"
+          id="folder"
+          fab-mini
           v-if="arcList.length != 0"
           @click="
             showFolderInput = true;
@@ -1545,12 +1665,12 @@ async function addUser(id: number, user: any, role: any) {
       </div>
     </template>
     <!-- ADD USER TO PROJECT -->
-    <template v-if="user"
+    <template v-if="user > -1"
       ><div class="q-pa-md" v-show="userList.length > 0">
         <q-btn
           icon="arrow_back"
           @click="
-            user = false;
+            user = -1;
             forcereload();
           "
           class="return">
@@ -1564,14 +1684,17 @@ async function addUser(id: number, user: any, role: any) {
             style="width: 200px"
             :key="refresher + 11" />
           <q-select
+            v-if="user != 1"
             v-model="permission"
             :options="userPermissions"
             label="Role"
             style="width: 200px"
             :key="refresher + 12" />
+          <!-- ADD/REMOVE/EDIT USER -->
           <q-btn
+            v-if="user == 0"
             @click="
-              user = false;
+              user = -1;
               addUser(arcId, userSelect, permission);
               userSelect = permission = null;
               forcereload();
@@ -1580,9 +1703,33 @@ async function addUser(id: number, user: any, role: any) {
             glossy
             >Add</q-btn
           >
+          <q-btn
+            v-else-if="user == 1"
+            @click="
+              user = -1;
+              removeUser(arcId, userSelect);
+              userSelect = permission = null;
+              forcereload();
+            "
+            :disable="userSelect == null"
+            glossy
+            >Remove</q-btn
+          >
+          <q-btn
+            v-else-if="user == 2"
+            @click="
+              user = -1;
+              editUser(arcId, userSelect, permission);
+              userSelect = permission = null;
+              forcereload();
+            "
+            :disable="userSelect == null || permission == null"
+            glossy
+            >Edit</q-btn
+          >
         </div>
         <br />
-        <span>
+        <span v-if="user != 1">
           <a
             href="https://gitlab.nfdi4plants.de/help/user/permissions"
             target="_blank"
@@ -1617,6 +1764,10 @@ async function addUser(id: number, user: any, role: any) {
   background-color: lightgreen;
 }
 
+.body--light #folder {
+  background-color: aliceblue;
+}
+
 /* Light mode button group*/
 .body--light #open {
   background-color: lightskyblue;
@@ -1631,7 +1782,7 @@ async function addUser(id: number, user: any, role: any) {
   background-color: gainsboro;
 }
 
-.body--light #userAdd {
+.body--light #user {
   background-color: wheat;
 }
 
@@ -1657,6 +1808,10 @@ async function addUser(id: number, user: any, role: any) {
   background-color: green;
 }
 
+.body--dark #folder {
+  background-color: darkslategray;
+}
+
 /* Dark mode button group */
 .body--dark #open {
   background-color: dodgerblue;
@@ -1671,7 +1826,7 @@ async function addUser(id: number, user: any, role: any) {
   background-color: gray;
 }
 
-.body--dark #userAdd {
+.body--dark #user {
   background-color: darkslateblue;
 }
 </style>
