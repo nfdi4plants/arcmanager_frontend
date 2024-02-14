@@ -44,7 +44,10 @@ var rowIds = [1];
 // the accession value of the type
 var searchAccession = "";
 
-// get a list of all found terms for the given input
+/** get a list of all found terms for the given input
+ *
+ * @param input - the input to search for
+ */
 async function getTerms(input: string) {
   loading = true;
   appProperties.showIsaView = true;
@@ -55,7 +58,9 @@ async function getTerms(input: string) {
   termProperties.terms = [];
 
   // get the list of terms
-  const response = await fetch(`${backend}getTerms?input=${input}&advanced=${advanced.value}&parentName=${searchType}&parentTermAccession=${searchAccession}`);
+  const response = await fetch(
+    `${backend}getTerms?input=${input}&advanced=${advanced.value}&parentName=${searchType}&parentTermAccession=${searchAccession}`
+  );
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
@@ -72,6 +77,10 @@ async function getTerms(input: string) {
   loading = false;
   keyNumber.value += 1;
 }
+
+/** save the current content of the sheet back to the isa file
+ *
+ */
 async function saveSheet() {
   loading = true;
   keyNumber.value += 1;
@@ -100,6 +109,11 @@ async function saveSheet() {
   loading = false;
   keyNumber.value += 1;
 }
+
+/** returns false if the column starts with one of the names
+ *
+ * @param name - the name of the column
+ */
 function checkName(name: string) {
   return !(
     name.startsWith("Term") ||
@@ -110,6 +124,11 @@ function checkName(name: string) {
     name.startsWith("Output")
   );
 }
+
+/** returns the value inside of the brackets
+ *
+ * @param type - the content of the column (like Unit, Term source ref, ...)
+ */
 function searchName(type: string) {
   if (type.includes("[")) {
     let words = type.split(" [");
@@ -122,6 +141,10 @@ function searchName(type: string) {
 
   return type;
 }
+
+/** adds an extra row to the sheet (fills out unit cells automatically)
+ *
+ */
 function extendTemplate() {
   // extend each column by a new cell
   templateProperties.template.forEach((element, i) => {
@@ -163,6 +186,9 @@ function extendTemplate() {
   keyNumber.value += 1;
 }
 
+/** get suggestion terms based on the given parent term
+ *
+ */
 async function getSuggestionsByParent() {
   loading = true;
   appProperties.showIsaView = true;
@@ -178,7 +204,9 @@ async function getSuggestionsByParent() {
   sheetProperties.sheets = sheetProperties.names = [];
 
   // get the list of terms
-  const response = await fetch(`${backend}getTermSuggestionsByParentTerm?parentName=${searchType}&parentTermAccession=${searchAccession}`);
+  const response = await fetch(
+    `${backend}getTermSuggestionsByParentTerm?parentName=${searchType}&parentTermAccession=${searchAccession}`
+  );
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
@@ -196,7 +224,9 @@ async function getSuggestionsByParent() {
   keyNumber.value += 1;
 }
 
-// suggestions for the building blocks
+/** suggestions for the building blocks
+ *
+ */
 async function getSuggestions() {
   loading = true;
   appProperties.showIsaView = true;
@@ -230,7 +260,9 @@ async function getSuggestions() {
   keyNumber.value += 1;
 }
 
-// suggestions for the units of building blocks
+/** suggestions for the units of building blocks
+ *
+ */
 async function getUnitSuggestions() {
   loading = true;
   appProperties.showIsaView = true;
@@ -263,7 +295,9 @@ async function getUnitSuggestions() {
   keyNumber.value += 1;
 }
 
-// fills the rowIds array with all possible row ids
+/** fills the rowIds array with all possible row ids
+ *
+ */
 function setIds() {
   rowIds = Array.from(
     { length: templateProperties.content[0].length },

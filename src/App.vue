@@ -95,7 +95,10 @@ const forcereload = () => {
   refresher.value += 1;
   $q.dark.set(appProperties.dark);
 };
-// send the createArc request to the backend with all necessary identifiers
+
+/** send the createArc request to the backend with all necessary identifiers
+ *
+ */
 async function createArc() {
   loading = true;
   forcereload();
@@ -121,7 +124,10 @@ async function createArc() {
   loading = false;
   forcereload();
 }
-// clean right side view
+
+/** clean right side view
+ *
+ */
 function cleanIsaView() {
   // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
   templateProperties.templates = templateProperties.template = [];
@@ -182,7 +188,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.5.1
+                  v 0.5.2
                 </q-badge></q-item-label
               >
             </q-item-section>

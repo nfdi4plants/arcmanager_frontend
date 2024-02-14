@@ -9,9 +9,6 @@ const isaProperties = reactive({
 
   // current entry to edit
   entry: [""],
-
-  // entry before the edit (for replacing purposes)
-  entryOld: [""],
   
   // the number of the row
   rowId: 0,
@@ -24,6 +21,15 @@ const isaProperties = reactive({
 
   // date of last edit
   date: "",
+
+  // array containing the basic information of the isa, like identification, title, description, ...
+  identification: [],
+
+  // array containing the contact information
+  contacts: [],
+
+  // array containing the publications information
+  publications: []
 });
 
 export default isaProperties;

@@ -7,8 +7,10 @@ import appProperties from "@/AppProperties";
 import templateProperties from "@/TemplateProperties";
 import termProperties from "@/TermProperties";
 import sheetProperties from "@/SheetProperties";
+import { useQuasar, setCssVar } from "quasar";
 
-import { setCssVar } from "quasar";
+const $q = useQuasar();
+
 setCssVar("primary", "#2d3e50");
 
 // list of the fields of the specific entry
@@ -22,6 +24,8 @@ var keyNumber = ref(0);
 
 var errors = "";
 
+var alternative = ref(false);
+
 var showChanges = ref(true);
 
 // field for searchbar
@@ -31,26 +35,21 @@ var search = ref("");
 const setEntry = (entry: string[], id: number) => {
   // clear old entry arrays
   isaProperties.entry = [];
-  isaProperties.entryOld = [];
   isaProperties.rowId = id;
-  // load entry old with the entry fields
-  entry.forEach((element) => {
-    if (element != null) {
-      isaProperties.entryOld.push(element);
-    } else {
-      isaProperties.entryOld.push("");
-    }
-  });
   // map entry with the corresponding row data
   isaProperties.entry = isaProperties.entries[isaProperties.rowId];
   errors = "";
 };
 
+/** commit the content of the file back to the datahub
+ *
+ */
 async function commitFile() {
   loading = true;
   keyNumber.value += 1;
 
-  const response = await fetch(`${backend}commitFile?id=${fileProperties.id}&repoPath=${fileProperties.path}&branch=${arcProperties.branch}`,
+  const response = await fetch(
+    `${backend}commitFile?id=${fileProperties.id}&repoPath=${fileProperties.path}&branch=${arcProperties.branch}`,
     {
       method: "PUT",
       // body for the backend containing all necessary data
@@ -75,6 +74,10 @@ async function commitFile() {
   keyNumber.value += 1;
 }
 
+/** setups a new table using the chosen template
+ *
+ * @param templateId - the id of the template
+ */
 function setTemplate(templateId: string) {
   errors = "";
   loading = true;
@@ -139,7 +142,12 @@ function setTemplate(templateId: string) {
   keyNumber.value += 1;
 }
 
-// if a term is chosen the values of the columns header and the term accession will be set to the chosen values
+/** if a term is chosen the values of the columns header and the term accession will be set to the chosen values
+ *
+ * @param name - the name of the term
+ * @param accession - the term accession
+ * @param ontology - the term ontology reference
+ */
 function setTerm(name: string, accession: string, ontology: string) {
   templateProperties.content[templateProperties.id].splice(
     templateProperties.rowId - 1,
@@ -158,7 +166,11 @@ function setTerm(name: string, accession: string, ontology: string) {
   );
 }
 
-// if a term is chosen the values of the columns header and the term accession will be set to the chosen values
+/** if a term is chosen the values of the columns header and the term accession will be set to the chosen values
+ *
+ * @param name - the name of the building block
+ * @param accession - the accession value of the building block
+ */
 function setBB(name: string, accession: string) {
   errors = "";
 
@@ -196,6 +208,12 @@ function setBB(name: string, accession: string) {
   );
 }
 
+/** sets a unit column to the building block
+ *
+ * @param name - the name of the unit
+ * @param accession - the accession value of the unit
+ * @param ontology - the ontology reference of the unit
+ */
 function setUnit(name: string, accession: string, ontology: string) {
   errors = "";
   // if the building block has no unit so far, you can add one
@@ -235,7 +253,11 @@ function setUnit(name: string, accession: string, ontology: string) {
   }
 }
 
-// load the selected sheet and display it
+/** load the selected sheet and display it
+ *
+ * @param name - the name of the sheet
+ * @param index - the index value of the sheet inside of the sheets array
+ */
 async function selectSheet(name: string, index: number) {
   sheetProperties.name = name;
   templateProperties.template = [];
@@ -318,7 +340,9 @@ async function selectSheet(name: string, index: number) {
   sheetProperties.sheets = sheetProperties.names = [];
 }
 
-// check if the right side is empty
+/** check if the right side (the isa view) is empty
+ *
+ */
 function checkEmptyIsaView() {
   if (
     isaProperties.entries.length > 0 ||
@@ -335,7 +359,9 @@ function checkEmptyIsaView() {
   return true;
 }
 
-// See: https://stackoverflow.com/a/28213320
+/** See: https://stackoverflow.com/a/28213320
+ * function to remove all unnecessary metadata from a copy pasted text to the q-editor
+ */
 let _onPaste_StripFormatting_IEPaste = false;
 function onPaste(e) {
   if (
@@ -361,7 +387,10 @@ function onPaste(e) {
   }
 }
 
-// sort the templates to include only the templates containing the searchTerm
+/** sort the templates to include only the templates containing the searchTerm
+ *
+ * @param searchTerm - the input term to search the templates for (name, author, description, ...)
+ */
 function sortTemplates(searchTerm: string) {
   templateProperties.filtered = [];
   templateProperties.templates.forEach((element: any) => {
@@ -379,7 +408,11 @@ function sortTemplates(searchTerm: string) {
   });
 }
 
-function checkName(name:String){
+/** returns true if the file is one of the file formats/has the name
+ *
+ * @param name - the name of the file
+ */
+function checkName(name: String) {
   let includes = false;
   let formats = [
     ".py",
@@ -397,7 +430,7 @@ function checkName(name:String){
     ".sh",
     "license",
     "licence",
-    ".gitkeep" 
+    ".gitkeep",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -406,11 +439,56 @@ function checkName(name:String){
   });
   return includes;
 }
+
+/** send the updated identification fields to the backend to save and commit
+ *
+ */
+async function sendToBackend() {
+  loading = true;
+  keyNumber.value += 1;
+
+  // array containing all the information stored in identification, contacts and publications
+  let toSend = isaProperties.identification.concat(
+    isaProperties.contacts,
+    isaProperties.publications
+  );
+
+  // replace null values with empty string
+  toSend.forEach(async (element, i) => {
+    if (element == null) toSend[i][1] = "";
+    if (toSend[i][1] != null && toSend[i][1] != "") {
+      let response = await fetch(backend + "saveFile", {
+        method: "PUT",
+        // body for the backend containing all necessary data
+        body: JSON.stringify({
+          isaInput: toSend[i],
+          isaPath: isaProperties.path,
+          isaRepo: isaProperties.repoId,
+          arcBranch: arcProperties.branch,
+        }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        errors = "ERROR: " + response.statusText;
+        keyNumber.value += 1;
+      } else {
+        isaProperties.entry = [];
+        errors = "";
+        $q.notify("Saved");
+      }
+    }
+  });
+  loading = false;
+  keyNumber.value += 1;
+}
 </script>
 
 <template>
   <q-toolbar-title v-if="isaProperties.entries.length != 0"
-    >Isa Entries ({{ isaProperties.date }})</q-toolbar-title
+    >Isa Entries ({{ isaProperties.date }})<q-checkbox v-model="alternative"
+      >alternative</q-checkbox
+    ></q-toolbar-title
   >
   <q-toolbar-title v-if="templateProperties.templates.length > 0"
     >Templates</q-toolbar-title
@@ -432,24 +510,86 @@ function checkName(name:String){
     size="2em"
     v-show="loading"
     :key="keyNumber"></q-spinner>
+  <template
+    v-if="
+      isaProperties.entries.length > 0 &&
+      alternative &&
+      !isaProperties.path.includes('assay')
+    ">
+    <div class="q-gutter-md row items-start">
+      <q-input
+        style="width: 45%"
+        outlined
+        v-model="isaProperties.identification[0][1]"
+        label="Identifier"></q-input>
+      <q-input
+        style="width: 45%"
+        outlined
+        v-model="isaProperties.identification[1][1]"
+        label="Title"></q-input>
+      <q-input
+        style="width: 92%"
+        outlined
+        type="textarea"
+        v-model="isaProperties.identification[2][1]"
+        label="Description"></q-input>
+      <q-input
+        style="width: 45%"
+        outlined
+        type="date"
+        v-model="isaProperties.identification[3][1]"
+        label="Submission Date"></q-input>
+      <q-input
+        style="width: 45%"
+        outlined
+        type="date"
+        v-model="isaProperties.identification[4][1]"
+        label="Public Release Date"></q-input>
+    </div>
+    <q-toolbar-title style="padding-top: 1em">Publications</q-toolbar-title>
+    <div class="q-gutter-md row items-start">
+      <q-input
+        style="width: 45%"
+        outlined
+        v-for="(entry, i) in isaProperties.publications"
+        v-model="isaProperties.publications[i][1]"
+        :label="isaProperties.publications[i][0]"></q-input>
+    </div>
+    <q-toolbar-title style="padding-top: 1em">Contacts</q-toolbar-title>
+    <div class="q-gutter-md row items-start">
+      <q-input
+        style="width: 45%"
+        outlined
+        v-for="(entry, i) in isaProperties.contacts"
+        v-model="isaProperties.contacts[i][1]"
+        :label="isaProperties.contacts[i][0]"></q-input>
+    </div>
+    <q-item-section
+      ><q-btn icon="save" type="submit" color="teal" @click="sendToBackend()"
+        >Save</q-btn
+      ></q-item-section
+    >
+  </template>
   <!-- Isa File content; limit the size of input fields to first 1000-->
   <!-- Only allow editing for non headline fields (not in all caps)-->
-  <q-item
-    dense
-    :clickable="item[0] != item[0].toUpperCase()"
-    @click="setEntry(item, i)"
-    v-if="isaProperties.entries.length != 0"
-    v-for="(item, i) in isaProperties.entries.slice(0, 1000)"
-    :class="i % 2 === 1 ? 'alt' : ''">
-    <q-item-section v-for="(entry, i) in item">
-      <q-item-section>
-        <template v-if="i > 0 && entry != null"
-          >{{ entry.toString().slice(0, 15)
-          }}<template v-if="entry.length > 15">...</template></template
-        ><template v-else>{{ entry }}</template></q-item-section
-      >
-    </q-item-section>
-  </q-item>
+  <template v-if="isaProperties.entries.length != 0">
+    <q-item
+      dense
+      :clickable="item[0] != item[0].toUpperCase()"
+      @click="setEntry(item, i)"
+      v-if="!alternative"
+      v-for="(item, i) in isaProperties.entries.slice(0, 1000)"
+      :class="i % 2 === 1 ? 'alt' : ''">
+      <q-item-section v-for="(entry, i) in item">
+        <q-item-section>
+          <template v-if="i > 0 && entry != null"
+            >{{ entry.toString().slice(0, 15)
+            }}<template v-if="entry.length > 15">...</template></template
+          ><template v-else>{{ entry }}</template></q-item-section
+        >
+      </q-item-section>
+    </q-item>
+  </template>
   <!-- IF there is a list of terms-->
   <q-list bordered v-if="termProperties.terms.length > 0">
     <q-item
@@ -631,61 +771,58 @@ function checkName(name:String){
   </q-list>
   <!-- If its an non isa file, display the content-->
   <q-item-section v-if="fileProperties.content != ''">
-    <template v-if="
-          fileProperties.content.includes(
-            'version https://git-lfs.github.com/spec/v1'
-          )
-        "><q-toolbar-title
-      >{{ fileProperties.name
-      }}<q-badge
-        outline
-        style="margin-left: 1em"
-        color="blue"
-        >LFS</q-badge
-      ></q-toolbar-title
-    >
-    <q-editor
-        v-model="fileProperties.content"
-        style="white-space: pre-line"
-        @paste="onPaste"></q-editor>
-  </template>
-    <template v-else>
-      <q-toolbar-title
-      >{{ fileProperties.name
-      }}</q-toolbar-title
-    >
-    <!-- IF its an png -->
-    <q-img
-      v-if="fileProperties.name.toLowerCase().includes('.png')"
-      :src="'data:image/png;base64,' + fileProperties.content"></q-img>
-    <!-- IF its an jpeg -->
-    <q-img
-      v-else-if="fileProperties.name.toLowerCase().includes('.jpeg')"
-      :src="'data:image/jpeg;base64,' + fileProperties.content"></q-img>
-    <!-- IF its an jpg -->
-    <q-img
-      v-else-if="fileProperties.name.toLowerCase().includes('.jpg')"
-      :src="'data:image/jpg;base64,' + fileProperties.content"></q-img>
-    <!-- IF its an svg -->
-    <q-editor
-      v-else-if="fileProperties.name.toLowerCase().includes('.svg')"
-      style="white-space: pre-line"
-      v-model="fileProperties.content"></q-editor>
-    <template v-else>
+    <template
+      v-if="
+        fileProperties.content.includes(
+          'version https://git-lfs.github.com/spec/v1'
+        )
+      "
+      ><q-toolbar-title
+        >{{ fileProperties.name
+        }}<q-badge outline style="margin-left: 1em" color="blue"
+          >LFS</q-badge
+        ></q-toolbar-title
+      >
       <q-editor
         v-model="fileProperties.content"
         style="white-space: pre-line"
-        :readonly="checkName(fileProperties.name)"
         @paste="onPaste"></q-editor>
-      <q-btn
-        icon="save"
-        @click="commitFile()"
-        :disable="
-          fileProperties.name == '413' || checkName(fileProperties.name)
-        "
-        >Save</q-btn
+    </template>
+    <template v-else>
+      <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
+      <!-- IF its an png -->
+      <q-img
+        v-if="fileProperties.name.toLowerCase().includes('.png')"
+        :src="'data:image/png;base64,' + fileProperties.content"></q-img>
+      <!-- IF its an jpeg -->
+      <q-img
+        v-else-if="fileProperties.name.toLowerCase().includes('.jpeg')"
+        :src="'data:image/jpeg;base64,' + fileProperties.content"></q-img>
+      <!-- IF its an jpg -->
+      <q-img
+        v-else-if="fileProperties.name.toLowerCase().includes('.jpg')"
+        :src="'data:image/jpg;base64,' + fileProperties.content"></q-img>
+      <!-- IF its an svg -->
+      <q-editor
+        v-else-if="fileProperties.name.toLowerCase().includes('.svg')"
+        style="white-space: pre-line"
+        v-model="fileProperties.content"></q-editor>
+      <template v-else>
+        <q-editor
+          v-model="fileProperties.content"
+          style="white-space: pre-line"
+          :readonly="checkName(fileProperties.name)"
+          @paste="onPaste"></q-editor>
+        <q-btn
+          icon="save"
+          @click="commitFile()"
+          :disable="
+            fileProperties.name == '413' || checkName(fileProperties.name)
+          "
+          >Save</q-btn
+        ></template
       ></template
-    ></template>
+    >
   </q-item-section>
   <!-- Display the changes made in the arc-->
   <q-item-section

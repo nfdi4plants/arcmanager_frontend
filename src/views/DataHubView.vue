@@ -134,7 +134,10 @@ if (document.cookie.includes("logged_in=true")) {
 // array containing all the files to upload
 var fileInput = ref([]);
 
-// opens the explore page of the selected git in a new tab (only when you're not logged in currently)
+/** opens the explore page of the selected git in a new tab (only when you're not logged in currently)
+ *
+ * @param target - the name of the target git (freiburg, tübingen, ...)
+ */
 function openGit(target: string) {
   errors = "";
   forcereload();
@@ -156,7 +159,10 @@ function openGit(target: string) {
       forcereload();
   }
 }
-// get a list of all arcs in the gitlab
+
+/** get a list of all arcs in the gitlab
+ *
+ */
 async function fetchArcs() {
   loading = true;
   appProperties.showIsaView = false;
@@ -200,7 +206,6 @@ async function fetchArcs() {
     user = -1;
     cleanIsaView();
     // reset Properties and histories
-    isaProperties.entryOld = [];
     isaProperties.rowId = 0;
     fileProperties.name = "";
     arcProperties.changes = "";
@@ -234,12 +239,17 @@ async function fetchArcs() {
   }
 }
 
-// opens the url of the arc in a new tab
+/** opens the url of the arc in a new tab
+ *
+ * @param url - the full url of the arc
+ */
 const openArc = (url: string) => {
   window.open(url);
 };
 
-// cleans the right side
+/** cleans the right side
+ *
+ */
 function cleanIsaView() {
   // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
   templateProperties.templates = templateProperties.template = [];
@@ -254,7 +264,10 @@ function cleanIsaView() {
   forcereload();
 }
 
-// get a tree view of the front page of the arc
+/** get a tree view of the front page of the arc
+ *
+ * @param id - the id of the arc
+ */
 async function inspectArc(id: number) {
   loading = true;
   arcId = id;
@@ -275,7 +288,7 @@ async function inspectArc(id: number) {
     const data = await response.json();
     if (!response.ok)
       throw new Error(
-        response.statusText + ", " + data["detail"].toString().slice(0, 110)
+        response.statusText + ", " + data["detail"].toString().slice(0, 150)
       );
 
     arcList = [];
@@ -295,7 +308,10 @@ async function inspectArc(id: number) {
   forcereload();
 }
 
-// get the list of changes
+/** get the list of changes
+ *
+ * @param id - the id of the arc
+ */
 async function getChanges(id: number) {
   try {
     await fetch(backend + "getChanges?id=" + id, {
@@ -318,7 +334,12 @@ async function getChanges(id: number) {
   }
 }
 
-// get a tree view of the selected path of the arc
+/** get a tree view of the selected path of the arc
+ *
+ * @param id - the id of the arc
+ * @param path - the selected path (eg. assays/...)
+ * @param expand - weather the pathHistory is expanded (going deeper into the folder) or not (removing the last entry in the history)
+ */
 async function inspectTree(id: number, path: string, expand?: boolean) {
   loading = true;
   assaySync = studySync = false;
@@ -354,7 +375,13 @@ async function inspectTree(id: number, path: string, expand?: boolean) {
   loading = false;
   forcereload();
 }
-// gets the file on the arc
+
+/** gets the file on the arc
+ *
+ * @param id - the id of the arc
+ * @param path - the file path
+ * @param branch - the main branch name of the arc
+ */
 async function getFile(id: number, path: string, branch: string) {
   loading = true;
   appProperties.showIsaView = true;
@@ -413,18 +440,56 @@ async function getFile(id: number, path: string, branch: string) {
       // if there is no typical content, its an isa file, because then we have a list of entries
     } else {
       isaProperties.date = "";
-
       isaList = [];
-      data.forEach((element: any) => {
-        // TODO: currently only works with isa files, non isa files will create errors
+      isaProperties.identification = [];
+      isaProperties.contacts = [];
+      isaProperties.publications = [];
+      data.forEach((element: any, i: number) => {
         // reads out the file and saves the content to isaProperties
-        if (isaProperties.date == "") {
-          switch (element[0]) {
-            case "Investigation Identifier":
-            case "Study Identifier":
-            case "Measurement Type":
-              isaProperties.date = element[2];
-          }
+
+        switch (element[0]) {
+          case "Study Identifier":
+            if (isaProperties.identification.length < 5) {
+              for (let j = 0; j < 5; j++) {
+                let entry = data[i + j];
+                isaProperties.identification.push([entry[0], entry[1]]);
+              }
+            }
+          case "Investigation Identifier":
+          case "Measurement Type":
+            isaProperties.date = element[2];
+            break;
+
+          case "INVESTIGATION":
+            if (isaProperties.identification.length < 5) {
+              for (let j = 0; j < 5; j++) {
+                let entry = data[i + j + 1];
+                isaProperties.identification.push([entry[0], entry[1]]);
+              }
+            }
+            break;
+
+          // contact information
+          case "STUDY CONTACTS":
+          case "INVESTIGATION CONTACTS":
+            if (isaProperties.contacts.length < 11) {
+              for (let j = 0; j < 11; j++) {
+                let entry = data[i + j + 1];
+                isaProperties.contacts.push([entry[0], entry[1]]);
+              }
+            }
+            break;
+
+          // publications
+          case "INVESTIGATION PUBLICATIONS":
+          case "STUDY PUBLICATIONS":
+            if (isaProperties.publications.length < 7) {
+              for (let j = 0; j < 7; j++) {
+                let entry = data[i + j + 1];
+                isaProperties.publications.push([entry[0], entry[1]]);
+              }
+            }
+            break;
         }
         isaList.push(element);
       });
@@ -444,7 +509,13 @@ async function getFile(id: number, path: string, branch: string) {
   forcereload();
 }
 
-// create a new isa structure with a given identifier
+/** create a new isa structure with a given identifier
+ *
+ * @param id - the id of the arc
+ * @param identifier - the identifier (the name) of the isa file
+ * @param type - the type of isa (study or assay)
+ * @param branch - the main branch of the arc
+ */
 async function addIsa(
   id: number,
   identifier: string,
@@ -477,7 +548,10 @@ async function addIsa(
   forcereload();
 }
 
-// sort the arcList to include only the arcs containing the searchTerm
+/** sort the arcList to include only the arcs containing the searchTerm
+ *
+ * @param searchTerm - the term to search the arcs for (id, name, tags, ...)
+ */
 function sortArcs(searchTerm: string) {
   searchList = [];
   list.forEach((element) => {
@@ -494,7 +568,9 @@ function sortArcs(searchTerm: string) {
   });
 }
 
-// uploads the file(s) to the hub
+/** uploads the file(s) to the hub
+ *
+ */
 async function fileUpload() {
   uploading = true;
 
@@ -538,6 +614,7 @@ async function fileUpload() {
     let start = 0;
     let end = start + chunkSize;
 
+    // function that builds the next chunk and uploads it
     const uploadNextChunk = async () => {
       end = Math.min(start + chunkSize, fileSize);
       // set the progress to 99% for the last chunk
@@ -545,6 +622,7 @@ async function fileUpload() {
         progress = 0.99;
       }
 
+      // if there are chunks left, upload them
       if (chunkNumber < totalChunks) {
         const chunk = selectedFile.slice(start, end);
         const formData = new FormData();
@@ -591,10 +669,11 @@ async function fileUpload() {
         } catch (error) {
           console.error("ERROR: ", error);
         }
+        // when every chunk is uploaded, set the progress to 1
       } else {
         progress = 1;
         console.log("Upload complete");
-        // when every file is uploaded, complete the process and clear the input
+        // when the largest file (which in return is the last file to finish) was uploaded, finish the process and clear the input
         if (i == largestFile) {
           fileInput.value = [];
           $q.loading.hide();
@@ -612,7 +691,9 @@ async function fileUpload() {
   }
 }
 
-// if you click the 'create new sheet' button, you will get a list containing all the current templates
+/** if you click the 'create new sheet' button, you will get a list containing all the current templates
+ *
+ */
 async function getTemplates() {
   cleanIsaView();
   loading = true;
@@ -638,7 +719,12 @@ async function getTemplates() {
   forcereload();
 }
 
-// get a list of all the swate sheets
+/** get a list of all the swate sheets
+ *
+ * @param path - the path to the isa file
+ * @param id - the id of the arc
+ * @param branch - the main branch of the arc
+ */
 async function getSheets(path: string, id: number, branch: string) {
   cleanIsaView();
   assaySync = studySync = false;
@@ -669,7 +755,10 @@ async function getSheets(path: string, id: number, branch: string) {
   forcereload();
 }
 
-// get a list of all assays and studies
+/** get a list of all assays and studies
+ *
+ * @param id - the id of the arc
+ */
 async function getAssaysAndStudies(id: number) {
   loading = true;
   forcereload();
@@ -678,9 +767,19 @@ async function getAssaysAndStudies(id: number) {
     let assays = await fetch(backend + "getAssays?id=" + id, {
       credentials: "include",
     });
+    if (!assays.ok) {
+      const data = await assays.json();
+      throw new Error(assays.statusText + ", " + data["detail"]);
+    }
+
     let studies = await fetch(backend + "getStudies?id=" + id, {
       credentials: "include",
     });
+    if (!studies.ok) {
+      const data = await studies.json();
+      throw new Error(studies.statusText + ", " + data["detail"]);
+    }
+
     arcProperties.assays = await assays.json();
     arcProperties.studies = await studies.json();
   } catch (error) {
@@ -695,7 +794,13 @@ async function getAssaysAndStudies(id: number) {
   forcereload();
 }
 
-// sync an assay to a study
+/** sync an assay to a study
+ *
+ * @param id - the id of the arc
+ * @param assay - the name of the assay
+ * @param study - the name of the study
+ * @param branch - the main branch of the arc
+ */
 async function syncAssay(
   id: number,
   assay: string,
@@ -735,7 +840,12 @@ async function syncAssay(
   forcereload();
 }
 
-// sync a study to the investigation file
+/** sync a study to the investigation file
+ *
+ * @param id - the id of the arc
+ * @param study - the name of the study
+ * @param branch - the main branch of the arc
+ */
 async function syncStudy(id: number, study: string, branch: string) {
   loading = true;
   studySync = false;
@@ -768,9 +878,13 @@ async function syncStudy(id: number, study: string, branch: string) {
   forcereload();
 }
 
-// checks weather the file should be editable or not
+/** checks weather the file should be editable or not
+ *
+ * @param name - the name of the file (eg. test.pdf, pic1.png, ...)
+ */
 function checkName(name: string) {
   let includes = false;
+  // list of file formats that shouldn't be selectable
   let formats = [
     ".pdf",
     ".xml",
@@ -797,14 +911,23 @@ function checkName(name: string) {
   return includes;
 }
 
+/** builds the download link for the zip file containing your arc
+ *
+ * @param id - the id of the arc
+ */
 async function getArchive(id: number) {
   loading = true;
   forcereload();
   try {
+    // create a html "a" element
     const downloadLink = document.createElement("a");
+
+    // build the link based around the download link used in gitlab to download a zip
     downloadLink.href = `${
       arcProperties.url.split(".git")[0]
     }/-/archive/${arcBranch}/${arcProperties.identifier}-${arcBranch}.zip`;
+
+    // start the download
     downloadLink.click();
   } catch (error) {
     errors = error;
@@ -813,8 +936,12 @@ async function getArchive(id: number) {
   forcereload();
 }
 
-// checks weather the file should be deletable or not
+/** checks weather the file/folder should be deletable or not
+ *
+ * @param name - the name of the file/folder
+ */
 function checkForDeletion(name: string) {
+  // return true if its a file/folder that is mandatory and therefore shall not be deletable
   return (
     name.includes("isa.investigation") ||
     name.startsWith(".git") ||
@@ -832,19 +959,27 @@ function checkForDeletion(name: string) {
   );
 }
 
-// deletes the file on the given path
+/** deletes the file on the given path
+ *
+ * @param id - the id of the arc
+ * @param path - the file path
+ * @param branch - the main branch of the arc
+ * @param name - the name of the file
+ */
 async function deleteFile(
   id: number,
   path: string,
   branch: string,
   name: string
 ) {
+  // open a message window asking the user for confirmation
   $q.dialog({
     dark: appProperties.dark,
     title: "Delete " + name,
     message: "Are you sure you want to delete '" + name + "'?",
     cancel: true,
   }).onOk(async () => {
+    // user confirmed the deletion
     console.log("Deleting " + name + "...");
     // send delete request to backend
     let response = await fetch(
@@ -856,6 +991,7 @@ async function deleteFile(
     );
     let data = await response.json();
     if (!response.ok) errors = response.statusText + ", " + data["detail"];
+    // if the deletion was successful
     else {
       $q.notify(data);
       await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
@@ -864,19 +1000,27 @@ async function deleteFile(
   });
 }
 
-// deletes the entire folder on the given path
+/** deletes the entire folder on the given path
+ *
+ * @param id - the id of the arc
+ * @param path - the folder path
+ * @param branch - the main branch of the arc
+ * @param name - the name of the folder
+ */
 async function deleteFolder(
   id: number,
   path: string,
   branch: string,
   name: string
 ) {
+  // ask the user for confirmation
   $q.dialog({
     dark: appProperties.dark,
     title: "Delete " + name,
     message: "Are you sure you want to delete the entirety of '" + name + "'?",
     cancel: true,
   }).onOk(async () => {
+    // user confirmed the deletion
     console.log("Deleting " + name + "...");
     // send delete request to backend
     let response = await fetch(
@@ -896,7 +1040,13 @@ async function deleteFolder(
   });
 }
 
-// create a new folder with the given identifier
+/** create a new folder with the given identifier
+ *
+ * @param id - the id of the arc
+ * @param identifier - the identifier (the name) of the new folder
+ * @param path - the current path
+ * @param branch - the main branch of the arc
+ */
 async function createFolder(
   id: number,
   identifier: string,
@@ -905,6 +1055,7 @@ async function createFolder(
 ) {
   loading = true;
   forcereload();
+  // send name and properties to the backend
   let response = await fetch(backend + "createFolder", {
     credentials: "include",
     method: "POST",
@@ -930,7 +1081,9 @@ async function createFolder(
   forcereload();
 }
 
-// get a list of all users
+/** get a list of all users
+ *
+ */
 async function getUser() {
   loading = true;
   forcereload();
@@ -942,35 +1095,45 @@ async function getUser() {
     let user = await fetch(backend + "getUser", {
       credentials: "include",
     });
+    if (!user.ok) {
+      const data = await user.json();
+      throw new Error(user.statusText + ", " + data["detail"]);
+    }
+
     let users = await user.json();
+    // fill the list of users with the username and the id
     users.forEach((user) => {
       userList.push({
         label: user["username"],
         value: user["id"],
       });
     });
+
+    // if there are no user found, return error
+    if (userList.length == 0) throw new Error("ERROR: " + users["detail"]);
+    // sort users alphabetically
+    userList.sort(function (a, b) {
+      let x = a.label.toLowerCase();
+      let y = b.label.toLowerCase();
+      if (x < y) {
+        return -1;
+      }
+      if (x > y) {
+        return 1;
+      }
+      return 0;
+    });
   } catch (error) {
     errors = error;
   }
-  // if there are no user found, return error
-  if (userList.length == 0) errors = "ERROR: No Assays found!";
-  // sort users alphabetically
-  userList.sort(function (a, b) {
-    let x = a.label.toLowerCase();
-    let y = b.label.toLowerCase();
-    if (x < y) {
-      return -1;
-    }
-    if (x > y) {
-      return 1;
-    }
-    return 0;
-  });
   loading = false;
   forcereload();
 }
 
-// get a list of all users for the Arc
+/** get a list of all users for the Arc
+ *
+ * @param id - the id of the arc
+ */
 async function getArcUser(id: number) {
   loading = true;
   forcereload();
@@ -978,42 +1141,60 @@ async function getArcUser(id: number) {
   userSelect.value = null;
   permission.value = null;
   try {
-    // get all users
+    // get all users that are part of the arc
     let user = await fetch(backend + "getArcUser?id=" + id, {
       credentials: "include",
     });
+    if (!user.ok) {
+      const data = await user.json();
+      throw new Error(user.statusText + ", " + data["detail"]);
+    }
+
     let users = await user.json();
+    // fill the list of users with the username and id
     users.forEach((user) => {
       userList.push({
         label: user["username"],
         value: user["id"],
       });
     });
+
+    // if there are no user found, return error
+    if (userList.length == 0) throw new Error("ERROR: " + users["detail"]);
+    // sort users alphabetically
+    userList.sort(function (a, b) {
+      let x = a.label.toLowerCase();
+      let y = b.label.toLowerCase();
+      if (x < y) {
+        return -1;
+      }
+      if (x > y) {
+        return 1;
+      }
+      return 0;
+    });
   } catch (error) {
     errors = error;
   }
-  // if there are no user found, return error
-  if (userList.length == 0) errors = "ERROR: No Assays found!";
-  // sort users alphabetically
-  userList.sort(function (a, b) {
-    let x = a.label.toLowerCase();
-    let y = b.label.toLowerCase();
-    if (x < y) {
-      return -1;
-    }
-    if (x > y) {
-      return 1;
-    }
-    return 0;
-  });
   loading = false;
   forcereload();
 }
 
-// add user as member to the project
+/** add user as member to the project
+ *
+ * @param id - the id of the arc
+ *
+ * @param {Object} user - the user
+ * @param {string} user.label - the name of the user
+ * @param {number} user.value - the id of the user
+ *
+ * @param {Object} role - the role of the user
+ * @param {number} role.value - the role value of the user setting the access rights(30,40,...)
+ */
 async function addUser(id: number, user: any, role: any) {
   loading = true;
   forcereload();
+  // send the necessary user info to the backend
   let response = await fetch(backend + "addUser", {
     credentials: "include",
     method: "POST",
@@ -1032,10 +1213,18 @@ async function addUser(id: number, user: any, role: any) {
   forcereload();
 }
 
-// remove a user from the project
+/** remove a user from the project
+ *
+ * @param id - the id of the arc
+ *
+ * @param {Object} user - the user
+ * @param {string} user.label - the name of the user
+ * @param {number} user.value - the id of the user
+ */
 async function removeUser(id: number, user: any) {
   loading = true;
   forcereload();
+  // send DELETE request to the backend
   let response = await fetch(
     `${backend}removeUser?id=${id}&userId=${user.value}&username=${user.label}`,
     {
@@ -1051,10 +1240,21 @@ async function removeUser(id: number, user: any) {
   forcereload();
 }
 
-// edit the role of a user of the project
+/** edit the role of a user of the project
+ *
+ * @param id - the id of the arc
+ *
+ * @param {Object} user - the user
+ * @param {string} user.label - the name of the user
+ * @param {number} user.value - the id of the user
+ *
+ * @param {Object} role - the role of the user
+ * @param {number} role.value - the role value of the user setting the access rights(30,40,...)
+ */
 async function editUser(id: number, user: any, role: any) {
   loading = true;
   forcereload();
+  // send PUT request to the backend updating the role of the user
   let response = await fetch(
     `${backend}editUser?id=${id}&userId=${user.value}&username=${user.label}&role=${role.value}`,
     {
@@ -1072,7 +1272,7 @@ async function editUser(id: number, user: any, role: any) {
 </script>
 
 <template>
-  <!-- FETCH ARC/FILE UPLOAD BUTTON/OPEN ARC/ZIP/SYNC ASSAYS/STUDIES RELOAD USERADD-->
+  <!-- FETCH ARC/FILE UPLOAD BUTTON/OPEN ARC/ZIP/SYNC ASSAYS/STUDIES RELOAD MEMBER-->
   <div class="q-pa-xs row q-gutter-sm">
     <q-btn
       id="arcFetch"
