@@ -8,6 +8,7 @@ import templateProperties from "@/TemplateProperties";
 import termProperties from "@/TermProperties";
 import sheetProperties from "@/SheetProperties";
 import { useQuasar, setCssVar } from "quasar";
+import ApexCharts from "apexcharts";
 
 const $q = useQuasar();
 
@@ -23,6 +24,9 @@ var backend = appProperties.backend + "projects/";
 var keyNumber = ref(0);
 
 var errors = "";
+
+// array containing all errors tracked by the backend metrics
+var chartErrors = [];
 
 var alternative = ref(false);
 
@@ -40,6 +44,131 @@ const setEntry = (entry: string[], id: number) => {
   isaProperties.entry = isaProperties.entries[isaProperties.rowId];
   errors = "";
 };
+
+/** this builds all the different charts based on the backend metrics data
+ *
+ */
+async function buildChart() {
+  let metrics = await fetch(`${backend}getMetrics`);
+  let data = await metrics.json();
+
+  let responseTimes = data["responseTimes"];
+  let statusCodes = data["statusCodes"];
+  chartErrors = data["errors"];
+
+  let endpoints = Object.keys(responseTimes);
+  let status = Object.keys(statusCodes);
+
+  let times = [];
+  let amount: number[] = [];
+  let statusAmount = Object.values(statusCodes);
+
+  Object.values(responseTimes).forEach((element) => {
+    times.push(Number(element[0]).toFixed(4));
+    amount.push(element[1]);
+  });
+
+  let responseChartOptions = {
+    chart: {
+      height: 350,
+      type: "bar",
+      zoom: {
+        enabled: false,
+      },
+    },
+    series: [
+      {
+        name: "Res. Time",
+        data: times,
+      },
+    ],
+    dataLabels: {
+      enabled: false,
+    },
+    stroke: {
+      curve: "straight",
+      width: 4,
+    },
+    title: {
+      text: "Response Times",
+      align: "left",
+    },
+    plotOptions: {
+      bar: {
+        borderRadius: 4,
+        horizontal: true,
+      },
+    },
+    xaxis: {
+      categories: endpoints,
+    },
+  };
+  let amountChartOptions = {
+    chart: {
+      type: "donut",
+    },
+    series: amount,
+    title: {
+      text: "Endpoint Amount",
+      align: "left",
+    },
+    labels: endpoints,
+    responsive: [
+      {
+        breakpoint: 480,
+        options: {
+          chart: {
+            width: 200,
+          },
+          legend: {
+            position: "bottom",
+          },
+        },
+      },
+    ],
+  };
+  let statusChartOptions = {
+    chart: {
+      type: "donut",
+    },
+    series: statusAmount,
+    title: {
+      text: "Status Codes",
+      align: "left",
+    },
+    labels: status,
+    responsive: [
+      {
+        breakpoint: 480,
+        options: {
+          chart: {
+            width: 200,
+          },
+          legend: {
+            position: "bottom",
+          },
+        },
+      },
+    ],
+  };
+
+  let responseChart = new ApexCharts(
+    document.querySelector("#response"),
+    responseChartOptions
+  );
+  let amountChart = new ApexCharts(
+    document.querySelector("#amount"),
+    amountChartOptions
+  );
+  let statusChart = new ApexCharts(
+    document.querySelector("#status"),
+    statusChartOptions
+  );
+  responseChart.render();
+  amountChart.render();
+  statusChart.render();
+  keyNumber.value += 1;
+}
 
 /** commit the content of the file back to the datahub
  *
@@ -493,6 +622,9 @@ async function sendToBackend() {
   <q-toolbar-title v-if="templateProperties.templates.length > 0"
     >Templates</q-toolbar-title
   >
+  <q-toolbar-title v-if="sheetProperties.sheets.length > 0"
+    >Sheets</q-toolbar-title
+  >
   <q-toolbar-title v-if="termProperties.unitTerms.length > 0"
     >Units</q-toolbar-title
   >
@@ -510,6 +642,23 @@ async function sendToBackend() {
     size="2em"
     v-show="loading"
     :key="keyNumber"></q-spinner>
+  <!-- METRICS -->
+  <q-list v-if="!appProperties.loggedIn">
+    <q-btn @click="buildChart()">Chart</q-btn>
+    <div id="response"></div>
+    <div id="amount" style="width: 90%"></div>
+    <div style="display: flex; justify-content: space-between">
+      <div id="status" style="width: 50%"></div>
+      <div
+        id="errors"
+        style="width: 40%"
+        :key="keyNumber"
+        v-show="chartErrors.length > 0">
+        <p><b>Errors:</b></p>
+        {{ chartErrors }}
+      </div>
+    </div>
+  </q-list>
   <template
     v-if="
       isaProperties.entries.length > 0 &&
@@ -663,7 +812,7 @@ async function sendToBackend() {
           ><q-card-section>{{ term["Description"] }}</q-card-section>
           <q-card-section
             ><q-btn
-              style="background-color: #f2f2f2"
+              class="bb"
               @click="
                 setUnit(term['Name'], term['Accession'], term['FK_Ontology'])
               "
@@ -701,7 +850,7 @@ async function sendToBackend() {
           ><q-card-section>{{ term["Description"] }}</q-card-section>
           <q-card-section
             ><q-btn
-              style="background-color: #f2f2f2"
+              class="bb"
               @click="setBB(term['Name'], term['Accession'])"
               :disable="term['Name'] == 'No Term was found!'"
               >Select</q-btn
@@ -844,5 +993,12 @@ async function sendToBackend() {
 }
 .body--light .alt {
   background-color: #fafafa;
+}
+
+.body--light .bb {
+  background-color: #f2f2f2;
+}
+.body--dark .bb {
+  background-color: #0d0d0d;
 }
 </style>

@@ -1,6 +1,6 @@
 {
   "name": "arcmanager",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,7 @@
     "@quasar/cli": "^2.2.1",
     "@quasar/extras": "^1.16.5",
     "@quasar/vite-plugin": "^1.4.1",
+    "apexcharts": "^3.46.0",
     "axios": "^1.4.0",
     "express": "^4.18.2",
     "jszip": "^3.10.1",
