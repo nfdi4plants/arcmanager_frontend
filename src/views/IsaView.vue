@@ -70,7 +70,7 @@ async function buildChart() {
 
   let responseChartOptions = {
     chart: {
-      height: 350,
+      height: 600,
       type: "bar",
       zoom: {
         enabled: false,
@@ -85,17 +85,13 @@ async function buildChart() {
     dataLabels: {
       enabled: false,
     },
-    stroke: {
-      curve: "straight",
-      width: 4,
-    },
     title: {
       text: "Response Times",
       align: "left",
     },
     plotOptions: {
       bar: {
-        borderRadius: 4,
+        borderRadius: 5,
         horizontal: true,
       },
     },
