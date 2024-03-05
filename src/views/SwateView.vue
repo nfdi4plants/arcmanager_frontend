@@ -72,7 +72,7 @@ async function getTerms(input: string) {
   }
   // save the list of terms
   else {
-    termProperties.terms = data;
+    termProperties.terms = data["terms"];
   }
   loading = false;
   keyNumber.value += 1;
@@ -88,6 +88,7 @@ async function saveSheet() {
   // send the content of the sheet to the backend
   const response = await fetch(backend + "saveSheet", {
     method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       tableHead: templateProperties.template,
       tableContent: templateProperties.content,
@@ -218,7 +219,7 @@ async function getSuggestionsByParent() {
   }
   // save the list of terms
   else {
-    termProperties.terms = data;
+    termProperties.terms = data["terms"];
   }
   loading = false;
   keyNumber.value += 1;
@@ -254,7 +255,7 @@ async function getSuggestions() {
   }
   // save the list of terms
   else {
-    termProperties.buildingBlocks = data;
+    termProperties.buildingBlocks = data["terms"];
   }
   loading = false;
   keyNumber.value += 1;

@@ -67,7 +67,7 @@ var studySync = false;
 var user = -1;
 // list containing all users
 var userList = [];
-// the slected user
+// the selected user
 var userSelect = ref(null);
 
 // the different permissions you can select when you add a new member to a project
@@ -281,6 +281,7 @@ async function inspectArc(id: number) {
   user = -1;
   arcProperties.changes = "";
   forcereload();
+  console.log(namespace);
   try {
     const response = await fetch(backend + "arc_tree?id=" + id, {
       credentials: "include",
@@ -527,6 +528,7 @@ async function addIsa(
   await fetch(backend + "createISA", {
     credentials: "include",
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       identifier: identifier,
       id: id,
@@ -737,20 +739,24 @@ async function getSheets(path: string, id: number, branch: string) {
   isaProperties.repoId = id;
   arcProperties.branch = branch;
   // retrieve the sheets
-  await fetch(`${backend}getSheets?path=${path}&id=${id}&branch=${branch}`, {
-    credentials: "include",
-  })
-    .then((response) => response.json())
-    .then((sheets) => {
-      if (sheets[0].length == 0) {
-        errors = "ERROR: No sheets found!";
-        forcereload();
-      }
-      // save the sheets
-      sheetProperties.sheets = sheets[0];
-      sheetProperties.names = sheets[1];
-    });
-
+  let request = await fetch(
+    `${backend}getSheets?path=${path}&id=${id}&branch=${branch}`,
+    {
+      credentials: "include",
+    }
+  );
+  let sheets = await request.json();
+  if (!request.ok) {
+    errors = "ERROR: " + sheets["detail"];
+  } else {
+    if (sheets[0].length == 0) {
+      errors = "ERROR: No sheets found!";
+      forcereload();
+    }
+    // save the sheets
+    sheetProperties.sheets = sheets[0];
+    sheetProperties.names = sheets[1];
+  }
   loading = false;
   forcereload();
 }
@@ -819,6 +825,7 @@ async function syncAssay(
     const response = await fetch(backend + "syncAssay", {
       credentials: "include",
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: id,
         pathToStudy: studyPath,
@@ -858,6 +865,7 @@ async function syncStudy(id: number, study: string, branch: string) {
     const response = await fetch(backend + "syncStudy", {
       credentials: "include",
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: id,
         pathToStudy: studyPath,
@@ -1059,6 +1067,7 @@ async function createFolder(
   let response = await fetch(backend + "createFolder", {
     credentials: "include",
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       identifier: identifier,
       id: id,
@@ -1102,7 +1111,7 @@ async function getUser() {
 
     let users = await user.json();
     // fill the list of users with the username and the id
-    users.forEach((user) => {
+    users["users"].forEach((user) => {
       userList.push({
         label: user["username"],
         value: user["id"],
@@ -1152,7 +1161,7 @@ async function getArcUser(id: number) {
 
     let users = await user.json();
     // fill the list of users with the username and id
-    users.forEach((user) => {
+    users["users"].forEach((user) => {
       userList.push({
         label: user["username"],
         value: user["id"],
@@ -1198,6 +1207,7 @@ async function addUser(id: number, user: any, role: any) {
   let response = await fetch(backend + "addUser", {
     credentials: "include",
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       userId: user.value,
       username: user.label,
@@ -1255,13 +1265,17 @@ async function editUser(id: number, user: any, role: any) {
   loading = true;
   forcereload();
   // send PUT request to the backend updating the role of the user
-  let response = await fetch(
-    `${backend}editUser?id=${id}&userId=${user.value}&username=${user.label}&role=${role.value}`,
-    {
-      credentials: "include",
-      method: "PUT",
-    }
-  );
+  let response = await fetch(`${backend}editUser`, {
+    credentials: "include",
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: user.value,
+      username: user.label,
+      id: id,
+      role: role.value,
+    }),
+  });
   let data = await response.json();
   if (!response.ok) errors = response.statusText + ", " + data["detail"];
   else $q.notify(data);

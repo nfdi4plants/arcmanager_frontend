@@ -45,8 +45,7 @@ var invId = ref("");
 var loading = false;
 
 // when there is something to announce, it will be displayed in the header area
-var announcement =
-  "INFO: Due to maintenance the ARCmanager will be offline on 22.02. from 15:30 CET until approx. 16:30 CET";
+var announcement = "";
 
 // list with errors
 var errors: any;
@@ -109,6 +108,7 @@ async function createArc() {
   const response = await fetch(backend + "createArc", {
     credentials: "include",
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name: arcName.value,
       description: arcDesc.value,
@@ -192,7 +192,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.5.3
+                  v 0.6.0
                 </q-badge></q-item-label
               >
             </q-item-section>

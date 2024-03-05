@@ -49,120 +49,124 @@ const setEntry = (entry: string[], id: number) => {
  *
  */
 async function buildChart() {
+  errors = "";
   let metrics = await fetch(`${backend}getMetrics`);
   let data = await metrics.json();
+  if (!metrics.ok) {
+    errors = "ERROR: " + data["detail"];
+  } else {
+    let responseTimes = data["responseTimes"];
+    let statusCodes = data["statusCodes"];
+    chartErrors = data["errors"];
 
-  let responseTimes = data["responseTimes"];
-  let statusCodes = data["statusCodes"];
-  chartErrors = data["errors"];
+    let endpoints = Object.keys(responseTimes);
+    let status = Object.keys(statusCodes);
 
-  let endpoints = Object.keys(responseTimes);
-  let status = Object.keys(statusCodes);
+    let times = [];
+    let amount: number[] = [];
+    let statusAmount = Object.values(statusCodes);
 
-  let times = [];
-  let amount: number[] = [];
-  let statusAmount = Object.values(statusCodes);
+    Object.values(responseTimes).forEach((element) => {
+      times.push(Number(element[0]).toFixed(4));
+      amount.push(element[1]);
+    });
 
-  Object.values(responseTimes).forEach((element) => {
-    times.push(Number(element[0]).toFixed(4));
-    amount.push(element[1]);
-  });
-
-  let responseChartOptions = {
-    chart: {
-      height: 600,
-      type: "bar",
-      zoom: {
+    let responseChartOptions = {
+      chart: {
+        height: 600,
+        type: "bar",
+        zoom: {
+          enabled: false,
+        },
+      },
+      series: [
+        {
+          name: "Res. Time",
+          data: times,
+        },
+      ],
+      dataLabels: {
         enabled: false,
       },
-    },
-    series: [
-      {
-        name: "Res. Time",
-        data: times,
+      title: {
+        text: "Response Times",
+        align: "left",
       },
-    ],
-    dataLabels: {
-      enabled: false,
-    },
-    title: {
-      text: "Response Times",
-      align: "left",
-    },
-    plotOptions: {
-      bar: {
-        borderRadius: 5,
-        horizontal: true,
-      },
-    },
-    xaxis: {
-      categories: endpoints,
-    },
-  };
-  let amountChartOptions = {
-    chart: {
-      type: "donut",
-    },
-    series: amount,
-    title: {
-      text: "Endpoint Amount",
-      align: "left",
-    },
-    labels: endpoints,
-    responsive: [
-      {
-        breakpoint: 480,
-        options: {
-          chart: {
-            width: 200,
-          },
-          legend: {
-            position: "bottom",
-          },
+      plotOptions: {
+        bar: {
+          borderRadius: 5,
+          horizontal: true,
         },
       },
-    ],
-  };
-  let statusChartOptions = {
-    chart: {
-      type: "donut",
-    },
-    series: statusAmount,
-    title: {
-      text: "Status Codes",
-      align: "left",
-    },
-    labels: status,
-    responsive: [
-      {
-        breakpoint: 480,
-        options: {
-          chart: {
-            width: 200,
-          },
-          legend: {
-            position: "bottom",
+      xaxis: {
+        categories: endpoints,
+      },
+    };
+    let amountChartOptions = {
+      chart: {
+        type: "donut",
+      },
+      series: amount,
+      title: {
+        text: "Endpoint Amount",
+        align: "left",
+      },
+      labels: endpoints,
+      responsive: [
+        {
+          breakpoint: 480,
+          options: {
+            chart: {
+              width: 200,
+            },
+            legend: {
+              position: "bottom",
+            },
           },
         },
+      ],
+    };
+    let statusChartOptions = {
+      chart: {
+        type: "donut",
       },
-    ],
-  };
+      series: statusAmount,
+      title: {
+        text: "Status Codes",
+        align: "left",
+      },
+      labels: status,
+      responsive: [
+        {
+          breakpoint: 480,
+          options: {
+            chart: {
+              width: 200,
+            },
+            legend: {
+              position: "bottom",
+            },
+          },
+        },
+      ],
+    };
 
-  let responseChart = new ApexCharts(
-    document.querySelector("#response"),
-    responseChartOptions
-  );
-  let amountChart = new ApexCharts(
-    document.querySelector("#amount"),
-    amountChartOptions
-  );
-  let statusChart = new ApexCharts(
-    document.querySelector("#status"),
-    statusChartOptions
-  );
-  responseChart.render();
-  amountChart.render();
-  statusChart.render();
+    let responseChart = new ApexCharts(
+      document.querySelector("#response"),
+      responseChartOptions
+    );
+    let amountChart = new ApexCharts(
+      document.querySelector("#amount"),
+      amountChartOptions
+    );
+    let statusChart = new ApexCharts(
+      document.querySelector("#status"),
+      statusChartOptions
+    );
+    responseChart.render();
+    amountChart.render();
+    statusChart.render();
+  }
   keyNumber.value += 1;
 }
 
@@ -177,6 +181,7 @@ async function commitFile() {
     `${backend}commitFile?id=${fileProperties.id}&repoPath=${fileProperties.path}&branch=${arcProperties.branch}`,
     {
       method: "PUT",
+      headers: { "Content-Type": "application/json" },
       // body for the backend containing all necessary data
       body: JSON.stringify({
         content: fileProperties.content,
@@ -220,7 +225,7 @@ function setTemplate(templateId: string) {
       ];
       templateProperties.content = [[""]];
 
-      data.forEach((element: any) => {
+      data["templateBB"].forEach((element: any) => {
         // insert the columnHeader with type, name and accession set
         templateProperties.template.push({
           Type: `${element["ColumnHeader"].Type} [${element["ColumnHeader"].Name}]`,
@@ -584,6 +589,7 @@ async function sendToBackend() {
     if (toSend[i][1] != null && toSend[i][1] != "") {
       let response = await fetch(backend + "saveFile", {
         method: "PUT",
+        headers: { "Content-Type": "application/json" },
         // body for the backend containing all necessary data
         body: JSON.stringify({
           isaInput: toSend[i],
@@ -610,37 +616,42 @@ async function sendToBackend() {
 </script>
 
 <template>
-  <q-toolbar-title v-if="isaProperties.entries.length != 0"
-    >Isa Entries ({{ isaProperties.date }})<q-checkbox v-model="alternative"
-      >alternative</q-checkbox
-    ></q-toolbar-title
-  >
-  <q-toolbar-title v-if="templateProperties.templates.length > 0"
-    >Templates</q-toolbar-title
-  >
-  <q-toolbar-title v-if="sheetProperties.sheets.length > 0"
-    >Sheets</q-toolbar-title
-  >
-  <q-toolbar-title v-if="termProperties.unitTerms.length > 0"
-    >Units</q-toolbar-title
-  >
-  <q-toolbar-title v-if="termProperties.buildingBlocks.length > 0"
-    >Building blocks</q-toolbar-title
-  >
-  <q-toolbar-title
-    v-if="errors != ''"
-    :key="keyNumber"
-    style="font-size: small"
-    >{{ errors }}</q-toolbar-title
-  >
-  <q-spinner
-    id="loader"
-    size="2em"
-    v-show="loading"
-    :key="keyNumber"></q-spinner>
+  <q-list>
+    <q-toolbar-title v-if="isaProperties.entries.length != 0"
+      >Isa Entries ({{ isaProperties.date }})<q-checkbox v-model="alternative"
+        >alternative</q-checkbox
+      ></q-toolbar-title
+    >
+    <q-toolbar-title v-if="templateProperties.templates.length > 0"
+      >Templates</q-toolbar-title
+    >
+    <q-toolbar-title v-if="termProperties.terms.length > 0"
+      >Terms</q-toolbar-title
+    >
+    <q-toolbar-title v-if="sheetProperties.sheets.length > 0"
+      >Sheets</q-toolbar-title
+    >
+    <q-toolbar-title v-if="termProperties.unitTerms.length > 0"
+      >Units</q-toolbar-title
+    >
+    <q-toolbar-title v-if="termProperties.buildingBlocks.length > 0"
+      >Building blocks</q-toolbar-title
+    >
+    <q-toolbar-title
+      v-if="errors != ''"
+      :key="keyNumber"
+      style="font-size: medium"
+      >{{ errors }}</q-toolbar-title
+    >
+    <q-spinner
+      id="loader"
+      size="2em"
+      v-show="loading"
+      :key="keyNumber"></q-spinner
+  ></q-list>
   <!-- METRICS -->
   <q-list v-if="!appProperties.loggedIn">
-    <q-btn @click="buildChart()">Chart</q-btn>
+    <q-btn @click="buildChart()">Metrics</q-btn>
     <div id="response"></div>
     <div id="amount" style="width: 90%"></div>
     <div style="display: flex; justify-content: space-between">
