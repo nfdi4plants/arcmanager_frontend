@@ -11,8 +11,14 @@ const appProperties = reactive({
   // displays the right side
   showIsaView: false,
 
+  // the list containing the arcs/arc folders
+  arcList: true,
+
   // displays dark mode
-  dark: false
+  dark: false,
+
+  //version of the app
+  version: "0.6.1"
 });
 
 export default appProperties;

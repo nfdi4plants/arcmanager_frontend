@@ -16,7 +16,17 @@ var errors = "";
 var advanced = ref(false);
 
 // hide term columns
-var hidden = ref(false);
+var hidden = ref(true);
+
+const parameterOptions = [
+  "Parameter",
+  "Factor",
+  "Characteristic",
+  "Component",
+  "Date",
+  "Performer",
+  "Protocol",
+];
 
 var keyNumber = ref(0);
 
@@ -64,15 +74,15 @@ async function getTerms(input: string) {
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
-  }
-
-  // if the list of terms is empty
-  if (data.length == 0) {
-    termProperties.terms = [{ Name: "No Term was found!" }];
-  }
-  // save the list of terms
-  else {
-    termProperties.terms = data["terms"];
+  } else {
+    // if the list of terms is empty
+    if (data["terms"].length == 0) {
+      termProperties.terms = [{ Name: "No Term was found!" }];
+    }
+    // save the list of terms
+    else {
+      termProperties.terms = data["terms"];
+    }
   }
   loading = false;
   keyNumber.value += 1;
@@ -105,7 +115,7 @@ async function saveSheet() {
   }
   // cleanup view
   templateProperties.template = templateProperties.templates = [];
-  templateProperties.content = [];
+  templateProperties.content = [[]];
   termProperties.terms = [];
   loading = false;
   keyNumber.value += 1;
@@ -214,7 +224,7 @@ async function getSuggestionsByParent() {
   }
 
   // if the list of terms is empty
-  if (data.length == 0) {
+  if (data["terms"].length == 0) {
     termProperties.terms = [{ Name: "No Term was found!" }];
   }
   // save the list of terms
@@ -250,7 +260,7 @@ async function getSuggestions() {
   }
 
   // if the list of terms is empty
-  if (data.length == 0) {
+  if (data["terms"].length == 0) {
     termProperties.buildingBlocks = [{ Name: "No Term was found!" }];
   }
   // save the list of terms
@@ -285,12 +295,12 @@ async function getUnitSuggestions() {
   }
 
   // if the list of terms is empty
-  if (data.length == 0) {
+  if (data["terms"].length == 0) {
     termProperties.unitTerms = [{ Name: "No Term was found!" }];
   }
   // save the list of terms
   else {
-    termProperties.unitTerms = data;
+    termProperties.unitTerms = data["terms"];
   }
   loading = false;
   keyNumber.value += 1;
@@ -317,7 +327,7 @@ function setIds() {
     >DataPLANT Ontology</a
   >
   <div>
-    <q-scroll-area style="height: 650px; max-width: 100%" :key="keyNumber">
+    <q-scroll-area style="height: 1000px; max-width: 100%" :key="keyNumber">
       <!-- Display the search area for default terms-->
       <template v-if="showSearch">
         <span>Search term:</span>
@@ -342,10 +352,22 @@ function setIds() {
       <template v-else-if="showBuildingBlock">
         <span>Add building block:</span
         ><q-checkbox v-model="bbUnit">Unit?</q-checkbox>
-        <q-input v-model="search" label="Search building blocks"></q-input
+        <div class="q-gutter-md row">
+          <q-select
+            style="width: 5%"
+            outlined
+            v-model="termProperties.parameterType"
+            :options="parameterOptions"
+            label="Parameter Type" />
+        </div>
+        <q-input
+          v-model="search"
+          label="Search building blocks"
+          style="width: 10%"></q-input
         ><q-btn @click="getSuggestions()" :disable="search.length == 0"
           >Search</q-btn
         >
+
         <q-input
           v-show="bbUnit"
           v-model="unitSearch"
@@ -383,7 +405,7 @@ function setIds() {
         icon="add"
         dense
         @click="
-          showBuildingBlock = true;
+          showBuildingBlock = !showBuildingBlock;
           search = '';
           showSearch = false;
           keyNumber += 1;
@@ -391,13 +413,17 @@ function setIds() {
         >building block</q-btn
       >
       <!-- The table to enter the values with swate is a default html table -->
-      <table style="width: max-content; border-collapse: collapse">
+      <q-markup-table
+        style="width: max-content; border-collapse: collapse"
+        separator="cell"
+        dense>
         <thead>
-          <tr>
+          <tr q-tr--no-hover>
             <!-- Each table header column is a entry in the template array -->
             <th
               v-for="(column, i) in templateProperties.template"
-              v-show="!(column.Type.startsWith('Term') && hidden)">
+              v-show="!(column.Type.startsWith('Term') && hidden)"
+              style="width: 13em">
               <!-- Input and Output columns are editable (e.g. to exchange source name to image file)-->
               <template
                 v-if="
@@ -487,7 +513,6 @@ function setIds() {
                   height: 100%;
                   min-height: 35px;
                   width: 100%;
-                  padding: 0.5em 0.75em;
                   align-items: center;
                 ">
                 <input
@@ -503,7 +528,7 @@ function setIds() {
             </td>
           </tr>
         </tbody>
-      </table>
+      </q-markup-table>
       <q-btn icon="add" @click="extendTemplate()">Extend</q-btn>
     </q-scroll-area>
   </div>
@@ -533,7 +558,7 @@ th {
 }
 
 .body--dark input {
-  background-color: #121212;
+  background-color: #1d1d1d;
   color: white;
 }
 </style>

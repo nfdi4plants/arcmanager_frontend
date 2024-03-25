@@ -32,6 +32,10 @@ var alternative = ref(false);
 
 var showChanges = ref(true);
 
+var metricsPwd = ref("");
+
+var authorized = ref(false);
+
 // field for searchbar
 var search = ref("");
 
@@ -48,13 +52,14 @@ const setEntry = (entry: string[], id: number) => {
 /** this builds all the different charts based on the backend metrics data
  *
  */
-async function buildChart() {
+async function buildChart(password: string) {
   errors = "";
-  let metrics = await fetch(`${backend}getMetrics`);
+  let metrics = await fetch(`${backend}getMetrics?pwd=${password}`);
   let data = await metrics.json();
   if (!metrics.ok) {
     errors = "ERROR: " + data["detail"];
   } else {
+    authorized.value = true;
     let responseTimes = data["responseTimes"];
     let statusCodes = data["statusCodes"];
     chartErrors = data["errors"];
@@ -309,7 +314,7 @@ function setBB(name: string, accession: string) {
     templateProperties.template.length - 1,
     0,
     {
-      Type: "Parameter [" + name + "]",
+      Type: termProperties.parameterType + " [" + name + "]",
       Accession: accession,
     },
     {
@@ -468,6 +473,7 @@ async function selectSheet(name: string, index: number) {
       });
   }
   sheetProperties.sheets = sheetProperties.names = [];
+  appProperties.arcList = false;
 }
 
 /** check if the right side (the isa view) is empty
@@ -647,22 +653,34 @@ async function sendToBackend() {
       id="loader"
       size="2em"
       v-show="loading"
-      :key="keyNumber"></q-spinner
+      :key="keyNumber + 1"></q-spinner
   ></q-list>
   <!-- METRICS -->
   <q-list v-if="!appProperties.loggedIn">
-    <q-btn @click="buildChart()">Metrics</q-btn>
+    <div class="q-gutter-md row items-start" v-if="!authorized">
+      <q-input
+        v-model="metricsPwd"
+        filled
+        type="password"
+        hint="Password"
+        style="size: 1cm" />
+      <q-btn @click="buildChart(metricsPwd)" :disabled="metricsPwd.length == 0"
+        >Get Metrics</q-btn
+      >
+    </div>
     <div id="response"></div>
     <div id="amount" style="width: 90%"></div>
     <div style="display: flex; justify-content: space-between">
       <div id="status" style="width: 50%"></div>
       <div
         id="errors"
-        style="width: 40%"
-        :key="keyNumber"
+        style="width: 50%"
+        :key="keyNumber + 2"
         v-show="chartErrors.length > 0">
         <p><b>Errors:</b></p>
-        {{ chartErrors }}
+        <ul>
+          <li v-for="entry in chartErrors">{{ entry }}</li>
+        </ul>
       </div>
     </div>
   </q-list>

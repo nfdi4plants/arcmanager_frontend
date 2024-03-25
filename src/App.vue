@@ -25,7 +25,6 @@ const $q = useQuasar();
 
 const layoutProperties = reactive({
   showLeft: true,
-  toolbarMinimized: false,
 });
 
 $q.dark.set(appProperties.dark);
@@ -149,6 +148,10 @@ function cleanIsaView() {
 if (document.cookie.includes("error")) {
   window.alert(document.cookie.split("error=")[1]);
 }
+
+function openArcSearch() {
+  window.open("https://arcregistry.nfdi4plants.org/isasearch");
+}
 </script>
 
 <template>
@@ -158,7 +161,7 @@ if (document.cookie.includes("error")) {
     <q-drawer
       v-model="layoutProperties.showLeft"
       show-if-above
-      :mini="layoutProperties.toolbarMinimized"
+      :mini="!appProperties.arcList"
       :width="190"
       :breakpoint="500"
       bordered>
@@ -192,7 +195,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.6.0
+                  v {{ appProperties.version }}
                 </q-badge></q-item-label
               >
             </q-item-section>
@@ -233,7 +236,18 @@ if (document.cookie.includes("error")) {
             <q-item-section avatar>
               <q-icon color="grey-7" name="add_circle"></q-icon>
             </q-item-section>
-            <q-item-section style="margin-left: -1.2em">New ARC</q-item-section>
+            <q-item-section style="margin-left: -1.2em"
+              >New ARC</q-item-section
+            > </q-item
+          ><q-separator />
+          <!-- ARC SEARCH-->
+          <q-item v-ripple clickable v-on:click="openArcSearch()">
+            <q-item-section avatar>
+              <q-icon color="grey-7" name="open_in_new"></q-icon>
+            </q-item-section>
+            <q-item-section style="margin-left: -1.2em"
+              >ARC Search</q-item-section
+            >
           </q-item>
           <q-item v-if="!appProperties.dark">
             <q-btn

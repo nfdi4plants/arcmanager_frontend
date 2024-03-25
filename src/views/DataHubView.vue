@@ -166,6 +166,7 @@ function openGit(target: string) {
 async function fetchArcs() {
   loading = true;
   appProperties.showIsaView = false;
+  appProperties.arcList = true;
   lfs.value = false;
   searchList = [];
   // if not logged in, show only public arcs
@@ -276,6 +277,7 @@ async function inspectArc(id: number) {
   searchList = list;
   cleanIsaView();
   appProperties.showIsaView = false;
+  appProperties.arcList = true;
   arcProperties.studies = arcProperties.assays = [];
   showInput = assaySync = studySync = false;
   user = -1;
@@ -301,7 +303,7 @@ async function inspectArc(id: number) {
     pathHistory.push("");
 
     // get the changes
-    await getChanges(id);
+    getChanges(id);
   } catch (error) {
     errors = error;
   }
@@ -648,7 +650,7 @@ async function fileUpload() {
           });
           let data = await response.json();
           if (!response.ok) {
-            errors = response.statusText + ", " + data["detail"];
+            errors = response.statusText + ", " + data["detail"].slice(0, 200);
             progress = 1;
             $q.loading.hide();
             uploading = false;
@@ -1324,12 +1326,13 @@ async function editUser(id: number, user: any, role: any) {
           borderless
           label="Upload File(s)"
           multiple
+          max-file-size="10737418240"
           @update:model-value="
             fileUpload();
             uploading = true;
           "
           @rejected="
-            errors = 'ERROR: File too big or too many selected!';
+            errors = 'ERROR: File too big (max. 10 GB) or too many selected!';
             forcereload();
           "
           :key="refresher"
@@ -1460,6 +1463,7 @@ async function editUser(id: number, user: any, role: any) {
     >
     <!-- LIST WITH ALL ARCS AND ARC TREE VIEW-->
     <q-expansion-item
+      v-model="appProperties.arcList"
       :key="refresher + 5"
       expand-separator
       icon="cloud_download"
@@ -1902,8 +1906,7 @@ async function editUser(id: number, user: any, role: any) {
             v-model="permission"
             :options="userPermissions"
             label="Role"
-            style="width: 200px"
-            :key="refresher + 12" />
+            style="width: 200px" />
           <!-- ADD/REMOVE/EDIT USER -->
           <q-btn
             v-if="user == 0"
