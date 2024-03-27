@@ -217,62 +217,78 @@ function setTemplate(templateId: string) {
   errors = "";
   loading = true;
   appProperties.showIsaView = false;
+  appProperties.arcList = false;
   search.value = "";
   keyNumber.value += 1;
-  fetch(backend + "getTemplate?id=" + templateId)
-    .then((response) => response.json())
-    .then((data) => {
-      // reset the current template and add the input column
-      templateProperties.template = [
-        {
-          Type: "Input [Source Name]",
-        },
-      ];
-      templateProperties.content = [[""]];
+  if (templateId == "Empty") {
+    templateProperties.template = [
+      {
+        Type: "Input [Source Name]",
+      },
+      { Type: "Output [Source Name]" },
+    ];
+    templateProperties.content = [[""], [""]];
+  } else {
+    fetch(backend + "getTemplate?id=" + templateId)
+      .then((response) => response.json())
+      .then((data) => {
+        // reset the current template and add the input column
+        templateProperties.template = [
+          {
+            Type: "Input [Source Name]",
+          },
+        ];
+        templateProperties.content = [[""]];
 
-      data["templateBB"].forEach((element: any) => {
-        // insert the columnHeader with type, name and accession set
-        templateProperties.template.push({
-          Type: `${element["ColumnHeader"].Type} [${element["ColumnHeader"].Name}]`,
-          Accession: element["ColumnTerm"].TermAccession,
-        });
-
-        // for the columnHeader column insert an empty cell
-        templateProperties.content.push([""]);
-
-        // if the current template part has a unit, insert an extra unit column
-        if (element["HasUnit"]) {
+        data["templateBB"].forEach((element: any) => {
+          // insert the columnHeader with type, name and accession set
           templateProperties.template.push({
-            Type: "Unit [" + element["ColumnHeader"].Name + "]",
+            Type: `${element["ColumnHeader"].Type} [${element["ColumnHeader"].Name}]`,
+            Accession: element["ColumnTerm"].TermAccession,
           });
 
-          // the unit column cell is filled with the name of the unit
-          templateProperties.content.push([element["UnitTerm"].Name]);
-          // for unit columns the term source ref cell is filled with the accessionToTSR
-          templateProperties.content.push([element["UnitTerm"].accessionToTSR]);
-          // for unit columns the term accession cell is filled with the termAccession of the unit
-          templateProperties.content.push([element["UnitTerm"].TermAccession]);
-        } else {
-          // if there is no unit cell the term accession cell is empty
-          templateProperties.content.push([""], [""]);
-        }
-        // insert the term source ref column
-        templateProperties.template.push({
-          Type: "Term Source REF (" + element["ColumnTerm"].TermAccession + ")",
-        });
+          // for the columnHeader column insert an empty cell
+          templateProperties.content.push([""]);
 
-        // insert the term accession column
-        templateProperties.template.push({
-          Type:
-            "Term Accession Number (" +
-            element["ColumnTerm"].TermAccession +
-            ")",
+          // if the current template part has a unit, insert an extra unit column
+          if (element["HasUnit"]) {
+            templateProperties.template.push({
+              Type: "Unit [" + element["ColumnHeader"].Name + "]",
+            });
+
+            // the unit column cell is filled with the name of the unit
+            templateProperties.content.push([element["UnitTerm"].Name]);
+            // for unit columns the term source ref cell is filled with the accessionToTSR
+            templateProperties.content.push([
+              element["UnitTerm"].accessionToTSR,
+            ]);
+            // for unit columns the term accession cell is filled with the termAccession of the unit
+            templateProperties.content.push([
+              element["UnitTerm"].TermAccession,
+            ]);
+          } else {
+            // if there is no unit cell the term accession cell is empty
+            templateProperties.content.push([""], [""]);
+          }
+          // insert the term source ref column
+          templateProperties.template.push({
+            Type:
+              "Term Source REF (" + element["ColumnTerm"].TermAccession + ")",
+          });
+
+          // insert the term accession column
+          templateProperties.template.push({
+            Type:
+              "Term Accession Number (" +
+              element["ColumnTerm"].TermAccession +
+              ")",
+          });
         });
+        // insert the output column at the end
+        templateProperties.template.push({ Type: "Output [Sample Name]" });
+        templateProperties.content.push([""]);
       });
-      // insert the output column at the end
-      templateProperties.template.push({ Type: "Output [Sample Name]" });
-      templateProperties.content.push([""]);
-    });
+  }
   loading = false;
   keyNumber.value += 1;
 }
@@ -309,38 +325,50 @@ function setTerm(name: string, accession: string, ontology: string) {
 function setBB(name: string, accession: string) {
   errors = "";
 
-  // the new block will be inserted right before the output column
-  templateProperties.template.splice(
-    templateProperties.template.length - 1,
-    0,
-    {
-      Type: termProperties.parameterType + " [" + name + "]",
-      Accession: accession,
-    },
-    {
-      Type: "Term Source REF [" + accession + "]",
-    },
-    {
-      Type: "Term Accession Number [" + accession + "]",
-    }
-  );
+  // if column already exists, throw an error
+  if (
+    templateProperties.template.some(
+      (element) =>
+        element.Type == termProperties.parameterType + " [" + name + "]"
+    )
+  ) {
+    errors = "ERROR: Column '" + name + "' already exists!!";
+    keyNumber.value += 1;
+  } else {
+    appProperties.showIsaView = false;
+    // the new block will be inserted right before the output column
+    templateProperties.template.splice(
+      templateProperties.template.length - 1,
+      0,
+      {
+        Type: termProperties.parameterType + " [" + name + "]",
+        Accession: accession,
+      },
+      {
+        Type: "Term Source REF [" + accession + "]",
+      },
+      {
+        Type: "Term Accession Number [" + accession + "]",
+      }
+    );
 
-  // fill the new columns with empty field with the same amount of rows the table already has
-  let emptyCells: string[] = [];
-  let emptyCells2: string[] = [];
-  let emptyCells3: string[] = [];
-  templateProperties.content[0].forEach(() => {
-    emptyCells.push("");
-    emptyCells2.push("");
-    emptyCells3.push("");
-  });
-  templateProperties.content.splice(
-    templateProperties.content.length - 1,
-    0,
-    emptyCells,
-    emptyCells2,
-    emptyCells3
-  );
+    // fill the new columns with empty field with the same amount of rows the table already has
+    let emptyCells: string[] = [];
+    let emptyCells2: string[] = [];
+    let emptyCells3: string[] = [];
+    templateProperties.content[0].forEach(() => {
+      emptyCells.push("");
+      emptyCells2.push("");
+      emptyCells3.push("");
+    });
+    templateProperties.content.splice(
+      templateProperties.content.length - 1,
+      0,
+      emptyCells,
+      emptyCells2,
+      emptyCells3
+    );
+  }
 }
 
 /** sets a unit column to the building block
@@ -591,33 +619,47 @@ async function sendToBackend() {
 
   // replace null values with empty string
   toSend.forEach(async (element, i) => {
-    if (element == null) toSend[i][1] = "";
-    if (toSend[i][1] != null && toSend[i][1] != "") {
-      let response = await fetch(backend + "saveFile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        // body for the backend containing all necessary data
-        body: JSON.stringify({
-          isaInput: toSend[i],
-          isaPath: isaProperties.path,
-          isaRepo: isaProperties.repoId,
-          arcBranch: arcProperties.branch,
-        }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        errors = "ERROR: " + response.statusText;
-        keyNumber.value += 1;
-      } else {
-        isaProperties.entry = [];
-        errors = "";
-        $q.notify("Saved");
-      }
-    }
+    if (element[1] == null) toSend[i][1] = "";
   });
+  let response = await fetch(backend + "saveFile", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    // body for the backend containing all necessary data
+    body: JSON.stringify({
+      isaInput: toSend,
+      isaPath: isaProperties.path,
+      isaRepo: isaProperties.repoId,
+      arcBranch: arcProperties.branch,
+      multiple: alternative.value,
+    }),
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    errors = "ERROR: " + response.statusText;
+    keyNumber.value += 1;
+  } else {
+    isaProperties.entry = [];
+    errors = "";
+    $q.notify("Saved");
+  }
+
   loading = false;
   keyNumber.value += 1;
+}
+
+/**
+ *
+ * @param field - array containing the data for the specific row(column wise)
+ * @param index - the index number for the current column to check
+ */
+function mandatory(field: Array<any>, index: number) {
+  switch (field[index]) {
+    case "Investigation Identifier":
+    case "Investigation Title":
+    case "Investigation Description":
+      return typeof field[1] != "string" || field[1] == "";
+  }
 }
 </script>
 
@@ -626,6 +668,9 @@ async function sendToBackend() {
     <q-toolbar-title v-if="isaProperties.entries.length != 0"
       >Isa Entries ({{ isaProperties.date }})<q-checkbox v-model="alternative"
         >alternative</q-checkbox
+      >
+      <span style="padding-left: 1em; color: red"
+        >Mandatory fields are red</span
       ></q-toolbar-title
     >
     <q-toolbar-title v-if="templateProperties.templates.length > 0"
@@ -684,6 +729,7 @@ async function sendToBackend() {
       </div>
     </div>
   </q-list>
+  <!-- ALTERNATIVE VIEW FOR ISA-->
   <template
     v-if="
       isaProperties.entries.length > 0 &&
@@ -755,8 +801,10 @@ async function sendToBackend() {
       v-for="(item, i) in isaProperties.entries.slice(0, 1000)"
       :class="i % 2 === 1 ? 'alt' : ''">
       <q-item-section v-for="(entry, i) in item">
-        <q-item-section>
-          <template v-if="i > 0 && entry != null"
+        <q-item-section
+          v-if="entry != null"
+          :style="mandatory(item, i) ? 'color:red' : ''">
+          <template v-if="i > 0"
             >{{ entry.toString().slice(0, 15)
             }}<template v-if="entry.length > 15">...</template></template
           ><template v-else>{{ entry }}</template></q-item-section

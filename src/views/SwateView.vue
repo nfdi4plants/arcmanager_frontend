@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 
+import { useQuasar } from "quasar";
 import templateProperties from "@/TemplateProperties";
 import termProperties from "@/TermProperties";
 import isaProperties from "@/IsaProperties";
@@ -9,6 +10,8 @@ import appProperties from "@/AppProperties";
 
 var backend = appProperties.backend + "projects/";
 var loading = false;
+
+const $q = useQuasar();
 
 var errors = "";
 
@@ -118,6 +121,8 @@ async function saveSheet() {
   templateProperties.content = [[]];
   termProperties.terms = [];
   loading = false;
+  appProperties.arcList = true;
+  appProperties.showIsaView = false;
   keyNumber.value += 1;
 }
 
@@ -315,6 +320,62 @@ function setIds() {
     (_, i) => i + 1
   );
 }
+
+/** deletes the chosen column including the terms and unit column
+ *
+ * @param columnType - the full name of the column header
+ */
+function deleteColumn(columnType: string) {
+  $q.dialog({
+    dark: appProperties.dark,
+    title: "Delete " + columnType.split(" ")[0],
+    message: "Are you sure you want to delete the column '" + columnType + "'?",
+    cancel: true,
+  }).onOk(() => {
+    // user confirmed the deletion
+    console.log("Deleting " + columnType + "...");
+    console.log(templateProperties.template);
+
+    let columnIndex = templateProperties.template.findIndex(
+      (element) => element.Type == columnType
+    );
+    let counter = 0;
+    templateProperties.template.splice(columnIndex, 1);
+    templateProperties.content.splice(columnIndex, 1);
+
+    while (
+      counter < 3 &&
+      (templateProperties.template[columnIndex].Type.startsWith("Term") ||
+        templateProperties.template[columnIndex].Type.startsWith("Unit"))
+    ) {
+      templateProperties.template.splice(columnIndex, 1);
+      templateProperties.content.splice(columnIndex, 1);
+      counter++;
+    }
+    $q.notify("Successfully deleted the column " + columnType + " !");
+    keyNumber.value += 1;
+  });
+}
+
+/** deletes the chosen row
+ *
+ * @param rowIndex - the full name of the column header
+ */
+function deleteRow(rowIndex: number) {
+  $q.dialog({
+    dark: appProperties.dark,
+    title: "Delete row " + (rowIndex + 1),
+    message: "Are you sure you want to delete row " + (rowIndex + 1) + "?",
+    cancel: true,
+  }).onOk(() => {
+    for (let i = 0; i < templateProperties.content.length; i++) {
+      templateProperties.content[i].splice(rowIndex, 1);
+    }
+    $q.notify("Successfully deleted the row " + (rowIndex + 1) + " !");
+    rowIds.pop();
+    keyNumber.value += 1;
+  });
+}
 </script>
 
 <template>
@@ -331,7 +392,7 @@ function setIds() {
       <!-- Display the search area for default terms-->
       <template v-if="showSearch">
         <span>Search term:</span>
-        <q-input v-model="search" :label="searchType"
+        <q-input v-model="search" :label="searchType" style="width: 20%"
           ><template v-slot:append>
             <q-icon name="search"></q-icon></template></q-input
         ><q-btn @click="getTerms(search)" :disable="search.length == 0"
@@ -344,9 +405,8 @@ function setIds() {
           v-model="templateProperties.rowId"
           :options="rowIds"
           label="select row to overwrite"
-          dense
           options-dense
-          style="width: 4cm"></q-select>
+          style="width: 10%"></q-select>
       </template>
       <!-- show search area for inserting a new building block-->
       <template v-else-if="showBuildingBlock">
@@ -354,7 +414,7 @@ function setIds() {
         ><q-checkbox v-model="bbUnit">Unit?</q-checkbox>
         <div class="q-gutter-md row">
           <q-select
-            style="width: 5%"
+            style="width: 10%"
             outlined
             v-model="termProperties.parameterType"
             :options="parameterOptions"
@@ -370,6 +430,7 @@ function setIds() {
 
         <q-input
           v-show="bbUnit"
+          style="width: 10%"
           v-model="unitSearch"
           label="Search building block unit"></q-input
         ><q-btn
@@ -383,6 +444,8 @@ function setIds() {
       <!-- Area for sheet naming and other options-->
       <q-input
         type="text"
+        style="width: 10%"
+        label="Sheet name"
         v-model="sheetProperties.name"
         placeholder="Name your sheet" />
       <q-btn
@@ -420,6 +483,7 @@ function setIds() {
         <thead>
           <tr q-tr--no-hover>
             <!-- Each table header column is a entry in the template array -->
+            <th style="width: 1em; al"></th>
             <th
               v-for="(column, i) in templateProperties.template"
               v-show="!(column.Type.startsWith('Term') && hidden)"
@@ -437,6 +501,18 @@ function setIds() {
               /></template>
               <!-- if there are round brackets-->
               <template v-else-if="column.Type.includes('(')">
+                <q-btn
+                  v-if="
+                    !column.Type.startsWith('Term') &&
+                    !column.Type.startsWith('Unit')
+                  "
+                  size="xs"
+                  icon="close"
+                  color="red"
+                  round
+                  dense
+                  flat
+                  @click="deleteColumn(column.Type)"></q-btn>
                 {{ column.Type.split("(")[0] }}<br />
                 <template
                   v-if="
@@ -460,6 +536,18 @@ function setIds() {
               </template>
               <!-- if there are no round brackets, there must be square brackets-->
               <template v-else>
+                <q-btn
+                  v-if="
+                    !column.Type.startsWith('Term') &&
+                    !column.Type.startsWith('Unit')
+                  "
+                  size="xs"
+                  icon="close"
+                  color="red"
+                  round
+                  dense
+                  flat
+                  @click="deleteColumn(column.Type)"></q-btn>
                 {{ column.Type.split("[")[0] }}<br /><template
                   v-if="
                     column.Type.startsWith('Term') && column.Type.includes('[')
@@ -503,6 +591,17 @@ function setIds() {
         <tbody>
           <tr v-for="(row, j) in templateProperties.content[0]">
             <!-- insert a second row containing the cell values for the headers -->
+            <td>
+              <q-btn
+                size="xs"
+                icon="close"
+                color="red"
+                round
+                dense
+                flat
+                @click="deleteRow(j)"></q-btn
+              >{{ j + 1 }}
+            </td>
             <td
               v-for="(column, i) in templateProperties.template"
               v-show="!(column.Type.startsWith('Term') && hidden)">

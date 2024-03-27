@@ -31,6 +31,7 @@ async function sendToBackend() {
       isaPath: isaProperties.path,
       isaRepo: isaProperties.repoId,
       arcBranch: arcProperties.branch,
+      multiple: false,
     }),
     credentials: "include",
   });

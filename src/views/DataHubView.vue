@@ -346,6 +346,7 @@ async function getChanges(id: number) {
 async function inspectTree(id: number, path: string, expand?: boolean) {
   loading = true;
   assaySync = studySync = false;
+  appProperties.showIsaView = false;
   user = -1;
   errors = "";
   showInput = false;
@@ -715,8 +716,24 @@ async function getTemplates() {
         forcereload();
       }
       // save the templates
-      templateProperties.templates = templates.templates;
-      templateProperties.filtered = templates.templates;
+      templateProperties.templates = [
+        {
+          Id: "Empty",
+          Name: "Empty Template",
+          Description: "Start with a empty Template",
+          Organisation: "Custom",
+          Version: "1.0.0",
+          LastUpdated: "-",
+          Authors: "-",
+        },
+      ];
+      templateProperties.templates = templateProperties.templates.concat(
+        templates.templates
+      );
+      templateProperties.filtered = templateProperties.templates.concat(
+        templates.templates
+      );
+      templates.templates;
     });
 
   loading = false;
@@ -1679,7 +1696,34 @@ async function editUser(id: number, user: any, role: any) {
           >
           <template v-else>
             <q-item-section avatar top
-              ><q-avatar icon="description"></q-avatar
+              ><q-avatar
+                v-if="
+                  item.name.toLowerCase().includes('.jpg') ||
+                  item.name.toLowerCase().includes('.png')
+                "
+                icon="image"></q-avatar>
+              <q-avatar
+                v-else-if="item.name.toLowerCase().includes('.mp4')"
+                icon="movie"></q-avatar>
+              <q-avatar
+                v-else-if="item.name.toLowerCase().includes('.html')"
+                icon="html"></q-avatar
+              ><q-avatar
+                v-else-if="item.name.toLowerCase().includes('.css')"
+                icon="css"></q-avatar>
+              <q-avatar
+                v-else-if="item.name.toLowerCase().includes('.js')"
+                icon="js"></q-avatar>
+              <q-avatar
+                v-else-if="item.name.toLowerCase().includes('.zip')"
+                icon="folder_zip"></q-avatar>
+              <q-avatar
+                v-else-if="
+                  item.name.toLowerCase().includes('.py') ||
+                  item.name.toLowerCase().endsWith('.r')
+                "
+                icon="code"></q-avatar>
+              <q-avatar v-else icon="description"></q-avatar
             ></q-item-section>
             <q-item-section
               ><q-item-label

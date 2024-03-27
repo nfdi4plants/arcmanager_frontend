@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 
 const templateProperties = reactive({
   // list of all templates
-  templates: [],
+  templates: [{}],
 
   // list of the filtered templates
   filtered: [],
