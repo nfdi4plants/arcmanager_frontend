@@ -280,10 +280,10 @@ async function inspectArc(id: number) {
   appProperties.arcList = true;
   arcProperties.studies = arcProperties.assays = [];
   showInput = assaySync = studySync = false;
+  fileInput.value = [];
   user = -1;
   arcProperties.changes = "";
   forcereload();
-  console.log(namespace);
   try {
     const response = await fetch(backend + "arc_tree?id=" + id, {
       credentials: "include",
@@ -443,7 +443,6 @@ async function getFile(id: number, path: string, branch: string) {
 
       // if there is no typical content, its an isa file, because then we have a list of entries
     } else {
-      isaProperties.date = "";
       isaList = [];
       isaProperties.identification = [];
       isaProperties.contacts = [];
@@ -459,11 +458,14 @@ async function getFile(id: number, path: string, branch: string) {
                 isaProperties.identification.push([entry[0], entry[1]]);
               }
             }
-          case "Investigation Identifier":
-          case "Measurement Type":
-            isaProperties.date = element[2];
             break;
 
+          case "Measurement Type":
+          case "Assay Measurement Type":
+            for (let j = 0; j < 8; j++) {
+              isaProperties.identification.push([data[j][0], data[j][1]]);
+            }
+            break;
           case "INVESTIGATION":
             if (isaProperties.identification.length < 5) {
               for (let j = 0; j < 5; j++) {
@@ -476,10 +478,15 @@ async function getFile(id: number, path: string, branch: string) {
           // contact information
           case "STUDY CONTACTS":
           case "INVESTIGATION CONTACTS":
+          case "ASSAY PERFORMERS":
             if (isaProperties.contacts.length < 11) {
               for (let j = 0; j < 11; j++) {
                 let entry = data[i + j + 1];
-                isaProperties.contacts.push([entry[0], entry[1]]);
+                let cache = [];
+                entry.forEach((element) => {
+                  cache.push(element);
+                });
+                isaProperties.contacts.push(cache);
               }
             }
             break;
@@ -490,7 +497,11 @@ async function getFile(id: number, path: string, branch: string) {
             if (isaProperties.publications.length < 7) {
               for (let j = 0; j < 7; j++) {
                 let entry = data[i + j + 1];
-                isaProperties.publications.push([entry[0], entry[1]]);
+                let cache = [];
+                entry.forEach((element) => {
+                  cache.push(element);
+                });
+                isaProperties.publications.push(cache);
               }
             }
             break;
@@ -502,6 +513,8 @@ async function getFile(id: number, path: string, branch: string) {
       isaProperties.repoId = id;
       isaProperties.path = path;
       isaProperties.repoTarget = git.site.value;
+      isaProperties.contact = "contact 1";
+      isaProperties.publication = "publication 1";
     }
 
     // catch any error and display it
@@ -541,7 +554,6 @@ async function addIsa(
   })
     .then((response) => response.json())
     .then((data) => {
-      console.log(data);
       // get the updated tree
       inspectTree(id, type);
     });
@@ -1699,7 +1711,8 @@ async function editUser(id: number, user: any, role: any) {
               ><q-avatar
                 v-if="
                   item.name.toLowerCase().includes('.jpg') ||
-                  item.name.toLowerCase().includes('.png')
+                  item.name.toLowerCase().includes('.png') ||
+                  item.name.toLowerCase().includes('.jpeg')
                 "
                 icon="image"></q-avatar>
               <q-avatar

@@ -19,17 +19,16 @@ const isaProperties = reactive({
   // Tübingen, Freiburg, Dev, ...
   repoTarget: "",
 
-  // date of last edit
-  date: "",
-
   // array containing the basic information of the isa, like identification, title, description, ...
   identification: [],
 
-  // array containing the contact information
+  // array containing the contact information; name of the current contact page
   contacts: [],
+  contact: "contact 1",
 
-  // array containing the publications information
-  publications: []
+  // array containing the publications information; name of the current publication page
+  publications: [],
+  publication: "publication 1"
 });
 
 export default isaProperties;

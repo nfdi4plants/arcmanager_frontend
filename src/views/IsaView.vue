@@ -197,7 +197,6 @@ async function commitFile() {
 
   if (!(await response).ok) {
     let data = await response.json();
-    console.log(data);
     errors = "ERROR: " + data["detail"];
     keyNumber.value += 1;
   } else {
@@ -380,38 +379,43 @@ function setBB(name: string, accession: string) {
 function setUnit(name: string, accession: string, ontology: string) {
   errors = "";
   // if the building block has no unit so far, you can add one
-  if (
-    !templateProperties.template[
-      templateProperties.template.length - 4
-    ].Type.startsWith("Unit")
-  ) {
-    templateProperties.template.splice(
-      templateProperties.template.length - 3,
-      0,
-      {
-        Type: "Unit [" + name + "]",
-      }
-    );
+  try {
+    if (
+      !templateProperties.template[
+        templateProperties.template.length - 4
+      ].Type.startsWith("Unit")
+    ) {
+      templateProperties.template.splice(
+        templateProperties.template.length - 3,
+        0,
+        {
+          Type: "Unit [" + name + "]",
+        }
+      );
 
-    // fill the new unit columns with the terms and names
-    let unitCells: string[] = [];
-    let refCells: string[] = [];
-    let accNumberCells: string[] = [];
-    templateProperties.content[0].forEach(() => {
-      unitCells.push(name);
-      refCells.push(ontology);
-      accNumberCells.push(accession);
-    });
-    templateProperties.content.splice(
-      templateProperties.content.length - 3,
-      2,
-      unitCells,
-      refCells,
-      accNumberCells
-    );
-    // if there is already a unit column, throw an error
-  } else {
-    errors = "ERROR: Building block already has a Unit!";
+      // fill the new unit columns with the terms and names
+      let unitCells: string[] = [];
+      let refCells: string[] = [];
+      let accNumberCells: string[] = [];
+      templateProperties.content[0].forEach(() => {
+        unitCells.push(name);
+        refCells.push(ontology);
+        accNumberCells.push(accession);
+      });
+      templateProperties.content.splice(
+        templateProperties.content.length - 3,
+        2,
+        unitCells,
+        refCells,
+        accNumberCells
+      );
+      // if there is already a unit column, throw an error
+    } else {
+      errors = "ERROR: Building block already has a Unit!";
+      keyNumber.value += 1;
+    }
+  } catch {
+    errors = "ERROR: You must add a parameter first!";
     keyNumber.value += 1;
   }
 }
@@ -619,7 +623,9 @@ async function sendToBackend() {
 
   // replace null values with empty string
   toSend.forEach(async (element, i) => {
-    if (element[1] == null) toSend[i][1] = "";
+    element.forEach((entry, j) => {
+      if (entry == null) toSend[i][j] = "";
+    });
   });
   let response = await fetch(backend + "saveFile", {
     method: "PUT",
@@ -630,7 +636,7 @@ async function sendToBackend() {
       isaPath: isaProperties.path,
       isaRepo: isaProperties.repoId,
       arcBranch: arcProperties.branch,
-      multiple: alternative.value,
+      multiple: !alternative.value,
     }),
     credentials: "include",
   });
@@ -648,7 +654,7 @@ async function sendToBackend() {
   keyNumber.value += 1;
 }
 
-/**
+/** returns true if the mandatory field is not filled out properly (will be marked red)
  *
  * @param field - array containing the data for the specific row(column wise)
  * @param index - the index number for the current column to check
@@ -658,22 +664,45 @@ function mandatory(field: Array<any>, index: number) {
     case "Investigation Identifier":
     case "Investigation Title":
     case "Investigation Description":
+    case "Study Identifier":
+    case "Study File Name":
+    case "Assay Measurement Type":
+    case "Assay File Name":
+    case "Measurement Type":
+    case "File Name":
+      // return true if the field is not a string type or is an empty string
       return typeof field[1] != "string" || field[1] == "";
   }
+}
+
+/** adds an empty string to every entry inside of the identification, contacts and publications arrays
+ *
+ */
+function extendIsa() {
+  // extend the three arrays with empty fields
+  isaProperties.identification.forEach((element) => {
+    element.push("");
+  });
+  isaProperties.contacts.forEach((element) => {
+    element.push("");
+  });
+  isaProperties.publications.forEach((element) => {
+    element.push("");
+  });
+  keyNumber.value += 1;
 }
 </script>
 
 <template>
+  <!-- TOOLBAR TITLES | SPINNER-->
   <q-list>
     <q-toolbar-title v-if="isaProperties.entries.length != 0"
-      >Isa Entries ({{ isaProperties.date }})<q-checkbox v-model="alternative"
-        >alternative</q-checkbox
-      >
+      >Isa Entries<q-checkbox v-model="alternative">alternative</q-checkbox>
       <span style="padding-left: 1em; color: red"
         >Mandatory fields are red</span
       ></q-toolbar-title
     >
-    <q-toolbar-title v-if="templateProperties.templates.length > 0"
+    <q-toolbar-title v-if="templateProperties.templates.length > 1"
       >Templates</q-toolbar-title
     >
     <q-toolbar-title v-if="termProperties.terms.length > 0"
@@ -717,41 +746,74 @@ function mandatory(field: Array<any>, index: number) {
     <div id="amount" style="width: 90%"></div>
     <div style="display: flex; justify-content: space-between">
       <div id="status" style="width: 50%"></div>
-      <div
-        id="errors"
-        style="width: 50%"
-        :key="keyNumber + 2"
-        v-show="chartErrors.length > 0">
-        <p><b>Errors:</b></p>
-        <ul>
-          <li v-for="entry in chartErrors">{{ entry }}</li>
-        </ul>
-      </div>
+    </div>
+    <div
+      id="errors"
+      style="width: 50%"
+      :key="keyNumber + 2"
+      v-show="chartErrors.length > 0">
+      <p><b>Errors:</b></p>
+      <ul>
+        <li v-for="entry in chartErrors">{{ entry }}</li>
+      </ul>
     </div>
   </q-list>
-  <!-- ALTERNATIVE VIEW FOR ISA-->
-  <template
-    v-if="
-      isaProperties.entries.length > 0 &&
-      alternative &&
-      !isaProperties.path.includes('assay')
-    ">
-    <div class="q-gutter-md row items-start">
+  <!-- ALTERNATIVE VIEW FOR ISA (NEW VIEW)-->
+  <template v-if="isaProperties.entries.length > 0 && !alternative">
+    <!-- Identification -->
+    <div
+      class="q-gutter-md row items-start"
+      v-if="!isaProperties.path.includes('assay')">
       <q-input
-        style="width: 45%"
         outlined
         v-model="isaProperties.identification[0][1]"
+        :label-color="
+          isaProperties.identification[0][1] != '' &&
+          isaProperties.identification[0][1] != null
+            ? ''
+            : 'red'
+        "
+        :color="
+          isaProperties.identification[0][1] != '' &&
+          isaProperties.identification[0][1] != null
+            ? ''
+            : 'red'
+        "
         label="Identifier"></q-input>
       <q-input
         style="width: 45%"
         outlined
         v-model="isaProperties.identification[1][1]"
+        :label-color="
+          isaProperties.identification[1][1] != '' &&
+          isaProperties.identification[1][1] != null
+            ? ''
+            : 'red'
+        "
+        :color="
+          isaProperties.identification[1][1] != '' &&
+          isaProperties.identification[1][1] != null
+            ? ''
+            : 'red'
+        "
         label="Title"></q-input>
       <q-input
         style="width: 92%"
         outlined
         type="textarea"
         v-model="isaProperties.identification[2][1]"
+        :label-color="
+          isaProperties.identification[2][1] != '' &&
+          isaProperties.identification[2][1] != null
+            ? ''
+            : 'red'
+        "
+        :color="
+          isaProperties.identification[2][1] != '' &&
+          isaProperties.identification[2][1] != null
+            ? ''
+            : 'red'
+        "
         label="Description"></q-input>
       <q-input
         style="width: 45%"
@@ -766,24 +828,91 @@ function mandatory(field: Array<any>, index: number) {
         v-model="isaProperties.identification[4][1]"
         label="Public Release Date"></q-input>
     </div>
-    <q-toolbar-title style="padding-top: 1em">Publications</q-toolbar-title>
-    <div class="q-gutter-md row items-start">
+    <div class="q-gutter-md row items-start" v-else>
       <q-input
         style="width: 45%"
         outlined
-        v-for="(entry, i) in isaProperties.publications"
-        v-model="isaProperties.publications[i][1]"
-        :label="isaProperties.publications[i][0]"></q-input>
+        v-for="(entry, i) in isaProperties.identification"
+        v-model="isaProperties.identification[i][1]"
+        :label="isaProperties.identification[i][0]"></q-input>
     </div>
-    <q-toolbar-title style="padding-top: 1em">Contacts</q-toolbar-title>
-    <div class="q-gutter-md row items-start">
-      <q-input
-        style="width: 45%"
-        outlined
-        v-for="(entry, i) in isaProperties.contacts"
-        v-model="isaProperties.contacts[i][1]"
-        :label="isaProperties.contacts[i][0]"></q-input>
+    <div class="q-gutter-y-md" style="max-width: 600px">
+      <q-tabs
+        v-model="isaProperties.publication"
+        v-if="!isaProperties.path.includes('assay')"
+        dense
+        align="left"
+        outside-arrows>
+        <template v-for="i in isaProperties.publications[0].length - 1"
+          ><q-tab :label="'Publication ' + i" :name="'publication ' + i"></q-tab
+        ></template>
+      </q-tabs>
     </div>
+    <q-tab-panels
+      v-model="isaProperties.publication"
+      animated
+      v-if="!isaProperties.path.includes('assay')">
+      <template v-for="j in isaProperties.publications[0].length - 1">
+        <q-tab-panel :name="'publication ' + j">
+          <div
+            class="q-gutter-md row items-start"
+            v-if="!isaProperties.path.includes('assay')">
+            <q-input
+              style="width: 45%"
+              outlined
+              v-for="(entry, i) in isaProperties.publications"
+              v-model="isaProperties.publications[i][j]"
+              :label="isaProperties.publications[i][0]"></q-input
+            ><q-btn
+              icon="add"
+              outline
+              @click="
+                extendIsa();
+                isaProperties.publication = 'publication ' + (j + 1);
+              "
+              v-if="j == isaProperties.publications[0].length - 1"
+              >New Publication</q-btn
+            >
+          </div></q-tab-panel
+        ></template
+      ></q-tab-panels
+    >
+    <div class="q-gutter-y-md" style="max-width: 600px">
+      <q-tabs
+        v-model="isaProperties.contact"
+        dense
+        align="left"
+        outside-arrows
+        mobile-arrows>
+        <template v-for="i in isaProperties.contacts[0].length - 1"
+          ><q-tab :label="'Contact ' + i" :name="'contact ' + i"></q-tab
+        ></template>
+      </q-tabs>
+    </div>
+    <q-tab-panels v-model="isaProperties.contact" animated>
+      <template v-for="j in isaProperties.contacts[0].length - 1">
+        <q-tab-panel :name="'contact ' + j">
+          <div class="q-gutter-md row items-start">
+            <q-input
+              style="width: 45%"
+              outlined
+              v-for="(entry, i) in isaProperties.contacts"
+              v-model="isaProperties.contacts[i][j]"
+              :label="isaProperties.contacts[i][0]"></q-input
+            ><q-btn
+              icon="add"
+              outline
+              @click="
+                extendIsa();
+                isaProperties.contact = 'contact ' + (j + 1);
+              "
+              v-if="j == isaProperties.contacts[0].length - 1"
+              >New Contact</q-btn
+            >
+          </div></q-tab-panel
+        ></template
+      ></q-tab-panels
+    >
     <q-item-section
       ><q-btn icon="save" type="submit" color="teal" @click="sendToBackend()"
         >Save</q-btn
@@ -792,12 +921,12 @@ function mandatory(field: Array<any>, index: number) {
   </template>
   <!-- Isa File content; limit the size of input fields to first 1000-->
   <!-- Only allow editing for non headline fields (not in all caps)-->
-  <template v-if="isaProperties.entries.length != 0">
+  <!-- OLD VIEW-->
+  <template v-if="isaProperties.entries.length > 0 && alternative">
     <q-item
       dense
       :clickable="item[0] != item[0].toUpperCase()"
       @click="setEntry(item, i)"
-      v-if="!alternative"
       v-for="(item, i) in isaProperties.entries.slice(0, 1000)"
       :class="i % 2 === 1 ? 'alt' : ''">
       <q-item-section v-for="(entry, i) in item">
@@ -959,7 +1088,7 @@ function mandatory(field: Array<any>, index: number) {
     </q-item>
   </q-list>
   <!-- IF there is a list of templates -->
-  <q-list bordered v-if="templateProperties.templates.length > 0">
+  <q-list bordered v-if="templateProperties.templates.length > 1">
     <q-input
       v-model="search"
       label="Search"
