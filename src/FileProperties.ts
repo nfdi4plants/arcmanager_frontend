@@ -7,6 +7,8 @@ const fileProperties = reactive({
   // list of all entries
   content: "",
 
+  buffer: new Uint8Array(),
+
   // id of the repo
   id: 0,
   

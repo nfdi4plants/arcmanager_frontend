@@ -51,9 +51,6 @@ var unitSearch = ref("");
 // the type of term to be search
 var searchType = "";
 
-// ids of the rows to overwrite
-var rowIds = [1];
-
 // the accession value of the type
 var searchAccession = "";
 
@@ -198,7 +195,7 @@ function extendTemplate() {
         templateProperties.content[i].push(null);
     }
   });
-  rowIds.push(rowIds.length + 1);
+  sheetProperties.rowIds.push(sheetProperties.rowIds.length);
   keyNumber.value += 1;
 }
 
@@ -207,7 +204,6 @@ function extendTemplate() {
  */
 async function getSuggestionsByParent() {
   loading = true;
-  appProperties.showIsaView = true;
   errors = "";
   keyNumber.value += 1;
 
@@ -226,15 +222,16 @@ async function getSuggestionsByParent() {
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
-  }
-
-  // if the list of terms is empty
-  if (data["terms"].length == 0) {
-    termProperties.terms = [{ Name: "No Term was found!" }];
-  }
-  // save the list of terms
-  else {
-    termProperties.terms = data["terms"];
+  } else {
+    appProperties.showIsaView = true;
+    // if the list of terms is empty
+    if (data["terms"].length == 0) {
+      termProperties.terms = [{ Name: "No Term was found!" }];
+    }
+    // save the list of terms
+    else {
+      termProperties.terms = data["terms"];
+    }
   }
   loading = false;
   keyNumber.value += 1;
@@ -245,7 +242,6 @@ async function getSuggestionsByParent() {
  */
 async function getSuggestions() {
   loading = true;
-  appProperties.showIsaView = true;
   errors = "";
   keyNumber.value += 1;
 
@@ -262,15 +258,16 @@ async function getSuggestions() {
   let data = await terms.json();
   if (!terms.ok) {
     errors = "ERROR: " + data["detail"];
-  }
-
-  // if the list of terms is empty
-  if (data["terms"].length == 0) {
-    termProperties.buildingBlocks = [{ Name: "No Term was found!" }];
-  }
-  // save the list of terms
-  else {
-    termProperties.buildingBlocks = data["terms"];
+  } else {
+    appProperties.showIsaView = true;
+    // if the list of terms is empty
+    if (data["terms"].length == 0) {
+      termProperties.buildingBlocks = [{ Name: "No Term was found!" }];
+    }
+    // save the list of terms
+    else {
+      termProperties.buildingBlocks = data["terms"];
+    }
   }
   loading = false;
   keyNumber.value += 1;
@@ -281,7 +278,6 @@ async function getSuggestions() {
  */
 async function getUnitSuggestions() {
   loading = true;
-  appProperties.showIsaView = true;
   errors = "";
   keyNumber.value += 1;
 
@@ -297,28 +293,19 @@ async function getUnitSuggestions() {
   let data = await terms.json();
   if (!terms.ok) {
     errors = "ERROR: " + data["detail"];
-  }
-
-  // if the list of terms is empty
-  if (data["terms"].length == 0) {
-    termProperties.unitTerms = [{ Name: "No Term was found!" }];
-  }
-  // save the list of terms
-  else {
-    termProperties.unitTerms = data["terms"];
+  } else {
+    appProperties.showIsaView = true;
+    // if the list of terms is empty
+    if (data["terms"].length == 0) {
+      termProperties.unitTerms = [{ Name: "No Term was found!" }];
+    }
+    // save the list of terms
+    else {
+      termProperties.unitTerms = data["terms"];
+    }
   }
   loading = false;
   keyNumber.value += 1;
-}
-
-/** fills the rowIds array with all possible row ids
- *
- */
-function setIds() {
-  rowIds = Array.from(
-    { length: templateProperties.content[0].length },
-    (_, i) => i + 1
-  );
 }
 
 /** deletes the chosen column including the terms and unit column
@@ -372,7 +359,11 @@ function deleteRow(rowIndex: number) {
       templateProperties.content[i].splice(rowIndex, 1);
     }
     $q.notify("Successfully deleted the row " + (rowIndex + 1) + " !");
-    rowIds.pop();
+
+    // if the current row selection is out of range, set it to the new last entry
+    if (templateProperties.rowId > sheetProperties.rowIds.length - 1)
+      templateProperties.rowId = sheetProperties.rowIds.pop() - 1;
+    else sheetProperties.rowIds.pop();
     keyNumber.value += 1;
   });
 }
@@ -401,12 +392,7 @@ function deleteRow(rowIndex: number) {
         <q-checkbox v-model="advanced">Extended search</q-checkbox>
         <q-btn id="suggestion" @click="getSuggestionsByParent()"
           >Get suggestions</q-btn
-        ><q-select
-          v-model="templateProperties.rowId"
-          :options="rowIds"
-          label="select row to overwrite"
-          options-dense
-          style="width: 10%"></q-select>
+        >
       </template>
       <!-- show search area for inserting a new building block-->
       <template v-else-if="showBuildingBlock">
@@ -574,7 +560,6 @@ function deleteRow(rowIndex: number) {
                   icon="search"
                   round
                   @click="
-                    setIds();
                     showSearch = true;
                     showBuildingBlock = false;
                     search = '';

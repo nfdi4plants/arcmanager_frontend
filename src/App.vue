@@ -409,4 +409,14 @@ function openArcSearch() {
 .body--dark .footer {
   color: white;
 }
+
+.body--dark .active {
+  background-color: darkgreen;
+  color: white;
+}
+
+.body--dark .active {
+  background-color: darkgreen;
+  color: white;
+}
 </style>

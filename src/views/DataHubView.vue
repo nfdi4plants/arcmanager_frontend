@@ -415,7 +415,7 @@ async function getFile(id: number, path: string, branch: string) {
       fileProperties.name = data.file_name;
       data.content = btoa("Empty File");
     }
-    // if there is content, it cant be an isa file
+    // if there is content, it cant be an isa file/regular excel file
     if (data.content) {
       let size;
       // check the size of the file (display either in kb or mb)
@@ -442,6 +442,10 @@ async function getFile(id: number, path: string, branch: string) {
       }
 
       // if there is no typical content, its an isa file, because then we have a list of entries
+    } else if (data.columns != null) {
+      fileProperties.name = "XLSX";
+      fileProperties.content = data.data.toString();
+      console.log(data.toString());
     } else {
       isaList = [];
       isaProperties.identification = [];
@@ -720,34 +724,55 @@ async function getTemplates() {
   forcereload();
 
   // retrieve the templates
-  await fetch(backend + "getTemplates")
-    .then((response) => response.json())
-    .then((templates) => {
-      if (templates.templates.length == 0) {
-        errors = "ERROR: No templates found!";
-        forcereload();
-      }
-      // save the templates
-      templateProperties.templates = [
-        {
-          Id: "Empty",
-          Name: "Empty Template",
-          Description: "Start with a empty Template",
-          Organisation: "Custom",
-          Version: "1.0.0",
-          LastUpdated: "-",
-          Authors: "-",
-        },
-      ];
-      templateProperties.templates = templateProperties.templates.concat(
-        templates.templates
-      );
-      templateProperties.filtered = templateProperties.templates.concat(
-        templates.templates
-      );
-      templates.templates;
-    });
+  let response = await fetch(backend + "getTemplates");
 
+  let templates = await response.json();
+
+  if (!response.ok) {
+    errors = "ERROR: No templates found!";
+    templateProperties.templates = [
+      {
+        Id: "Empty",
+        Name: "Empty Template",
+        Description: "Start with a empty Template",
+        Organisation: "Custom",
+        Version: "1.0.0",
+        LastUpdated: "-",
+        Authors: "-",
+      },
+    ];
+    templateProperties.filtered = [
+      {
+        Id: "Empty",
+        Name: "Empty Template",
+        Description: "Start with a empty Template",
+        Organisation: "Custom",
+        Version: "1.0.0",
+        LastUpdated: "-",
+        Authors: "-",
+      },
+    ];
+    forcereload();
+  } else {
+    // save the templates
+    templateProperties.templates = [
+      {
+        Id: "Empty",
+        Name: "Empty Template",
+        Description: "Start with a empty Template",
+        Organisation: "Custom",
+        Version: "1.0.0",
+        LastUpdated: "-",
+        Authors: "-",
+      },
+    ];
+    templateProperties.templates = templateProperties.templates.concat(
+      templates.templates
+    );
+    templateProperties.filtered = templateProperties.templates.concat(
+      templates.templates
+    );
+  }
   loading = false;
   forcereload();
 }
@@ -946,7 +971,7 @@ function checkName(name: string) {
       includes = true;
     }
   });
-  if (name.includes(".xlsx") && !name.includes("isa")) includes = true;
+  if (name.includes(".xlsx") && !name.includes("isa")) includes = false;
   return includes;
 }
 
@@ -1311,6 +1336,31 @@ async function editUser(id: number, user: any, role: any) {
   if (!response.ok) errors = response.statusText + ", " + data["detail"];
   else $q.notify(data);
 
+  loading = false;
+  forcereload();
+}
+
+/** builds the download link for the file and downloads it
+ *
+ * @param path - the path to the file
+ */
+async function downloadFile(path: string) {
+  loading = true;
+  forcereload();
+  try {
+    // create a html "a" element
+    const downloadLink = document.createElement("a");
+
+    // build the link based around the download link used in gitlab to download a zip
+    downloadLink.href = `${
+      arcProperties.url.split(".git")[0]
+    }/-/raw/${arcBranch}/${path}?ref_type=heads&inline=false`;
+
+    // start the download
+    downloadLink.click();
+  } catch (error) {
+    errors = error;
+  }
   loading = false;
   forcereload();
 }
@@ -1744,6 +1794,18 @@ async function editUser(id: number, user: any, role: any) {
                   >{{ item.name.slice(0, 60) }}...</template
                 >
                 <template v-else>{{ item.name }}</template></q-item-label
+              ></q-item-section
+            >
+            <q-item-section
+              side
+              v-if="!checkForDeletion(item.name.toLowerCase())">
+              <q-btn
+                icon="download"
+                color="green"
+                flat
+                dense
+                @click="downloadFile(item.path)"
+                >Download</q-btn
               ></q-item-section
             >
             <q-item-section

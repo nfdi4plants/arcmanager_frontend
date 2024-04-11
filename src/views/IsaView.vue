@@ -288,6 +288,7 @@ function setTemplate(templateId: string) {
         templateProperties.content.push([""]);
       });
   }
+  templateProperties.rowId = 1;
   loading = false;
   keyNumber.value += 1;
 }
@@ -485,7 +486,6 @@ async function selectSheet(name: string, index: number) {
         cellContent.push(sheetProperties.sheets[index].data[j][i]);
       }
     }
-
     templateProperties.content.push(cellContent);
   }
   // if the content is empty, get a list of templates and display them
@@ -506,6 +506,7 @@ async function selectSheet(name: string, index: number) {
   }
   sheetProperties.sheets = sheetProperties.names = [];
   appProperties.arcList = false;
+  setIds();
 }
 
 /** check if the right side (the isa view) is empty
@@ -516,7 +517,7 @@ function checkEmptyIsaView() {
     isaProperties.entries.length > 0 ||
     fileProperties.content != "" ||
     sheetProperties.sheets.length > 0 ||
-    templateProperties.templates.length > 0 ||
+    templateProperties.templates.length > 1 ||
     termProperties.terms.length > 0 ||
     termProperties.buildingBlocks.length > 0 ||
     termProperties.unitTerms.length > 0
@@ -689,6 +690,17 @@ function extendIsa() {
   isaProperties.publications.forEach((element) => {
     element.push("");
   });
+  keyNumber.value += 1;
+}
+
+/** fills the rowIds array with all possible row ids
+ *
+ */
+function setIds() {
+  sheetProperties.rowIds = Array.from(
+    { length: templateProperties.content[0].length },
+    (_, i) => i + 1
+  );
   keyNumber.value += 1;
 }
 </script>
@@ -946,7 +958,8 @@ function extendIsa() {
     <q-item
       clickable
       v-for="(term, i) in termProperties.terms.slice(0, 1000)"
-      :class="i % 2 === 1 ? 'alt' : ''">
+      :class="i % 2 === 1 ? 'alt' : ''"
+      @click="setIds()">
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
@@ -967,6 +980,12 @@ function extendIsa() {
         <q-card
           ><q-card-section>{{ term["Description"] }}</q-card-section>
           <q-card-section
+            ><q-select
+              v-model="templateProperties.rowId"
+              :options="sheetProperties.rowIds"
+              label="select row to overwrite"
+              options-dense
+              style="width: 20%"></q-select
             ><q-btn
               class="alt"
               @click="
@@ -1088,8 +1107,9 @@ function extendIsa() {
     </q-item>
   </q-list>
   <!-- IF there is a list of templates -->
-  <q-list bordered v-if="templateProperties.templates.length > 1">
+  <q-list bordered v-if="templateProperties.templates.length >= 1">
     <q-input
+      v-if="templateProperties.templates.length > 1"
       v-model="search"
       label="Search"
       value="name"
@@ -1141,6 +1161,8 @@ function extendIsa() {
     </template>
     <template v-else>
       <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
+      <!-- IF its an PDF-->
+
       <!-- IF its an png -->
       <q-img
         v-if="fileProperties.name.toLowerCase().includes('.png')"
@@ -1184,6 +1206,9 @@ function extendIsa() {
       <q-card-section v-html="arcProperties.changes"></q-card-section>
     </q-card>
   </q-item-section>
+  <q-item-section v-else-if="checkEmptyIsaView()"
+    ><q-checkbox v-model="appProperties.showMirror" label="Experimental"
+  /></q-item-section>
 </template>
 
 <style scoped>
