@@ -732,24 +732,26 @@ async function getTemplates() {
     errors = "ERROR: No templates found!";
     templateProperties.templates = [
       {
-        Id: "Empty",
-        Name: "Empty Template",
-        Description: "Start with a empty Template",
-        Organisation: "Custom",
-        Version: "1.0.0",
-        LastUpdated: "-",
-        Authors: "-",
+        id: "Empty",
+        name: "Empty Template",
+        description: "Start with a empty Template",
+        organisation: "Custom",
+        version: "1.0.0",
+        last_updated: "-",
+        authors: ["-"],
+        table: {},
       },
     ];
     templateProperties.filtered = [
       {
-        Id: "Empty",
-        Name: "Empty Template",
-        Description: "Start with a empty Template",
-        Organisation: "Custom",
-        Version: "1.0.0",
-        LastUpdated: "-",
-        Authors: "-",
+        id: "Empty",
+        name: "Empty Template",
+        description: "Start with a empty Template",
+        organisation: "Custom",
+        version: "1.0.0",
+        last_updated: "-",
+        authors: ["-"],
+        table: {},
       },
     ];
     forcereload();
@@ -757,19 +759,32 @@ async function getTemplates() {
     // save the templates
     templateProperties.templates = [
       {
-        Id: "Empty",
-        Name: "Empty Template",
-        Description: "Start with a empty Template",
-        Organisation: "Custom",
-        Version: "1.0.0",
-        LastUpdated: "-",
-        Authors: "-",
+        id: "Empty",
+        name: "Empty Template",
+        description: "Start with a empty Template",
+        organisation: "Custom",
+        version: "1.0.0",
+        last_updated: "-",
+        authors: ["-"],
+        table: {},
+      },
+    ];
+    templateProperties.filtered = [
+      {
+        id: "Empty",
+        name: "Empty Template",
+        description: "Start with a empty Template",
+        organisation: "Custom",
+        version: "1.0.0",
+        last_updated: "-",
+        authors: ["-"],
+        table: {},
       },
     ];
     templateProperties.templates = templateProperties.templates.concat(
       templates.templates
     );
-    templateProperties.filtered = templateProperties.templates.concat(
+    templateProperties.filtered = templateProperties.filtered.concat(
       templates.templates
     );
   }
@@ -971,7 +986,7 @@ function checkName(name: string) {
       includes = true;
     }
   });
-  if (name.includes(".xlsx") && !name.includes("isa")) includes = false;
+  if (name.includes(".xlsx") && !name.includes("isa")) includes = true;
   return includes;
 }
 
@@ -1546,8 +1561,8 @@ async function downloadFile(path: string) {
       :key="refresher + 5"
       expand-separator
       icon="cloud_download"
-      label="List ARCs"
-      caption="List ARCs from the DataHUB"
+      label="List ARCs/Projects"
+      caption="List of ARCs and other projects from the DataHUB"
       header-class="bg-grey-33"
       default-opened>
       <div style="display: block; margin: 0 auto; max-width: 80%">

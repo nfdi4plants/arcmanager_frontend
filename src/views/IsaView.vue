@@ -210,16 +210,101 @@ async function commitFile() {
 
 /** setups a new table using the chosen template
  *
- * @param templateId - the id of the template
+ * @param table - the table section of a template
  */
-function setTemplate(templateId: string) {
+function setTemplate(table: Object) {
   errors = "";
   loading = true;
   appProperties.showIsaView = false;
   appProperties.arcList = false;
   search.value = "";
   keyNumber.value += 1;
-  if (templateId == "Empty") {
+
+  if (table != null) {
+    // set the sheet name to the name set by the template
+    if (table.name != "") sheetProperties.name = table.name;
+
+    // reset the template and content
+    templateProperties.template = [];
+    templateProperties.content = [];
+
+    // list of columns, that are unit columns
+    let unitColumns = [];
+    // here are just the numbers stored (for later ease to use)
+    let unitNumbers = [];
+
+    // if there are units, fill them into the unitColumns array
+    for (let i = 0; i < table.values.length; i++) {
+      if (table.values[i][0][1] == 0) {
+        if (
+          table.values[i][1].celltype == "Unitized" &&
+          table.values[i][1].values[1].annotationValue != ""
+        ) {
+          unitColumns.push({
+            columnId: table.values[i][0][0],
+            unitName: table.values[i][1].values[1].annotationValue,
+            unitSource: table.values[i][1].values[1].termSource,
+            unitAccession: table.values[i][1].values[1].termAccession,
+          });
+          unitNumbers.push(table.values[i][0][0]);
+        }
+      }
+    }
+
+    table.header.forEach((entry, index) => {
+      if (typeof entry.values[0] != typeof "") {
+        try {
+          templateProperties.template.push({
+            Type: `${entry.headertype} [${entry.values[0].annotationValue}]`,
+            Accession: entry.values[0].termAccession,
+          });
+          // if there are no values, just push the headertype
+        } catch (error) {
+          templateProperties.template.push({
+            Type: `${entry.headertype}`,
+          });
+        }
+        templateProperties.content.push([""]);
+        // check if column is a unit
+        if (unitNumbers.includes(index)) {
+          templateProperties.template.push({
+            Type: "Unit [" + entry.values[0].annotationValue + "]",
+          });
+          let unitColumn = unitColumns.find(
+            (element) => element.columnId == index
+          );
+          templateProperties.content.push([unitColumn?.unitName]);
+          templateProperties.content.push([unitColumn?.unitSource]);
+          templateProperties.content.push([unitColumn?.unitAccession]);
+        } else {
+          templateProperties.content.push([""], [""]);
+        }
+        try {
+          templateProperties.template.push({
+            Type: "Term Source REF (" + entry.values[0].termSource + ")",
+          });
+          templateProperties.template.push({
+            Type:
+              "Term Accession Number (" + entry.values[0].termAccession + ")",
+          });
+        } catch (error) {
+          // if there are no values, just push empty term properties
+          templateProperties.template.push({
+            Type: "Term Source REF ()",
+          });
+          templateProperties.template.push({
+            Type: "Term Accession Number ()",
+          });
+        }
+        // for input and output columns
+      } else {
+        templateProperties.template.push({
+          Type: `${entry.headertype} [${entry.values[0]}]`,
+        });
+        templateProperties.content.push([""]);
+      }
+    });
+  } else {
     templateProperties.template = [
       {
         Type: "Input [Source Name]",
@@ -227,66 +312,6 @@ function setTemplate(templateId: string) {
       { Type: "Output [Source Name]" },
     ];
     templateProperties.content = [[""], [""]];
-  } else {
-    fetch(backend + "getTemplate?id=" + templateId)
-      .then((response) => response.json())
-      .then((data) => {
-        // reset the current template and add the input column
-        templateProperties.template = [
-          {
-            Type: "Input [Source Name]",
-          },
-        ];
-        templateProperties.content = [[""]];
-
-        data["templateBB"].forEach((element: any) => {
-          // insert the columnHeader with type, name and accession set
-          templateProperties.template.push({
-            Type: `${element["ColumnHeader"].Type} [${element["ColumnHeader"].Name}]`,
-            Accession: element["ColumnTerm"].TermAccession,
-          });
-
-          // for the columnHeader column insert an empty cell
-          templateProperties.content.push([""]);
-
-          // if the current template part has a unit, insert an extra unit column
-          if (element["HasUnit"]) {
-            templateProperties.template.push({
-              Type: "Unit [" + element["ColumnHeader"].Name + "]",
-            });
-
-            // the unit column cell is filled with the name of the unit
-            templateProperties.content.push([element["UnitTerm"].Name]);
-            // for unit columns the term source ref cell is filled with the accessionToTSR
-            templateProperties.content.push([
-              element["UnitTerm"].accessionToTSR,
-            ]);
-            // for unit columns the term accession cell is filled with the termAccession of the unit
-            templateProperties.content.push([
-              element["UnitTerm"].TermAccession,
-            ]);
-          } else {
-            // if there is no unit cell the term accession cell is empty
-            templateProperties.content.push([""], [""]);
-          }
-          // insert the term source ref column
-          templateProperties.template.push({
-            Type:
-              "Term Source REF (" + element["ColumnTerm"].TermAccession + ")",
-          });
-
-          // insert the term accession column
-          templateProperties.template.push({
-            Type:
-              "Term Accession Number (" +
-              element["ColumnTerm"].TermAccession +
-              ")",
-          });
-        });
-        // insert the output column at the end
-        templateProperties.template.push({ Type: "Output [Sample Name]" });
-        templateProperties.content.push([""]);
-      });
   }
   templateProperties.rowId = 1;
   loading = false;
@@ -300,6 +325,7 @@ function setTemplate(templateId: string) {
  * @param ontology - the term ontology reference
  */
 function setTerm(name: string, accession: string, ontology: string) {
+  if (templateProperties.content[0].length < 1) extendTemplate();
   templateProperties.content[templateProperties.id].splice(
     templateProperties.rowId - 1,
     1,
@@ -315,6 +341,50 @@ function setTerm(name: string, accession: string, ontology: string) {
     1,
     accession
   );
+}
+
+/** adds an extra row to the sheet (fills out unit cells automatically)
+ *
+ */
+function extendTemplate() {
+  // extend each column by a new cell
+  templateProperties.template.forEach((element, i) => {
+    // if the column is a unit, fill the new cell with the name of the unit
+    if (templateProperties.template[i].Type.toString().startsWith("Unit")) {
+      templateProperties.content[i].push(templateProperties.content[i][0]);
+      if (
+        templateProperties.template[i - 1].Type.toString().startsWith("Term")
+      ) {
+        templateProperties.content[i - 1].pop();
+        templateProperties.content[i - 1].push(
+          templateProperties.content[i - 1][0]
+        );
+      }
+      // add the term values for the two (or more) term columns after
+      while (
+        templateProperties.template[i + 1].Type.toString().startsWith("Term")
+      ) {
+        templateProperties.content[i + 1].push(
+          templateProperties.content[i + 1][0]
+        );
+        i += 1;
+      }
+    } else {
+      // skip adding an empty field if its a term column related to a unit
+      if (
+        !templateProperties.template[i].Type.toString().startsWith("Term") ||
+        !(
+          templateProperties.template[i - 1].Type.toString().startsWith(
+            "Unit"
+          ) ||
+          templateProperties.template[i - 2].Type.toString().startsWith("Unit")
+        )
+      )
+        templateProperties.content[i].push(null);
+    }
+  });
+  sheetProperties.rowIds.push(sheetProperties.rowIds.length);
+  keyNumber.value += 1;
 }
 
 /** if a term is chosen the values of the columns header and the term accession will be set to the chosen values
@@ -565,12 +635,12 @@ function sortTemplates(searchTerm: string) {
   templateProperties.templates.forEach((element: any) => {
     // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
     let searchString =
-      element["Name"].toLowerCase() +
+      element["name"].toLowerCase() +
       " " +
-      element["Organisation"].toLowerCase() +
+      element["organisation"].toLowerCase() +
       " " +
-      element["Description"].toString().toLowerCase() +
-      element["Authors"].toLowerCase();
+      element["description"].toString().toLowerCase() +
+      element["authors"].toString().toLowerCase();
     if (searchString.includes(searchTerm.toLowerCase())) {
       templateProperties.filtered.push(element);
     }
@@ -985,7 +1055,7 @@ function setIds() {
               :options="sheetProperties.rowIds"
               label="select row to overwrite"
               options-dense
-              style="width: 20%"></q-select
+              style="width: 12em"></q-select
             ><q-btn
               class="alt"
               @click="
@@ -1122,17 +1192,24 @@ function setIds() {
       :class="i % 2 === 1 ? 'alt' : ''">
       <q-expansion-item>
         <template #header>
-          {{ template.Name }} ({{ template.Organisation }})
-          {{ template.Version }}
+          {{ template.name }} ({{ template.organisation }})
+          {{ template.version }}
         </template>
         <q-card
-          ><q-card-section>{{ template.Description }}</q-card-section>
-          <q-card-section>Authors: {{ template.Authors }}</q-card-section
-          ><q-card-section
+          ><q-card-section>{{ template.description }}</q-card-section>
+          <q-card-section
+            >Authors:
+            <span v-for="(author, i) in template.authors"
+              >{{ author.firstName }} {{ author.lastName
+              }}<template v-if="i < template.authors.length - 1"
+                >,
+              </template></span
+            ></q-card-section
+          ><q-card-section v-if="template.last_updated"
             >Updated last:
-            {{ template.LastUpdated.slice(0, 10) }}</q-card-section
+            {{ template.last_updated.slice(0, 10) }}</q-card-section
           ><q-card-section
-            ><q-btn class="alt" @click="setTemplate(template.Id)"
+            ><q-btn class="alt" @click="setTemplate(template.table)"
               >Import</q-btn
             ></q-card-section
           >
@@ -1206,9 +1283,6 @@ function setIds() {
       <q-card-section v-html="arcProperties.changes"></q-card-section>
     </q-card>
   </q-item-section>
-  <q-item-section v-else-if="checkEmptyIsaView()"
-    ><q-checkbox v-model="appProperties.showMirror" label="Experimental"
-  /></q-item-section>
 </template>
 
 <style scoped>
