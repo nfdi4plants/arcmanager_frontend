@@ -724,7 +724,7 @@ async function getTemplates() {
   forcereload();
 
   // retrieve the templates
-  let response = await fetch(backend + "getTemplates");
+  let response = await fetch(appProperties.backend + "tnt/getTemplates");
 
   let templates = await response.json();
 
@@ -811,7 +811,7 @@ async function getSheets(path: string, id: number, branch: string) {
   arcProperties.branch = branch;
   // retrieve the sheets
   let request = await fetch(
-    `${backend}getSheets?path=${path}&id=${id}&branch=${branch}`,
+    `${appProperties.backend}tnt/getSheets?path=${path}&id=${id}&branch=${branch}`,
     {
       credentials: "include",
     }
@@ -1172,7 +1172,7 @@ async function getUser() {
   permission.value = null;
   try {
     // get all users
-    let user = await fetch(backend + "getUser", {
+    let user = await fetch(appProperties.backend + "user/" + "getUser", {
       credentials: "include",
     });
     if (!user.ok) {
@@ -1222,9 +1222,12 @@ async function getArcUser(id: number) {
   permission.value = null;
   try {
     // get all users that are part of the arc
-    let user = await fetch(backend + "getArcUser?id=" + id, {
-      credentials: "include",
-    });
+    let user = await fetch(
+      appProperties.backend + "user/" + "getArcUser?id=" + id,
+      {
+        credentials: "include",
+      }
+    );
     if (!user.ok) {
       const data = await user.json();
       throw new Error(user.statusText + ", " + data["detail"]);
@@ -1275,7 +1278,7 @@ async function addUser(id: number, user: any, role: any) {
   loading = true;
   forcereload();
   // send the necessary user info to the backend
-  let response = await fetch(backend + "addUser", {
+  let response = await fetch(appProperties.backend + "user/" + "addUser", {
     credentials: "include",
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1307,7 +1310,7 @@ async function removeUser(id: number, user: any) {
   forcereload();
   // send DELETE request to the backend
   let response = await fetch(
-    `${backend}removeUser?id=${id}&userId=${user.value}&username=${user.label}`,
+    `${appProperties.backend}user/removeUser?id=${id}&userId=${user.value}&username=${user.label}`,
     {
       credentials: "include",
       method: "DELETE",
@@ -1336,7 +1339,7 @@ async function editUser(id: number, user: any, role: any) {
   loading = true;
   forcereload();
   // send PUT request to the backend updating the role of the user
-  let response = await fetch(`${backend}editUser`, {
+  let response = await fetch(`${appProperties.backend}user/editUser`, {
     credentials: "include",
     method: "PUT",
     headers: { "Content-Type": "application/json" },

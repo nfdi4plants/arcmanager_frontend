@@ -8,7 +8,7 @@ import isaProperties from "@/IsaProperties";
 import sheetProperties from "@/SheetProperties";
 import appProperties from "@/AppProperties";
 
-var backend = appProperties.backend + "projects/";
+var backend = appProperties.backend + "tnt/";
 var loading = false;
 
 const $q = useQuasar();
@@ -48,7 +48,7 @@ var bbUnit = ref(false);
 // the type of unit for the building block
 var unitSearch = ref("");
 
-// the type of term to be search
+// the type of term to be searched for
 var searchType = "";
 
 // the accession value of the type

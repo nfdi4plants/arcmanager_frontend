@@ -12,6 +12,8 @@ import SwateView from "./views/SwateView.vue";
 
 import DataHubView from "./views/DataHubView.vue";
 
+import TemplateEditView from "./views/TemplateEditView.vue";
+
 import logoURL from "./assets/dpLogo2_w.png";
 import IsaEditView from "./views/IsaEditView.vue";
 import templateProperties from "./TemplateProperties";
@@ -34,6 +36,10 @@ var backend = appProperties.backend + "projects/";
 var target = ref("");
 // displays arc creation field
 var showInput = false;
+
+// opens up the template editor
+var templateEdit = false;
+
 // Name of the new arc
 var arcName = ref("");
 // Description of the new arc
@@ -175,6 +181,7 @@ function openArcSearch() {
             class="bg-primary text-white"
             @click="
               showInput = false;
+              templateEdit = false;
               errors = '';
               forcereload();
             "
@@ -186,6 +193,7 @@ function openArcSearch() {
                 :name="'img:' + logoURL"
                 @click="
                   showInput = false;
+                  templateEdit = false;
                   errors = '';
                   forcereload();
                 "
@@ -228,6 +236,7 @@ function openArcSearch() {
             clickable
             v-on:click="
               showInput = true;
+              templateEdit = false;
               errors = '';
               cleanIsaView();
               forcereload();
@@ -247,6 +256,27 @@ function openArcSearch() {
             </q-item-section>
             <q-item-section style="margin-left: -1.2em"
               >ARC Search</q-item-section
+            >
+          </q-item>
+          <!-- TEMPLATE EDITOR-->
+          <q-item
+            v-if="appProperties.experimental"
+            v-ripple
+            clickable
+            v-on:click="
+              errors = '';
+              templateEdit = true;
+              appProperties.showIsaView = false;
+              appProperties.arcList = false;
+              showInput = false;
+              cleanIsaView();
+              forcereload();
+            ">
+            <q-item-section avatar>
+              <q-icon color="grey-7" name="table_chart"></q-icon>
+            </q-item-section>
+            <q-item-section style="margin-left: -1.2em"
+              >Template Editor</q-item-section
             >
           </q-item>
           <q-item v-if="!appProperties.dark">
@@ -302,7 +332,7 @@ function openArcSearch() {
       <q-footer bordered class="footer">
         <a
           class="footer"
-          href="https://nfdi4plants.org/nfdi4plants.knowledgebase/docs/ARCmanager-manual/index.html"
+          href="https://www.nfdi4plants.de/nfdi4plants.knowledgebase/docs/ARCmanager-manual/index.html"
           target="_blank"
           style="margin-left: 45%"
           >Manual</a
@@ -356,6 +386,18 @@ function openArcSearch() {
           ><span style="margin-left: 1em" v-else-if="invId.length == 0"
             >Please provide an identifier for the ARC!</span
           >
+        </template>
+        <template v-else-if="templateEdit"
+          ><q-btn
+            class="return"
+            icon="arrow_back"
+            @click="
+              templateEdit = false;
+              appProperties.arcList = true;
+              forcereload();
+            "
+            :key="refresher + 4"></q-btn>
+          <TemplateEditView></TemplateEditView>
         </template>
         <template v-else>
           <q-btn

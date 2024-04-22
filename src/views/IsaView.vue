@@ -1283,6 +1283,9 @@ function setIds() {
       <q-card-section v-html="arcProperties.changes"></q-card-section>
     </q-card>
   </q-item-section>
+  <q-item-section v-else-if="checkEmptyIsaView()">
+    <q-checkbox v-model="appProperties.experimental">Experimental</q-checkbox>
+  </q-item-section>
 </template>
 
 <style scoped>
