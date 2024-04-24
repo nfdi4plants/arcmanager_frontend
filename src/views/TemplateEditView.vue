@@ -9,23 +9,31 @@ import draggable from "vuedraggable";
 var backend = appProperties.backend + "tnt/";
 var loading = false;
 
+// list containing all the templates
 var templateList = [];
+// list containing all the templates after filtering through the search bar
 var templatesFiltered = [];
 
+// list of columns stored in the template (they are stored like [[column 1, column 2....][column 6, column 7...]...], basically nested lists)
 var template = [];
 
+// list containing the input and output columns
 var inputOutput = [];
 
+// the specific template to search for (name, author, ...)
 var templateSearch = ref("");
 
+// name of the template
 var templateName = ref("");
-
+// identifier of the template
 var templateIdentifier = ref("");
+// description of the template
 var templateDesc = ref("");
-
+// organisation of the template
 var templateOrg = ref("Other");
+// version of the template
 var templateVersion = ref("1.0.0");
-
+// author of the template (the first author)
 var templateAuthor = ref({
   firstName: "",
   lastName: "",
@@ -35,12 +43,10 @@ var templateAuthor = ref({
 const $q = useQuasar();
 
 var errors = "";
-
+// toggle to show the units
 var unitNames = ref(false);
 
-// if the search for terms should be extended or not
-var advanced = ref(false);
-
+// all the parameter options for a new building block
 const parameterOptions = [
   "Parameter",
   "Factor",
@@ -51,6 +57,7 @@ const parameterOptions = [
   "Protocol",
 ];
 
+// default option is 'Parameter'
 var parameter = ref("Parameter");
 
 // list of suggestions for parameters
@@ -59,6 +66,7 @@ var parameterList = [];
 // list of suggestions for unit values (if the parameter is a unit)
 var unitList = [];
 
+// different options of organisations for the template
 const organisations = [
   "DataPLANT",
   "TRR341",
@@ -71,13 +79,11 @@ const organisations = [
   "Other",
 ];
 
+// key value for the different components
 var keyNumber = ref(0);
 
 // the building block term to search for
 var search = ref("");
-
-// show the search bar for tags
-var showSearch = false;
 
 // show the building block area
 var showBuildingBlock = false;
@@ -88,6 +94,7 @@ var bbUnit = ref(false);
 // the type of unit for the building block
 var unitSearch = ref("");
 
+// the tag to search for
 var tagSearch = ref("");
 
 // list of terms used for tags
@@ -97,7 +104,7 @@ var tagList = [];
 var templateTags = [];
 
 const forcereload = () => {
-  // when the key value is changed, vue is automatically reloading the page
+  // when the key value is changed, vue is automatically reloading the components with a key value
   keyNumber.value += 1;
 };
 
@@ -108,19 +115,23 @@ async function saveTemplate() {
   loading = true;
   forcereload();
 
+  // extract the columns back from the different lists into one final list
   let concatTable = [];
 
+  // if there is something stored inside inputOutput, start with the first column stored there (must be the input column)
   if (inputOutput.length > 0) concatTable.push(inputOutput[0]);
 
+  // next read out the different lists in template and push every column stored in there into concatTable
   template.forEach((element) => {
     element.forEach((entry) => {
       concatTable.push(entry);
     });
   });
 
+  // if there is more than one column stored in input/output, push the second column there into concatTable (must be the output column)
   if (inputOutput.length > 1) concatTable.push(inputOutput[1]);
 
-  // send the content of the sheet to the backend
+  // send the full template data to the backend
   const response = await fetch(backend + "saveTemplate", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -142,17 +153,20 @@ async function saveTemplate() {
   } else {
     $q.notify("Template was saved successfully!");
   }
-  // cleanup view
+  // cleanup
   template = [];
   templateList = [];
   templatesFiltered = [];
+  search.value = "";
+  tagSearch.value = "";
+  unitSearch.value = "";
   loading = false;
   appProperties.arcList = true;
   appProperties.showIsaView = false;
   forcereload();
 }
 
-/** suggestions for the building blocks
+/** suggestions for the building blocks (or tags)
  *
  */
 async function getSuggestions(tag = false) {
@@ -160,11 +174,12 @@ async function getSuggestions(tag = false) {
   errors = "";
   forcereload();
 
-  // reset terms to clear up
+  // reset lists to clear up
   parameterList = [];
   unitList = [];
   tagList = [];
 
+  // if a tag is searched instead of a term
   if (tag) {
     const terms = await fetch(
       backend + "getTermSuggestions?input=" + tagSearch.value
@@ -173,15 +188,16 @@ async function getSuggestions(tag = false) {
     if (!terms.ok) {
       errors = "ERROR: " + data["detail"];
     } else {
-      // if the list of terms is empty
+      // if the list of tags is empty
       if (data["terms"].length == 0) {
         tagList = [{ Name: "No Term was found!" }];
       }
-      // save the list of terms
+      // save the list of tags
       else {
         tagList = data["terms"];
       }
     }
+    // if a term is searched
   } else {
     const terms = await fetch(
       backend + "getTermSuggestions?input=" + search.value
@@ -213,7 +229,7 @@ async function getUnitSuggestions() {
   errors = "";
   forcereload();
 
-  // reset terms and templates to clear up IsaView
+  // reset lists
   parameterList = [];
   unitList = [];
   tagList = [];
@@ -238,11 +254,12 @@ async function getUnitSuggestions() {
   forcereload();
 }
 
-/** deletes the chosen column including the terms and unit column
+/** deletes the chosen column
  *
- * @param columnType - the full name of the column header
+ * @param column - the column
  */
 function deleteColumn(column) {
+  // ask the user for confirmation
   $q.dialog({
     dark: appProperties.dark,
     title: "Delete " + column.name,
@@ -252,10 +269,12 @@ function deleteColumn(column) {
     // user confirmed the deletion
     console.log("Deleting " + column.annotationValue + "...");
 
+    // loop each list for the column with the same annotation value
     template.forEach((list) => {
       let columnIndex = list.findIndex(
         (element) => element.annotationValue == column.annotationValue
       );
+      // if it was found, remove it
       if (columnIndex != -1) list.splice(columnIndex, 1);
     });
 
@@ -271,6 +290,7 @@ function deleteColumn(column) {
  * @param tag - the tag to be deleted
  */
 function deleteTag(tag) {
+  // ask user for confirmation
   $q.dialog({
     dark: appProperties.dark,
     title: "Delete " + tag.annotationValue,
@@ -280,17 +300,19 @@ function deleteTag(tag) {
     // user confirmed the deletion
     console.log("Deleting " + tag.annotationValue + "...");
 
+    // search for the tag inside of the tag list
     let tagIndex = templateTags.findIndex(
       (element) => element.annotationValue == tag.annotationValue
     );
-    templateTags.splice(tagIndex, 1);
+    // if found, remove it
+    if (tagIndex != -1) templateTags.splice(tagIndex, 1);
 
     $q.notify("Successfully deleted the tag " + tag.annotationValue + " !");
     forcereload();
   });
 }
 
-/** if you click the 'create new sheet' button, you will get a list containing all the current templates
+/** retrieves the list of templates for editing
  *
  */
 async function getTemplates() {
@@ -306,6 +328,7 @@ async function getTemplates() {
 
   let templates = await response.json();
 
+  // if there was an error, fill the templates with an empty template
   if (!response.ok) {
     errors = "ERROR: No templates found!";
     templateList = [
@@ -328,7 +351,9 @@ async function getTemplates() {
             [[1, 0], { celltype: "FreeText", values: [""] }],
           ],
         },
+        tags: [],
       },
+      ,
     ];
     templatesFiltered = [
       {
@@ -350,11 +375,12 @@ async function getTemplates() {
             [[1, 0], { celltype: "FreeText", values: [""] }],
           ],
         },
+        tags: [],
       },
     ];
     forcereload();
   } else {
-    // save the templates
+    // save the templates, starting with an empty template
     templateList = [
       {
         id: "Empty",
@@ -375,6 +401,7 @@ async function getTemplates() {
             [[1, 0], { celltype: "FreeText", values: [""] }],
           ],
         },
+        tags: [],
       },
     ];
     templatesFiltered = [
@@ -397,8 +424,10 @@ async function getTemplates() {
             [[1, 0], { celltype: "FreeText", values: [""] }],
           ],
         },
+        tags: [],
       },
     ];
+    // merge the templates from the get request with the current template list (also for the filtered list)
     templateList = templateList.concat(templates.templates);
     templatesFiltered = templatesFiltered.concat(templates.templates);
   }
@@ -413,7 +442,7 @@ async function getTemplates() {
 function sortTemplates(searchTerm: string) {
   templatesFiltered = [];
   templateList.forEach((element: any) => {
-    // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
+    // craft the string to search in including the name of the template, the organisation, description and name of the first author
     let searchString =
       element["name"].toLowerCase() +
       " " +
@@ -435,16 +464,24 @@ function sortTemplates(searchTerm: string) {
 function setTemplate(table: Object) {
   errors = "";
   loading = true;
+
+  // clear up
   appProperties.showIsaView = false;
   appProperties.arcList = false;
   search.value = "";
+  unitSearch.value = "";
+  tagSearch.value = "";
   forcereload();
 
+  // reset the template
   template = [];
+
+  // for every 5 columns a empty list will be added to "template"
   for (let i = 0; i < Math.floor(table.header.length / 5) + 1; i++) {
     template.push([]);
   }
 
+  // start with filling the first list
   let listIndex = 0;
 
   // list of columns, that are unit columns
@@ -452,10 +489,12 @@ function setTemplate(table: Object) {
   // here are just the numbers stored (for later ease to use)
   let unitNumbers = [];
 
+  // if there is a table, start filling in the values
   if (table != null) {
     // if there are units, fill them into the unitColumns array
     for (let i = 0; i < table.values.length; i++) {
       if (table.values[i][0][1] == 0) {
+        // every unit should have the "unitized" cell type and an annotation value
         if (
           table.values[i][1].celltype == "Unitized" &&
           table.values[i][1].values[1].annotationValue != ""
@@ -475,6 +514,7 @@ function setTemplate(table: Object) {
     if (table.name != "") templateIdentifier.value = table.name;
 
     table.header.forEach((element, index) => {
+      // increase the index every 5 columns
       listIndex = Math.floor(index / 5);
       // if its not an input/output column
       if (typeof element.values[0] != typeof "") {
@@ -483,7 +523,7 @@ function setTemplate(table: Object) {
           let unitColumn = unitColumns.find(
             (element) => element.columnId == index
           );
-
+          // fill in the column including the unit data
           template[listIndex].push({
             name: element.headertype,
             annotationValue: element.values[0].annotationValue,
@@ -495,6 +535,7 @@ function setTemplate(table: Object) {
               termAccession: unitColumn?.unitAccession,
             },
           });
+          // if its not a unit, set "unit" to false
         } else {
           try {
             template[listIndex].push({
@@ -504,6 +545,7 @@ function setTemplate(table: Object) {
               termSource: element.values[0].termSource,
               unit: false,
             });
+            // if there is an error, it is most likely due to missing term values; therefore set them to an empty string
           } catch (error) {
             template[listIndex].push({
               name: element.headertype,
@@ -515,6 +557,7 @@ function setTemplate(table: Object) {
           }
         }
       } else {
+        // an input/output column only has a name and annotation value
         inputOutput.push({
           name: element.headertype,
           annotationValue: element.values[0],
@@ -538,8 +581,10 @@ function setTemplate(table: Object) {
 function setBB(name: string, accession: string, source: string) {
   errors = "";
 
+  // set to true if the column already exists
   let exists = false;
 
+  // check if there is a column with the same annotation value and name
   template.forEach((list) => {
     if (
       list.some(
@@ -555,7 +600,7 @@ function setBB(name: string, accession: string, source: string) {
     errors = "ERROR: Column '" + name + "' already exists!!";
     forcereload();
   } else {
-    // the new block will be inserted right before the output column
+    // the new block will be inserted at the end of the last column list
     template[template.length - 1].splice(
       template[template.length - 1].length,
       0,
@@ -582,6 +627,7 @@ function setUnit(name: string, accession: string, ontology: string) {
   errors = "";
   // if the building block has no unit so far, you can add one
   try {
+    // if the last column inside of the last template list has no unit, then add one
     if (
       typeof template[template.length - 1][
         template[template.length - 1].length - 1
@@ -629,6 +675,7 @@ if (templateList.length == 0) getTemplates();
       <!-- LIST OF TEMPLATES-->
       <template v-else-if="template.length == 0">
         <q-list>
+          <!-- search bar-->
           <q-input
             v-model="templateSearch"
             label="Search"
@@ -636,6 +683,7 @@ if (templateList.length == 0) getTemplates();
             @update:model-value="(newValue:string) => sortTemplates(newValue)"
             ><template v-slot:append> <q-icon name="search"></q-icon></template
           ></q-input>
+          <!-- individual templates-->
           <q-item
             clickable
             v-for="(template, i) in templatesFiltered"
@@ -777,6 +825,7 @@ if (templateList.length == 0) getTemplates();
                   </q-card>
                 </q-expansion-item>
               </q-item>
+              <!-- else if its a list of tags-->
               <q-item
                 clickable
                 v-else-if="tagList.length > 0"
@@ -860,6 +909,7 @@ if (templateList.length == 0) getTemplates();
         <!-- TEMPLATE AREA-->
         <template v-if="template.length != 0">
           <q-separator></q-separator>
+          <!-- button for adding building blocks-->
           <q-btn
             class="sheet"
             style="margin-left: 1em"
@@ -868,7 +918,7 @@ if (templateList.length == 0) getTemplates();
             @click="
               showBuildingBlock = !showBuildingBlock;
               search = '';
-              showSearch = false;
+              unitSearch = '';
               keyNumber += 1;
             "
             >building block</q-btn
@@ -885,6 +935,7 @@ if (templateList.length == 0) getTemplates();
               separator="cell"
               dense>
               <thead>
+                <!-- The columns will be draggable-->
                 <draggable
                   v-model="template[index]"
                   item-key="annotationValue"
@@ -911,6 +962,7 @@ if (templateList.length == 0) getTemplates();
             <span v-if="index < template.length - 1">...</span>
           </div>
           <div style="margin-top: 4em">
+            <!-- display the final table render-->
             <p>Final Table:</p>
             <q-markup-table
               style="width: max-content; border-collapse: collapse"
@@ -979,6 +1031,7 @@ if (templateList.length == 0) getTemplates();
                 style="margin-left: 2em"
                 color="primary"
                 @click="getSuggestions(true)"
+                :disable="tagSearch == ''"
                 >Search</q-btn
               >
               <p v-if="templateTags.length > 0" style="margin: 2em">Tags:</p>
@@ -1018,13 +1071,19 @@ if (templateList.length == 0) getTemplates();
                 class="sheet"
                 @click="saveTemplate()"
                 :disable="
-                  templateName.length == 0 ||
+                  templateIdentifier.length == 0 ||
                   templateAuthor.firstName == '' ||
                   templateAuthor.lastName == ''
                 "
                 >Save</q-btn
-              ><span style="margin-left: 1em" v-if="templateName.length == 0"
-                >Please provide a name for the template!</span
+              ><span
+                style="margin-left: 1em"
+                v-if="templateIdentifier.length == 0"
+                >Please provide an identifier for the template!</span
+              ><span v-else-if="templateAuthor.firstName == ''"
+                >Please provide a first name!</span
+              ><span v-else-if="templateAuthor.lastName == ''"
+                >Please provide a last name!</span
               >
             </div>
           </div>
