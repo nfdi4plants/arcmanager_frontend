@@ -34,7 +34,7 @@ async function logout() {
 
 <template>
   <q-item
-    id="login"
+    class="login"
     v-if="!appProperties.loggedIn"
     clickable
     v-ripple
@@ -72,10 +72,10 @@ async function logout() {
   background-color: maroon;
 }
 
-.body--light #login {
+.body--light .login {
   background-color: lavender;
 }
-.body--dark #login {
+.body--dark .login {
   background-color: teal;
 }
 </style>

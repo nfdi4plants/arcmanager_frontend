@@ -10,7 +10,10 @@ const $q = useQuasar();
 var backend = appProperties.backend + "projects/";
 
 var loading = false;
-// send the updated entry fields to the backend to save and commit the update
+
+/** send the updated entry fields to the backend to save and commit the update
+ *
+ */
 async function sendToBackend() {
   loading = true;
   keyNumber.value += 1;
@@ -21,14 +24,14 @@ async function sendToBackend() {
 
   const response = await fetch(backend + "saveFile", {
     method: "PUT",
+    headers: { "Content-Type": "application/json" },
     // body for the backend containing all necessary data
     body: JSON.stringify({
       isaInput: isaProperties.entry,
-      rowId: isaProperties.rowId,
-      isaOld: isaProperties.entryOld,
       isaPath: isaProperties.path,
       isaRepo: isaProperties.repoId,
       arcBranch: arcProperties.branch,
+      multiple: false,
     }),
     credentials: "include",
   });
@@ -46,6 +49,9 @@ async function sendToBackend() {
   keyNumber.value += 1;
 }
 
+/** add a new column to the isa file
+ *
+ */
 function addEntry() {
   isaProperties.entries.forEach((element) => {
     element.push("");

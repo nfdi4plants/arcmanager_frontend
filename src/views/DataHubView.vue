@@ -67,7 +67,7 @@ var studySync = false;
 var user = -1;
 // list containing all users
 var userList = [];
-// the slected user
+// the selected user
 var userSelect = ref(null);
 
 // the different permissions you can select when you add a new member to a project
@@ -134,7 +134,10 @@ if (document.cookie.includes("logged_in=true")) {
 // array containing all the files to upload
 var fileInput = ref([]);
 
-// opens the explore page of the selected git in a new tab (only when you're not logged in currently)
+/** opens the explore page of the selected git in a new tab (only when you're not logged in currently)
+ *
+ * @param target - the name of the target git (freiburg, tübingen, ...)
+ */
 function openGit(target: string) {
   errors = "";
   forcereload();
@@ -156,10 +159,14 @@ function openGit(target: string) {
       forcereload();
   }
 }
-// get a list of all arcs in the gitlab
+
+/** get a list of all arcs in the gitlab
+ *
+ */
 async function fetchArcs() {
   loading = true;
   appProperties.showIsaView = false;
+  appProperties.arcList = true;
   lfs.value = false;
   searchList = [];
   // if not logged in, show only public arcs
@@ -200,7 +207,6 @@ async function fetchArcs() {
     user = -1;
     cleanIsaView();
     // reset Properties and histories
-    isaProperties.entryOld = [];
     isaProperties.rowId = 0;
     fileProperties.name = "";
     arcProperties.changes = "";
@@ -234,12 +240,17 @@ async function fetchArcs() {
   }
 }
 
-// opens the url of the arc in a new tab
+/** opens the url of the arc in a new tab
+ *
+ * @param url - the full url of the arc
+ */
 const openArc = (url: string) => {
   window.open(url);
 };
 
-// cleans the right side
+/** cleans the right side
+ *
+ */
 function cleanIsaView() {
   // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
   templateProperties.templates = templateProperties.template = [];
@@ -254,7 +265,10 @@ function cleanIsaView() {
   forcereload();
 }
 
-// get a tree view of the front page of the arc
+/** get a tree view of the front page of the arc
+ *
+ * @param id - the id of the arc
+ */
 async function inspectArc(id: number) {
   loading = true;
   arcId = id;
@@ -263,8 +277,10 @@ async function inspectArc(id: number) {
   searchList = list;
   cleanIsaView();
   appProperties.showIsaView = false;
+  appProperties.arcList = true;
   arcProperties.studies = arcProperties.assays = [];
   showInput = assaySync = studySync = false;
+  fileInput.value = [];
   user = -1;
   arcProperties.changes = "";
   forcereload();
@@ -275,7 +291,7 @@ async function inspectArc(id: number) {
     const data = await response.json();
     if (!response.ok)
       throw new Error(
-        response.statusText + ", " + data["detail"].toString().slice(0, 110)
+        response.statusText + ", " + data["detail"].toString().slice(0, 150)
       );
 
     arcList = [];
@@ -287,7 +303,7 @@ async function inspectArc(id: number) {
     pathHistory.push("");
 
     // get the changes
-    await getChanges(id);
+    getChanges(id);
   } catch (error) {
     errors = error;
   }
@@ -295,7 +311,10 @@ async function inspectArc(id: number) {
   forcereload();
 }
 
-// get the list of changes
+/** get the list of changes
+ *
+ * @param id - the id of the arc
+ */
 async function getChanges(id: number) {
   try {
     await fetch(backend + "getChanges?id=" + id, {
@@ -318,10 +337,16 @@ async function getChanges(id: number) {
   }
 }
 
-// get a tree view of the selected path of the arc
+/** get a tree view of the selected path of the arc
+ *
+ * @param id - the id of the arc
+ * @param path - the selected path (eg. assays/...)
+ * @param expand - weather the pathHistory is expanded (going deeper into the folder) or not (removing the last entry in the history)
+ */
 async function inspectTree(id: number, path: string, expand?: boolean) {
   loading = true;
   assaySync = studySync = false;
+  appProperties.showIsaView = false;
   user = -1;
   errors = "";
   showInput = false;
@@ -354,7 +379,13 @@ async function inspectTree(id: number, path: string, expand?: boolean) {
   loading = false;
   forcereload();
 }
-// gets the file on the arc
+
+/** gets the file on the arc
+ *
+ * @param id - the id of the arc
+ * @param path - the file path
+ * @param branch - the main branch name of the arc
+ */
 async function getFile(id: number, path: string, branch: string) {
   loading = true;
   appProperties.showIsaView = true;
@@ -384,7 +415,7 @@ async function getFile(id: number, path: string, branch: string) {
       fileProperties.name = data.file_name;
       data.content = btoa("Empty File");
     }
-    // if there is content, it cant be an isa file
+    // if there is content, it cant be an isa file/regular excel file
     if (data.content) {
       let size;
       // check the size of the file (display either in kb or mb)
@@ -411,20 +442,73 @@ async function getFile(id: number, path: string, branch: string) {
       }
 
       // if there is no typical content, its an isa file, because then we have a list of entries
+    } else if (data.columns != null) {
+      fileProperties.name = "XLSX";
+      fileProperties.content = data.data.toString();
+      console.log(data.toString());
     } else {
-      isaProperties.date = "";
-
       isaList = [];
-      data.forEach((element: any) => {
-        // TODO: currently only works with isa files, non isa files will create errors
+      isaProperties.identification = [];
+      isaProperties.contacts = [];
+      isaProperties.publications = [];
+      data.forEach((element: any, i: number) => {
         // reads out the file and saves the content to isaProperties
-        if (isaProperties.date == "") {
-          switch (element[0]) {
-            case "Investigation Identifier":
-            case "Study Identifier":
-            case "Measurement Type":
-              isaProperties.date = element[2];
-          }
+
+        switch (element[0]) {
+          case "Study Identifier":
+            if (isaProperties.identification.length < 5) {
+              for (let j = 0; j < 5; j++) {
+                let entry = data[i + j];
+                isaProperties.identification.push([entry[0], entry[1]]);
+              }
+            }
+            break;
+
+          case "Measurement Type":
+          case "Assay Measurement Type":
+            for (let j = 0; j < 8; j++) {
+              isaProperties.identification.push([data[j][0], data[j][1]]);
+            }
+            break;
+          case "INVESTIGATION":
+            if (isaProperties.identification.length < 5) {
+              for (let j = 0; j < 5; j++) {
+                let entry = data[i + j + 1];
+                isaProperties.identification.push([entry[0], entry[1]]);
+              }
+            }
+            break;
+
+          // contact information
+          case "STUDY CONTACTS":
+          case "INVESTIGATION CONTACTS":
+          case "ASSAY PERFORMERS":
+            if (isaProperties.contacts.length < 11) {
+              for (let j = 0; j < 11; j++) {
+                let entry = data[i + j + 1];
+                let cache = [];
+                entry.forEach((element) => {
+                  cache.push(element);
+                });
+                isaProperties.contacts.push(cache);
+              }
+            }
+            break;
+
+          // publications
+          case "INVESTIGATION PUBLICATIONS":
+          case "STUDY PUBLICATIONS":
+            if (isaProperties.publications.length < 7) {
+              for (let j = 0; j < 7; j++) {
+                let entry = data[i + j + 1];
+                let cache = [];
+                entry.forEach((element) => {
+                  cache.push(element);
+                });
+                isaProperties.publications.push(cache);
+              }
+            }
+            break;
         }
         isaList.push(element);
       });
@@ -433,6 +517,8 @@ async function getFile(id: number, path: string, branch: string) {
       isaProperties.repoId = id;
       isaProperties.path = path;
       isaProperties.repoTarget = git.site.value;
+      isaProperties.contact = "contact 1";
+      isaProperties.publication = "publication 1";
     }
 
     // catch any error and display it
@@ -444,7 +530,13 @@ async function getFile(id: number, path: string, branch: string) {
   forcereload();
 }
 
-// create a new isa structure with a given identifier
+/** create a new isa structure with a given identifier
+ *
+ * @param id - the id of the arc
+ * @param identifier - the identifier (the name) of the isa file
+ * @param type - the type of isa (study or assay)
+ * @param branch - the main branch of the arc
+ */
 async function addIsa(
   id: number,
   identifier: string,
@@ -456,6 +548,7 @@ async function addIsa(
   await fetch(backend + "createISA", {
     credentials: "include",
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       identifier: identifier,
       id: id,
@@ -465,7 +558,6 @@ async function addIsa(
   })
     .then((response) => response.json())
     .then((data) => {
-      console.log(data);
       // get the updated tree
       inspectTree(id, type);
     });
@@ -477,7 +569,10 @@ async function addIsa(
   forcereload();
 }
 
-// sort the arcList to include only the arcs containing the searchTerm
+/** sort the arcList to include only the arcs containing the searchTerm
+ *
+ * @param searchTerm - the term to search the arcs for (id, name, tags, ...)
+ */
 function sortArcs(searchTerm: string) {
   searchList = [];
   list.forEach((element) => {
@@ -494,7 +589,9 @@ function sortArcs(searchTerm: string) {
   });
 }
 
-// uploads the file(s) to the hub
+/** uploads the file(s) to the hub
+ *
+ */
 async function fileUpload() {
   uploading = true;
 
@@ -538,6 +635,7 @@ async function fileUpload() {
     let start = 0;
     let end = start + chunkSize;
 
+    // function that builds the next chunk and uploads it
     const uploadNextChunk = async () => {
       end = Math.min(start + chunkSize, fileSize);
       // set the progress to 99% for the last chunk
@@ -545,6 +643,7 @@ async function fileUpload() {
         progress = 0.99;
       }
 
+      // if there are chunks left, upload them
       if (chunkNumber < totalChunks) {
         const chunk = selectedFile.slice(start, end);
         const formData = new FormData();
@@ -568,7 +667,7 @@ async function fileUpload() {
           });
           let data = await response.json();
           if (!response.ok) {
-            errors = response.statusText + ", " + data["detail"];
+            errors = response.statusText + ", " + data["detail"].slice(0, 200);
             progress = 1;
             $q.loading.hide();
             uploading = false;
@@ -591,10 +690,11 @@ async function fileUpload() {
         } catch (error) {
           console.error("ERROR: ", error);
         }
+        // when every chunk is uploaded, set the progress to 1
       } else {
         progress = 1;
         console.log("Upload complete");
-        // when every file is uploaded, complete the process and clear the input
+        // when the largest file (which in return is the last file to finish) was uploaded, finish the process and clear the input
         if (i == largestFile) {
           fileInput.value = [];
           $q.loading.hide();
@@ -612,7 +712,9 @@ async function fileUpload() {
   }
 }
 
-// if you click the 'create new sheet' button, you will get a list containing all the current templates
+/** if you click the 'create new sheet' button, you will get a list containing all the current templates
+ *
+ */
 async function getTemplates() {
   cleanIsaView();
   loading = true;
@@ -622,23 +724,80 @@ async function getTemplates() {
   forcereload();
 
   // retrieve the templates
-  await fetch(backend + "getTemplates")
-    .then((response) => response.json())
-    .then((templates) => {
-      if (templates.templates.length == 0) {
-        errors = "ERROR: No templates found!";
-        forcereload();
-      }
-      // save the templates
-      templateProperties.templates = templates.templates;
-      templateProperties.filtered = templates.templates;
-    });
+  let response = await fetch(appProperties.backend + "tnt/getTemplates");
 
+  let templates = await response.json();
+
+  if (!response.ok) {
+    errors = "ERROR: No templates found!";
+    templateProperties.templates = [
+      {
+        id: "Empty",
+        name: "Empty Template",
+        description: "Start with a empty Template",
+        organisation: "Custom",
+        version: "1.0.0",
+        last_updated: "-",
+        authors: ["-"],
+        table: {},
+      },
+    ];
+    templateProperties.filtered = [
+      {
+        id: "Empty",
+        name: "Empty Template",
+        description: "Start with a empty Template",
+        organisation: "Custom",
+        version: "1.0.0",
+        last_updated: "-",
+        authors: ["-"],
+        table: {},
+      },
+    ];
+    forcereload();
+  } else {
+    // save the templates
+    templateProperties.templates = [
+      {
+        id: "Empty",
+        name: "Empty Template",
+        description: "Start with a empty Template",
+        organisation: "Custom",
+        version: "1.0.0",
+        last_updated: "-",
+        authors: ["-"],
+        table: {},
+      },
+    ];
+    templateProperties.filtered = [
+      {
+        id: "Empty",
+        name: "Empty Template",
+        description: "Start with a empty Template",
+        organisation: "Custom",
+        version: "1.0.0",
+        last_updated: "-",
+        authors: ["-"],
+        table: {},
+      },
+    ];
+    templateProperties.templates = templateProperties.templates.concat(
+      templates.templates
+    );
+    templateProperties.filtered = templateProperties.filtered.concat(
+      templates.templates
+    );
+  }
   loading = false;
   forcereload();
 }
 
-// get a list of all the swate sheets
+/** get a list of all the swate sheets
+ *
+ * @param path - the path to the isa file
+ * @param id - the id of the arc
+ * @param branch - the main branch of the arc
+ */
 async function getSheets(path: string, id: number, branch: string) {
   cleanIsaView();
   assaySync = studySync = false;
@@ -651,25 +810,32 @@ async function getSheets(path: string, id: number, branch: string) {
   isaProperties.repoId = id;
   arcProperties.branch = branch;
   // retrieve the sheets
-  await fetch(`${backend}getSheets?path=${path}&id=${id}&branch=${branch}`, {
-    credentials: "include",
-  })
-    .then((response) => response.json())
-    .then((sheets) => {
-      if (sheets[0].length == 0) {
-        errors = "ERROR: No sheets found!";
-        forcereload();
-      }
-      // save the sheets
-      sheetProperties.sheets = sheets[0];
-      sheetProperties.names = sheets[1];
-    });
-
+  let request = await fetch(
+    `${appProperties.backend}tnt/getSheets?path=${path}&id=${id}&branch=${branch}`,
+    {
+      credentials: "include",
+    }
+  );
+  let sheets = await request.json();
+  if (!request.ok) {
+    errors = "ERROR: " + sheets["detail"];
+  } else {
+    if (sheets[0].length == 0) {
+      errors = "ERROR: No sheets found!";
+      forcereload();
+    }
+    // save the sheets
+    sheetProperties.sheets = sheets[0];
+    sheetProperties.names = sheets[1];
+  }
   loading = false;
   forcereload();
 }
 
-// get a list of all assays and studies
+/** get a list of all assays and studies
+ *
+ * @param id - the id of the arc
+ */
 async function getAssaysAndStudies(id: number) {
   loading = true;
   forcereload();
@@ -678,9 +844,19 @@ async function getAssaysAndStudies(id: number) {
     let assays = await fetch(backend + "getAssays?id=" + id, {
       credentials: "include",
     });
+    if (!assays.ok) {
+      const data = await assays.json();
+      throw new Error(assays.statusText + ", " + data["detail"]);
+    }
+
     let studies = await fetch(backend + "getStudies?id=" + id, {
       credentials: "include",
     });
+    if (!studies.ok) {
+      const data = await studies.json();
+      throw new Error(studies.statusText + ", " + data["detail"]);
+    }
+
     arcProperties.assays = await assays.json();
     arcProperties.studies = await studies.json();
   } catch (error) {
@@ -695,7 +871,13 @@ async function getAssaysAndStudies(id: number) {
   forcereload();
 }
 
-// sync an assay to a study
+/** sync an assay to a study
+ *
+ * @param id - the id of the arc
+ * @param assay - the name of the assay
+ * @param study - the name of the study
+ * @param branch - the main branch of the arc
+ */
 async function syncAssay(
   id: number,
   assay: string,
@@ -714,6 +896,7 @@ async function syncAssay(
     const response = await fetch(backend + "syncAssay", {
       credentials: "include",
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: id,
         pathToStudy: studyPath,
@@ -735,7 +918,12 @@ async function syncAssay(
   forcereload();
 }
 
-// sync a study to the investigation file
+/** sync a study to the investigation file
+ *
+ * @param id - the id of the arc
+ * @param study - the name of the study
+ * @param branch - the main branch of the arc
+ */
 async function syncStudy(id: number, study: string, branch: string) {
   loading = true;
   studySync = false;
@@ -748,6 +936,7 @@ async function syncStudy(id: number, study: string, branch: string) {
     const response = await fetch(backend + "syncStudy", {
       credentials: "include",
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: id,
         pathToStudy: studyPath,
@@ -768,9 +957,13 @@ async function syncStudy(id: number, study: string, branch: string) {
   forcereload();
 }
 
-// checks weather the file should be editable or not
+/** checks weather the file should be editable or not
+ *
+ * @param name - the name of the file (eg. test.pdf, pic1.png, ...)
+ */
 function checkName(name: string) {
   let includes = false;
+  // list of file formats that shouldn't be selectable
   let formats = [
     ".pdf",
     ".xml",
@@ -797,14 +990,23 @@ function checkName(name: string) {
   return includes;
 }
 
+/** builds the download link for the zip file containing your arc
+ *
+ * @param id - the id of the arc
+ */
 async function getArchive(id: number) {
   loading = true;
   forcereload();
   try {
+    // create a html "a" element
     const downloadLink = document.createElement("a");
+
+    // build the link based around the download link used in gitlab to download a zip
     downloadLink.href = `${
       arcProperties.url.split(".git")[0]
     }/-/archive/${arcBranch}/${arcProperties.identifier}-${arcBranch}.zip`;
+
+    // start the download
     downloadLink.click();
   } catch (error) {
     errors = error;
@@ -813,8 +1015,12 @@ async function getArchive(id: number) {
   forcereload();
 }
 
-// checks weather the file should be deletable or not
+/** checks weather the file/folder should be deletable or not
+ *
+ * @param name - the name of the file/folder
+ */
 function checkForDeletion(name: string) {
+  // return true if its a file/folder that is mandatory and therefore shall not be deletable
   return (
     name.includes("isa.investigation") ||
     name.startsWith(".git") ||
@@ -832,19 +1038,27 @@ function checkForDeletion(name: string) {
   );
 }
 
-// deletes the file on the given path
+/** deletes the file on the given path
+ *
+ * @param id - the id of the arc
+ * @param path - the file path
+ * @param branch - the main branch of the arc
+ * @param name - the name of the file
+ */
 async function deleteFile(
   id: number,
   path: string,
   branch: string,
   name: string
 ) {
+  // open a message window asking the user for confirmation
   $q.dialog({
     dark: appProperties.dark,
     title: "Delete " + name,
     message: "Are you sure you want to delete '" + name + "'?",
     cancel: true,
   }).onOk(async () => {
+    // user confirmed the deletion
     console.log("Deleting " + name + "...");
     // send delete request to backend
     let response = await fetch(
@@ -856,6 +1070,7 @@ async function deleteFile(
     );
     let data = await response.json();
     if (!response.ok) errors = response.statusText + ", " + data["detail"];
+    // if the deletion was successful
     else {
       $q.notify(data);
       await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
@@ -864,19 +1079,27 @@ async function deleteFile(
   });
 }
 
-// deletes the entire folder on the given path
+/** deletes the entire folder on the given path
+ *
+ * @param id - the id of the arc
+ * @param path - the folder path
+ * @param branch - the main branch of the arc
+ * @param name - the name of the folder
+ */
 async function deleteFolder(
   id: number,
   path: string,
   branch: string,
   name: string
 ) {
+  // ask the user for confirmation
   $q.dialog({
     dark: appProperties.dark,
     title: "Delete " + name,
     message: "Are you sure you want to delete the entirety of '" + name + "'?",
     cancel: true,
   }).onOk(async () => {
+    // user confirmed the deletion
     console.log("Deleting " + name + "...");
     // send delete request to backend
     let response = await fetch(
@@ -896,7 +1119,13 @@ async function deleteFolder(
   });
 }
 
-// create a new folder with the given identifier
+/** create a new folder with the given identifier
+ *
+ * @param id - the id of the arc
+ * @param identifier - the identifier (the name) of the new folder
+ * @param path - the current path
+ * @param branch - the main branch of the arc
+ */
 async function createFolder(
   id: number,
   identifier: string,
@@ -905,9 +1134,11 @@ async function createFolder(
 ) {
   loading = true;
   forcereload();
+  // send name and properties to the backend
   let response = await fetch(backend + "createFolder", {
     credentials: "include",
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       identifier: identifier,
       id: id,
@@ -930,7 +1161,9 @@ async function createFolder(
   forcereload();
 }
 
-// get a list of all users
+/** get a list of all users
+ *
+ */
 async function getUser() {
   loading = true;
   forcereload();
@@ -939,38 +1172,48 @@ async function getUser() {
   permission.value = null;
   try {
     // get all users
-    let user = await fetch(backend + "getUser", {
+    let user = await fetch(appProperties.backend + "user/" + "getUser", {
       credentials: "include",
     });
+    if (!user.ok) {
+      const data = await user.json();
+      throw new Error(user.statusText + ", " + data["detail"]);
+    }
+
     let users = await user.json();
-    users.forEach((user) => {
+    // fill the list of users with the username and the id
+    users["users"].forEach((user) => {
       userList.push({
         label: user["username"],
         value: user["id"],
       });
     });
+
+    // if there are no user found, return error
+    if (userList.length == 0) throw new Error("ERROR: " + users["detail"]);
+    // sort users alphabetically
+    userList.sort(function (a, b) {
+      let x = a.label.toLowerCase();
+      let y = b.label.toLowerCase();
+      if (x < y) {
+        return -1;
+      }
+      if (x > y) {
+        return 1;
+      }
+      return 0;
+    });
   } catch (error) {
     errors = error;
   }
-  // if there are no user found, return error
-  if (userList.length == 0) errors = "ERROR: No Assays found!";
-  // sort users alphabetically
-  userList.sort(function (a, b) {
-    let x = a.label.toLowerCase();
-    let y = b.label.toLowerCase();
-    if (x < y) {
-      return -1;
-    }
-    if (x > y) {
-      return 1;
-    }
-    return 0;
-  });
   loading = false;
   forcereload();
 }
 
-// get a list of all users for the Arc
+/** get a list of all users for the Arc
+ *
+ * @param id - the id of the arc
+ */
 async function getArcUser(id: number) {
   loading = true;
   forcereload();
@@ -978,45 +1221,67 @@ async function getArcUser(id: number) {
   userSelect.value = null;
   permission.value = null;
   try {
-    // get all users
-    let user = await fetch(backend + "getArcUser?id=" + id, {
-      credentials: "include",
-    });
+    // get all users that are part of the arc
+    let user = await fetch(
+      appProperties.backend + "user/" + "getArcUser?id=" + id,
+      {
+        credentials: "include",
+      }
+    );
+    if (!user.ok) {
+      const data = await user.json();
+      throw new Error(user.statusText + ", " + data["detail"]);
+    }
+
     let users = await user.json();
-    users.forEach((user) => {
+    // fill the list of users with the username and id
+    users["users"].forEach((user) => {
       userList.push({
         label: user["username"],
         value: user["id"],
       });
     });
+
+    // if there are no user found, return error
+    if (userList.length == 0) throw new Error("ERROR: " + users["detail"]);
+    // sort users alphabetically
+    userList.sort(function (a, b) {
+      let x = a.label.toLowerCase();
+      let y = b.label.toLowerCase();
+      if (x < y) {
+        return -1;
+      }
+      if (x > y) {
+        return 1;
+      }
+      return 0;
+    });
   } catch (error) {
     errors = error;
   }
-  // if there are no user found, return error
-  if (userList.length == 0) errors = "ERROR: No Assays found!";
-  // sort users alphabetically
-  userList.sort(function (a, b) {
-    let x = a.label.toLowerCase();
-    let y = b.label.toLowerCase();
-    if (x < y) {
-      return -1;
-    }
-    if (x > y) {
-      return 1;
-    }
-    return 0;
-  });
   loading = false;
   forcereload();
 }
 
-// add user as member to the project
+/** add user as member to the project
+ *
+ * @param id - the id of the arc
+ *
+ * @param {Object} user - the user
+ * @param {string} user.label - the name of the user
+ * @param {number} user.value - the id of the user
+ *
+ * @param {Object} role - the role of the user
+ * @param {number} role.value - the role value of the user setting the access rights(30,40,...)
+ */
 async function addUser(id: number, user: any, role: any) {
   loading = true;
   forcereload();
-  let response = await fetch(backend + "addUser", {
+  // send the necessary user info to the backend
+  let response = await fetch(appProperties.backend + "user/" + "addUser", {
     credentials: "include",
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       userId: user.value,
       username: user.label,
@@ -1032,12 +1297,20 @@ async function addUser(id: number, user: any, role: any) {
   forcereload();
 }
 
-// remove a user from the project
+/** remove a user from the project
+ *
+ * @param id - the id of the arc
+ *
+ * @param {Object} user - the user
+ * @param {string} user.label - the name of the user
+ * @param {number} user.value - the id of the user
+ */
 async function removeUser(id: number, user: any) {
   loading = true;
   forcereload();
+  // send DELETE request to the backend
   let response = await fetch(
-    `${backend}removeUser?id=${id}&userId=${user.value}&username=${user.label}`,
+    `${appProperties.backend}user/removeUser?id=${id}&userId=${user.value}&username=${user.label}`,
     {
       credentials: "include",
       method: "DELETE",
@@ -1051,17 +1324,32 @@ async function removeUser(id: number, user: any) {
   forcereload();
 }
 
-// edit the role of a user of the project
+/** edit the role of a user of the project
+ *
+ * @param id - the id of the arc
+ *
+ * @param {Object} user - the user
+ * @param {string} user.label - the name of the user
+ * @param {number} user.value - the id of the user
+ *
+ * @param {Object} role - the role of the user
+ * @param {number} role.value - the role value of the user setting the access rights(30,40,...)
+ */
 async function editUser(id: number, user: any, role: any) {
   loading = true;
   forcereload();
-  let response = await fetch(
-    `${backend}editUser?id=${id}&userId=${user.value}&username=${user.label}&role=${role.value}`,
-    {
-      credentials: "include",
-      method: "PUT",
-    }
-  );
+  // send PUT request to the backend updating the role of the user
+  let response = await fetch(`${appProperties.backend}user/editUser`, {
+    credentials: "include",
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: user.value,
+      username: user.label,
+      id: id,
+      role: role.value,
+    }),
+  });
   let data = await response.json();
   if (!response.ok) errors = response.statusText + ", " + data["detail"];
   else $q.notify(data);
@@ -1069,10 +1357,35 @@ async function editUser(id: number, user: any, role: any) {
   loading = false;
   forcereload();
 }
+
+/** builds the download link for the file and downloads it
+ *
+ * @param path - the path to the file
+ */
+async function downloadFile(path: string) {
+  loading = true;
+  forcereload();
+  try {
+    // create a html "a" element
+    const downloadLink = document.createElement("a");
+
+    // build the link based around the download link used in gitlab to download a zip
+    downloadLink.href = `${
+      arcProperties.url.split(".git")[0]
+    }/-/raw/${arcBranch}/${path}?ref_type=heads&inline=false`;
+
+    // start the download
+    downloadLink.click();
+  } catch (error) {
+    errors = error;
+  }
+  loading = false;
+  forcereload();
+}
 </script>
 
 <template>
-  <!-- FETCH ARC/FILE UPLOAD BUTTON/OPEN ARC/ZIP/SYNC ASSAYS/STUDIES RELOAD USERADD-->
+  <!-- FETCH ARC/FILE UPLOAD BUTTON/OPEN ARC/ZIP/SYNC ASSAYS/STUDIES RELOAD MEMBER-->
   <div class="q-pa-xs row q-gutter-sm">
     <q-btn
       id="arcFetch"
@@ -1110,12 +1423,13 @@ async function editUser(id: number, user: any, role: any) {
           borderless
           label="Upload File(s)"
           multiple
+          max-file-size="10737418240"
           @update:model-value="
             fileUpload();
             uploading = true;
           "
           @rejected="
-            errors = 'ERROR: File too big or too many selected!';
+            errors = 'ERROR: File too big (max. 10 GB) or too many selected!';
             forcereload();
           "
           :key="refresher"
@@ -1246,11 +1560,12 @@ async function editUser(id: number, user: any, role: any) {
     >
     <!-- LIST WITH ALL ARCS AND ARC TREE VIEW-->
     <q-expansion-item
+      v-model="appProperties.arcList"
       :key="refresher + 5"
       expand-separator
       icon="cloud_download"
-      label="List ARCs"
-      caption="List ARCs from the DataHUB"
+      label="List ARCs/Projects"
+      caption="List of ARCs and other projects from the DataHUB"
       header-class="bg-grey-33"
       default-opened>
       <div style="display: block; margin: 0 auto; max-width: 80%">
@@ -1461,7 +1776,35 @@ async function editUser(id: number, user: any, role: any) {
           >
           <template v-else>
             <q-item-section avatar top
-              ><q-avatar icon="description"></q-avatar
+              ><q-avatar
+                v-if="
+                  item.name.toLowerCase().includes('.jpg') ||
+                  item.name.toLowerCase().includes('.png') ||
+                  item.name.toLowerCase().includes('.jpeg')
+                "
+                icon="image"></q-avatar>
+              <q-avatar
+                v-else-if="item.name.toLowerCase().includes('.mp4')"
+                icon="movie"></q-avatar>
+              <q-avatar
+                v-else-if="item.name.toLowerCase().includes('.html')"
+                icon="html"></q-avatar
+              ><q-avatar
+                v-else-if="item.name.toLowerCase().includes('.css')"
+                icon="css"></q-avatar>
+              <q-avatar
+                v-else-if="item.name.toLowerCase().includes('.js')"
+                icon="js"></q-avatar>
+              <q-avatar
+                v-else-if="item.name.toLowerCase().includes('.zip')"
+                icon="folder_zip"></q-avatar>
+              <q-avatar
+                v-else-if="
+                  item.name.toLowerCase().includes('.py') ||
+                  item.name.toLowerCase().endsWith('.r')
+                "
+                icon="code"></q-avatar>
+              <q-avatar v-else icon="description"></q-avatar
             ></q-item-section>
             <q-item-section
               ><q-item-label
@@ -1469,6 +1812,18 @@ async function editUser(id: number, user: any, role: any) {
                   >{{ item.name.slice(0, 60) }}...</template
                 >
                 <template v-else>{{ item.name }}</template></q-item-label
+              ></q-item-section
+            >
+            <q-item-section
+              side
+              v-if="!checkForDeletion(item.name.toLowerCase())">
+              <q-btn
+                icon="download"
+                color="green"
+                flat
+                dense
+                @click="downloadFile(item.path)"
+                >Download</q-btn
               ></q-item-section
             >
             <q-item-section
@@ -1688,8 +2043,7 @@ async function editUser(id: number, user: any, role: any) {
             v-model="permission"
             :options="userPermissions"
             label="Role"
-            style="width: 200px"
-            :key="refresher + 12" />
+            style="width: 200px" />
           <!-- ADD/REMOVE/EDIT USER -->
           <q-btn
             v-if="user == 0"

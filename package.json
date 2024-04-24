@@ -1,6 +1,6 @@
 {
   "name": "arcmanager",
-  "version": "0.5.1",
+  "version": "0.7.0",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,7 @@
     "@quasar/cli": "^2.2.1",
     "@quasar/extras": "^1.16.5",
     "@quasar/vite-plugin": "^1.4.1",
+    "apexcharts": "^3.46.0",
     "axios": "^1.4.0",
     "express": "^4.18.2",
     "jszip": "^3.10.1",
@@ -25,7 +26,8 @@
     "vue": "^3.3.4",
     "vue-router": "^4.2.2",
     "vue-tsc": "^1.8.15",
-    "vue3-markdown-it": "^1.0.10"
+    "vue3-markdown-it": "^1.0.10",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@tsconfig/node18": "^2.0.1",

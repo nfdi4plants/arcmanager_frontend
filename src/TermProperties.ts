@@ -8,7 +8,9 @@ const termProperties = reactive({
   buildingBlocks: [],
 
   // list of unit terms for the building blocks
-  unitTerms: []
+  unitTerms: [],
+
+  parameterType: "Parameter"
 
 });
 

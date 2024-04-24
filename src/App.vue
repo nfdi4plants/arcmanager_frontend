@@ -12,6 +12,8 @@ import SwateView from "./views/SwateView.vue";
 
 import DataHubView from "./views/DataHubView.vue";
 
+import TemplateEditView from "./views/TemplateEditView.vue";
+
 import logoURL from "./assets/dpLogo2_w.png";
 import IsaEditView from "./views/IsaEditView.vue";
 import templateProperties from "./TemplateProperties";
@@ -25,7 +27,6 @@ const $q = useQuasar();
 
 const layoutProperties = reactive({
   showLeft: true,
-  toolbarMinimized: false,
 });
 
 $q.dark.set(appProperties.dark);
@@ -35,6 +36,10 @@ var backend = appProperties.backend + "projects/";
 var target = ref("");
 // displays arc creation field
 var showInput = false;
+
+// opens up the template editor
+var templateEdit = false;
+
 // Name of the new arc
 var arcName = ref("");
 // Description of the new arc
@@ -43,6 +48,9 @@ var arcDesc = ref("");
 var invId = ref("");
 
 var loading = false;
+
+// when there is something to announce, it will be displayed in the header area
+var announcement = "";
 
 // list with errors
 var errors: any;
@@ -95,13 +103,17 @@ const forcereload = () => {
   refresher.value += 1;
   $q.dark.set(appProperties.dark);
 };
-// send the createArc request to the backend with all necessary identifiers
+
+/** send the createArc request to the backend with all necessary identifiers
+ *
+ */
 async function createArc() {
   loading = true;
   forcereload();
   const response = await fetch(backend + "createArc", {
     credentials: "include",
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name: arcName.value,
       description: arcDesc.value,
@@ -121,7 +133,10 @@ async function createArc() {
   loading = false;
   forcereload();
 }
-// clean right side view
+
+/** clean right side view
+ *
+ */
 function cleanIsaView() {
   // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
   templateProperties.templates = templateProperties.template = [];
@@ -139,6 +154,10 @@ function cleanIsaView() {
 if (document.cookie.includes("error")) {
   window.alert(document.cookie.split("error=")[1]);
 }
+
+function openArcSearch() {
+  window.open("https://arcregistry.nfdi4plants.org/isasearch");
+}
 </script>
 
 <template>
@@ -148,7 +167,7 @@ if (document.cookie.includes("error")) {
     <q-drawer
       v-model="layoutProperties.showLeft"
       show-if-above
-      :mini="layoutProperties.toolbarMinimized"
+      :mini="!appProperties.arcList"
       :width="190"
       :breakpoint="500"
       bordered>
@@ -162,6 +181,7 @@ if (document.cookie.includes("error")) {
             class="bg-primary text-white"
             @click="
               showInput = false;
+              templateEdit = false;
               errors = '';
               forcereload();
             "
@@ -173,6 +193,7 @@ if (document.cookie.includes("error")) {
                 :name="'img:' + logoURL"
                 @click="
                   showInput = false;
+                  templateEdit = false;
                   errors = '';
                   forcereload();
                 "
@@ -182,7 +203,7 @@ if (document.cookie.includes("error")) {
               <q-item-label
                 ><b style="font-size: 1.1em">ARCmanager</b>
                 <q-badge outline align="middle" color="teal">
-                  v 0.5.1
+                  v {{ appProperties.version }}
                 </q-badge></q-item-label
               >
             </q-item-section>
@@ -215,6 +236,7 @@ if (document.cookie.includes("error")) {
             clickable
             v-on:click="
               showInput = true;
+              templateEdit = false;
               errors = '';
               cleanIsaView();
               forcereload();
@@ -223,7 +245,39 @@ if (document.cookie.includes("error")) {
             <q-item-section avatar>
               <q-icon color="grey-7" name="add_circle"></q-icon>
             </q-item-section>
-            <q-item-section style="margin-left: -1.2em">New ARC</q-item-section>
+            <q-item-section style="margin-left: -1.2em"
+              >New ARC</q-item-section
+            > </q-item
+          ><q-separator />
+          <!-- ARC SEARCH-->
+          <q-item v-ripple clickable v-on:click="openArcSearch()">
+            <q-item-section avatar>
+              <q-icon color="grey-7" name="open_in_new"></q-icon>
+            </q-item-section>
+            <q-item-section style="margin-left: -1.2em"
+              >ARC Search</q-item-section
+            >
+          </q-item>
+          <!-- TEMPLATE EDITOR-->
+          <q-item
+            v-if="appProperties.experimental"
+            v-ripple
+            clickable
+            v-on:click="
+              errors = '';
+              templateEdit = true;
+              appProperties.showIsaView = false;
+              appProperties.arcList = false;
+              showInput = false;
+              cleanIsaView();
+              forcereload();
+            ">
+            <q-item-section avatar>
+              <q-icon color="grey-7" name="table_chart"></q-icon>
+            </q-item-section>
+            <q-item-section style="margin-left: -1.2em"
+              >Template Editor</q-item-section
+            >
           </q-item>
           <q-item v-if="!appProperties.dark">
             <q-btn
@@ -278,12 +332,16 @@ if (document.cookie.includes("error")) {
       <q-footer bordered class="footer">
         <a
           class="footer"
-          href="https://nfdi4plants.org/nfdi4plants.knowledgebase/docs/ARCmanager-manual/index.html"
+          href="https://www.nfdi4plants.de/nfdi4plants.knowledgebase/docs/ARCmanager-manual/index.html"
           target="_blank"
           style="margin-left: 45%"
           >Manual</a
         ><!--<a style="margin-left: 10%;" href="mailto:arcmanager.support@nfdi4plants.de" class="footer">Support&#128231;</a>-->
       </q-footer>
+      <!-- HEADER -->
+      <q-header bordered class="footer" v-if="announcement != ''">
+        <span style="margin-left: 30%">{{ announcement }}</span>
+      </q-header>
       <q-page padding>
         <q-item-section v-if="errors != null">{{ errors }}</q-item-section>
         <template v-if="showInput"
@@ -328,6 +386,18 @@ if (document.cookie.includes("error")) {
           ><span style="margin-left: 1em" v-else-if="invId.length == 0"
             >Please provide an identifier for the ARC!</span
           >
+        </template>
+        <template v-else-if="templateEdit"
+          ><q-btn
+            class="return"
+            icon="arrow_back"
+            @click="
+              templateEdit = false;
+              appProperties.arcList = true;
+              forcereload();
+            "
+            :key="refresher + 4"></q-btn>
+          <TemplateEditView></TemplateEditView>
         </template>
         <template v-else>
           <q-btn
@@ -379,6 +449,16 @@ if (document.cookie.includes("error")) {
 }
 
 .body--dark .footer {
+  color: white;
+}
+
+.body--dark .active {
+  background-color: darkgreen;
+  color: white;
+}
+
+.body--dark .active {
+  background-color: darkgreen;
   color: white;
 }
 </style>

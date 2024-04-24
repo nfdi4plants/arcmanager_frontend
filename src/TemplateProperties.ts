@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 
 const templateProperties = reactive({
   // list of all templates
-  templates: [],
+  templates: [{}],
 
   // list of the filtered templates
   filtered: [],
@@ -11,7 +11,7 @@ const templateProperties = reactive({
   template: [{}],
 
   // the content of the cells of the chosen template
-  content: [[""]],
+  content: [[]],
 
   // id of the cell to overwrite
   id: 0,

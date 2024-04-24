@@ -8,7 +8,10 @@ const sheetProperties = reactive({
   names: [],
 
   // name of the chosen sheet
-  name: ""
+  name: "",
+
+  // amount of rows
+  rowIds: [1],
 });
 
 export default sheetProperties;
