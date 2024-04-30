@@ -4,8 +4,8 @@ import isaProperties from "../IsaProperties.ts";
 import fileProperties from "../FileProperties";
 import arcProperties from "@/ArcProperties";
 import appProperties from "@/AppProperties";
-import templateProperties from "@/TemplateProperties";
-import termProperties from "@/TermProperties";
+import { Table, Tag, templateProperties } from "@/TemplateProperties";
+import { Term, termProperties } from "@/TermProperties";
 import sheetProperties from "@/SheetProperties";
 import { useQuasar, setCssVar } from "quasar";
 import ApexCharts from "apexcharts";
@@ -25,8 +25,20 @@ var keyNumber = ref(0);
 
 var errors = "";
 
+class Unit {
+  name: string;
+  termSource: string;
+  termAccession: string;
+
+  constructor(name: string, termSource: string, termAccession: string) {
+    this.name = name;
+    this.termAccession = termAccession;
+    this.termSource = termSource;
+  }
+}
+
 // array containing all errors tracked by the backend metrics
-var chartErrors = [];
+var chartErrors: any[] = [];
 
 var alternative = ref(false);
 
@@ -67,12 +79,12 @@ async function buildChart(password: string) {
     let endpoints = Object.keys(responseTimes);
     let status = Object.keys(statusCodes);
 
-    let times = [];
+    let times: String[] = [];
     let amount: number[] = [];
     let statusAmount = Object.values(statusCodes);
 
-    Object.values(responseTimes).forEach((element) => {
-      times.push(Number(element[0]).toFixed(4));
+    Object.values(responseTimes).forEach((element: any) => {
+      times.push(parseFloat(element[0]).toFixed(4));
       amount.push(element[1]);
     });
 
@@ -212,7 +224,7 @@ async function commitFile() {
  *
  * @param table - the table section of a template
  */
-function setTemplate(table: Object) {
+function setTemplate(table: Table) {
   errors = "";
   loading = true;
   appProperties.showIsaView = false;
@@ -229,34 +241,38 @@ function setTemplate(table: Object) {
     templateProperties.content = [];
 
     // list of columns, that are unit columns
-    let unitColumns = [];
+    let unitColumns: Array<{ columnId: number; unit: Unit }> = [];
     // here are just the numbers stored (for later ease to use)
-    let unitNumbers = [];
+    let unitNumbers: Array<number> = [];
 
     // if there are units, fill them into the unitColumns array
     for (let i = 0; i < table.values.length; i++) {
       if (table.values[i][0][1] == 0) {
-        if (
-          table.values[i][1].celltype == "Unitized" &&
-          table.values[i][1].values[1].annotationValue != ""
-        ) {
-          unitColumns.push({
-            columnId: table.values[i][0][0],
-            unitName: table.values[i][1].values[1].annotationValue,
-            unitSource: table.values[i][1].values[1].termSource,
-            unitAccession: table.values[i][1].values[1].termAccession,
-          });
-          unitNumbers.push(table.values[i][0][0]);
+        if (table.values[i][1].celltype == "Unitized") {
+          if ((table.values[i][1].values[1] as Tag).annotationValue != "") {
+            unitColumns.push({
+              columnId: table.values[i][0][0],
+              unit: new Unit(
+                (table.values[i][1].values[1] as Tag).annotationValue,
+                (table.values[i][1].values[1] as Tag).termSource,
+                (table.values[i][1].values[1] as Tag).termAccession
+              ),
+            });
+            unitNumbers.push(table.values[i][0][0]);
+          }
         }
       }
     }
 
-    table.header.forEach((entry, index) => {
+    table.header.forEach((entry, index: number) => {
+      console.log(typeof entry.values[0]);
       if (typeof entry.values[0] != typeof "") {
         try {
           templateProperties.template.push({
-            Type: `${entry.headertype} [${entry.values[0].annotationValue}]`,
-            Accession: entry.values[0].termAccession,
+            Type: `${entry.headertype} [${
+              (entry.values[0] as Tag).annotationValue
+            }]`,
+            Accession: (entry.values[0] as Tag).termAccession,
           });
           // if there are no values, just push the headertype
         } catch (error) {
@@ -268,24 +284,31 @@ function setTemplate(table: Object) {
         // check if column is a unit
         if (unitNumbers.includes(index)) {
           templateProperties.template.push({
-            Type: "Unit [" + entry.values[0].annotationValue + "]",
+            Type: "Unit [" + (entry.values[0] as Tag).annotationValue + "]",
           });
           let unitColumn = unitColumns.find(
             (element) => element.columnId == index
           );
-          templateProperties.content.push([unitColumn?.unitName]);
-          templateProperties.content.push([unitColumn?.unitSource]);
-          templateProperties.content.push([unitColumn?.unitAccession]);
+          if (unitColumn) {
+            templateProperties.content.push([unitColumn.unit.name]);
+            templateProperties.content.push([unitColumn.unit.termSource]);
+            templateProperties.content.push([unitColumn.unit.termAccession]);
+          } else {
+            templateProperties.content.push([""], [""], [""]);
+          }
         } else {
           templateProperties.content.push([""], [""]);
         }
         try {
           templateProperties.template.push({
-            Type: "Term Source REF (" + entry.values[0].termSource + ")",
+            Type:
+              "Term Source REF (" + (entry.values[0] as Tag).termSource + ")",
           });
           templateProperties.template.push({
             Type:
-              "Term Accession Number (" + entry.values[0].termAccession + ")",
+              "Term Accession Number (" +
+              (entry.values[0] as Tag).termAccession +
+              ")",
           });
         } catch (error) {
           // if there are no values, just push empty term properties
@@ -320,26 +343,24 @@ function setTemplate(table: Object) {
 
 /** if a term is chosen the values of the columns header and the term accession will be set to the chosen values
  *
- * @param name - the name of the term
- * @param accession - the term accession
- * @param ontology - the term ontology reference
+ * @param term - the selected term
  */
-function setTerm(name: string, accession: string, ontology: string) {
+function setTerm(term: Term) {
   if (templateProperties.content[0].length < 1) extendTemplate();
   templateProperties.content[templateProperties.id].splice(
     templateProperties.rowId - 1,
     1,
-    name
+    term.Name
   );
   templateProperties.content[templateProperties.id + 1].splice(
     templateProperties.rowId - 1,
     1,
-    ontology
+    term.FK_Ontology
   );
   templateProperties.content[templateProperties.id + 2].splice(
     templateProperties.rowId - 1,
     1,
-    accession
+    term.Accession
   );
 }
 
@@ -350,20 +371,16 @@ function extendTemplate() {
   // extend each column by a new cell
   templateProperties.template.forEach((element, i) => {
     // if the column is a unit, fill the new cell with the name of the unit
-    if (templateProperties.template[i].Type.toString().startsWith("Unit")) {
+    if (templateProperties.template[i].Type.startsWith("Unit")) {
       templateProperties.content[i].push(templateProperties.content[i][0]);
-      if (
-        templateProperties.template[i - 1].Type.toString().startsWith("Term")
-      ) {
+      if (templateProperties.template[i - 1].Type.startsWith("Term")) {
         templateProperties.content[i - 1].pop();
         templateProperties.content[i - 1].push(
           templateProperties.content[i - 1][0]
         );
       }
       // add the term values for the two (or more) term columns after
-      while (
-        templateProperties.template[i + 1].Type.toString().startsWith("Term")
-      ) {
+      while (templateProperties.template[i + 1].Type.startsWith("Term")) {
         templateProperties.content[i + 1].push(
           templateProperties.content[i + 1][0]
         );
@@ -372,15 +389,13 @@ function extendTemplate() {
     } else {
       // skip adding an empty field if its a term column related to a unit
       if (
-        !templateProperties.template[i].Type.toString().startsWith("Term") ||
+        !templateProperties.template[i].Type.startsWith("Term") ||
         !(
-          templateProperties.template[i - 1].Type.toString().startsWith(
-            "Unit"
-          ) ||
-          templateProperties.template[i - 2].Type.toString().startsWith("Unit")
+          templateProperties.template[i - 1].Type.startsWith("Unit") ||
+          templateProperties.template[i - 2].Type.startsWith("Unit")
         )
       )
-        templateProperties.content[i].push(null);
+        templateProperties.content[i].push("");
     }
   });
   sheetProperties.rowIds.push(sheetProperties.rowIds.length);
@@ -389,20 +404,19 @@ function extendTemplate() {
 
 /** if a term is chosen the values of the columns header and the term accession will be set to the chosen values
  *
- * @param name - the name of the building block
- * @param accession - the accession value of the building block
+ * @param term - the term containing the bb values
  */
-function setBB(name: string, accession: string) {
+function setBB(term: Term) {
   errors = "";
 
   // if column already exists, throw an error
   if (
     templateProperties.template.some(
       (element) =>
-        element.Type == termProperties.parameterType + " [" + name + "]"
+        element.Type == termProperties.parameterType + " [" + term.Name + "]"
     )
   ) {
-    errors = "ERROR: Column '" + name + "' already exists!!";
+    errors = "ERROR: Column '" + term.Name + "' already exists!!";
     keyNumber.value += 1;
   } else {
     appProperties.showIsaView = false;
@@ -411,14 +425,14 @@ function setBB(name: string, accession: string) {
       templateProperties.template.length - 1,
       0,
       {
-        Type: termProperties.parameterType + " [" + name + "]",
-        Accession: accession,
+        Type: termProperties.parameterType + " [" + term.Name + "]",
+        Accession: term.Accession,
       },
       {
-        Type: "Term Source REF [" + accession + "]",
+        Type: "Term Source REF [" + term.Accession + "]",
       },
       {
-        Type: "Term Accession Number [" + accession + "]",
+        Type: "Term Accession Number [" + term.Accession + "]",
       }
     );
 
@@ -443,11 +457,9 @@ function setBB(name: string, accession: string) {
 
 /** sets a unit column to the building block
  *
- * @param name - the name of the unit
- * @param accession - the accession value of the unit
- * @param ontology - the ontology reference of the unit
+ * @param term - the term containing the unit values
  */
-function setUnit(name: string, accession: string, ontology: string) {
+function setUnit(term: Term) {
   errors = "";
   // if the building block has no unit so far, you can add one
   try {
@@ -460,7 +472,7 @@ function setUnit(name: string, accession: string, ontology: string) {
         templateProperties.template.length - 3,
         0,
         {
-          Type: "Unit [" + name + "]",
+          Type: "Unit [" + term.Name + "]",
         }
       );
 
@@ -469,9 +481,9 @@ function setUnit(name: string, accession: string, ontology: string) {
       let refCells: string[] = [];
       let accNumberCells: string[] = [];
       templateProperties.content[0].forEach(() => {
-        unitCells.push(name);
-        refCells.push(ontology);
-        accNumberCells.push(accession);
+        unitCells.push(term.Name);
+        refCells.push(term.FK_Ontology);
+        accNumberCells.push(term.Accession);
       });
       templateProperties.content.splice(
         templateProperties.content.length - 3,
@@ -602,7 +614,7 @@ function checkEmptyIsaView() {
  * function to remove all unnecessary metadata from a copy pasted text to the q-editor
  */
 let _onPaste_StripFormatting_IEPaste = false;
-function onPaste(e) {
+function onPaste(e: any) {
   if (
     e.originalEvent &&
     e.originalEvent.clipboardData &&
@@ -632,15 +644,15 @@ function onPaste(e) {
  */
 function sortTemplates(searchTerm: string) {
   templateProperties.filtered = [];
-  templateProperties.templates.forEach((element: any) => {
+  templateProperties.templates.forEach((element) => {
     // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
     let searchString =
-      element["name"].toLowerCase() +
+      element.name.toLowerCase() +
       " " +
-      element["organisation"].toLowerCase() +
+      element.organisation.toLowerCase() +
       " " +
-      element["description"].toString().toLowerCase() +
-      element["authors"].toString().toLowerCase();
+      element.description.toString().toLowerCase() +
+      element.authors.toString().toLowerCase();
     if (searchString.includes(searchTerm.toLowerCase())) {
       templateProperties.filtered.push(element);
     }
@@ -694,7 +706,7 @@ async function sendToBackend() {
 
   // replace null values with empty string
   toSend.forEach(async (element, i) => {
-    element.forEach((entry, j) => {
+    element.forEach((entry: string | null, j: number) => {
       if (entry == null) toSend[i][j] = "";
     });
   });
@@ -730,7 +742,7 @@ async function sendToBackend() {
  * @param field - array containing the data for the specific row(column wise)
  * @param index - the index number for the current column to check
  */
-function mandatory(field: Array<any>, index: number) {
+function mandatory(field: Array<string>, index: number) {
   switch (field[index]) {
     case "Investigation Identifier":
     case "Investigation Title":
@@ -1033,14 +1045,14 @@ function setIds() {
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
-            >{{ term["Name"] }}
+            >{{ term.Name }}
             <a
-              :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
+              :href="'http://purl.obolibrary.org/obo/' + term.Accession"
               target="_blank"
               style="font-size: medium"
-              >({{ term["Accession"] }})</a
+              >({{ term.Accession }})</a
             >
-            <template v-if="term['IsObsolete']">
+            <template v-if="term.IsObsolete">
               <span style="color: red; margin-left: 1mm"
                 >Obsolete</span
               ></template
@@ -1048,7 +1060,7 @@ function setIds() {
           >
         </template>
         <q-card
-          ><q-card-section>{{ term["Description"] }}</q-card-section>
+          ><q-card-section>{{ term.Description }}</q-card-section>
           <q-card-section
             ><q-select
               v-model="templateProperties.rowId"
@@ -1058,10 +1070,8 @@ function setIds() {
               style="width: 12em"></q-select
             ><q-btn
               class="alt"
-              @click="
-                setTerm(term['Name'], term['Accession'], term['FK_Ontology'])
-              "
-              :disable="term['Name'] == 'No Term was found!'"
+              @click="setTerm(term)"
+              :disable="term.Name == 'No Term was found!'"
               >Insert</q-btn
             ></q-card-section
           >
@@ -1085,14 +1095,14 @@ function setIds() {
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
-            >{{ term["Name"] }}
+            >{{ term.Name }}
             <a
-              :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
+              :href="'http://purl.obolibrary.org/obo/' + term.Accession"
               target="_blank"
               style="font-size: medium"
-              >({{ term["Accession"] }})</a
+              >({{ term.Accession }})</a
             >
-            <template v-if="term['IsObsolete']">
+            <template v-if="term.IsObsolete">
               <span style="color: red; margin-left: 1mm"
                 >Obsolete</span
               ></template
@@ -1100,14 +1110,12 @@ function setIds() {
           >
         </template>
         <q-card
-          ><q-card-section>{{ term["Description"] }}</q-card-section>
+          ><q-card-section>{{ term.Description }}</q-card-section>
           <q-card-section
             ><q-btn
               class="bb"
-              @click="
-                setUnit(term['Name'], term['Accession'], term['FK_Ontology'])
-              "
-              :disable="term['Name'] == 'No Term was found!'"
+              @click="setUnit(term)"
+              :disable="term.Name == 'No Term was found!'"
               >Select</q-btn
             ></q-card-section
           >
@@ -1123,14 +1131,14 @@ function setIds() {
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
-            >{{ term["Name"] }}
+            >{{ term.Name }}
             <a
-              :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
+              :href="'http://purl.obolibrary.org/obo/' + term.Accession"
               target="_blank"
               style="font-size: medium"
-              >({{ term["Accession"] }})</a
+              >({{ term.Accession }})</a
             >
-            <template v-if="term['IsObsolete']">
+            <template v-if="term.IsObsolete">
               <span style="color: red; margin-left: 1mm"
                 >Obsolete</span
               ></template
@@ -1138,12 +1146,12 @@ function setIds() {
           >
         </template>
         <q-card
-          ><q-card-section>{{ term["Description"] }}</q-card-section>
+          ><q-card-section>{{ term.Description }}</q-card-section>
           <q-card-section
             ><q-btn
               class="bb"
-              @click="setBB(term['Name'], term['Accession'])"
-              :disable="term['Name'] == 'No Term was found!'"
+              @click="setBB(term)"
+              :disable="term.Name == 'No Term was found!'"
               >Select</q-btn
             ></q-card-section
           >

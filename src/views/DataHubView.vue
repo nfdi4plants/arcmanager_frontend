@@ -7,8 +7,8 @@ import fileProperties from "../FileProperties";
 import { useQuasar } from "quasar";
 import arcProperties from "@/ArcProperties";
 import appProperties from "@/AppProperties";
-import templateProperties from "@/TemplateProperties";
-import termProperties from "@/TermProperties";
+import { templateProperties, Template, Table } from "@/TemplateProperties";
+import { termProperties } from "@/TermProperties";
 import sheetProperties from "@/SheetProperties";
 
 const $q = useQuasar();
@@ -16,11 +16,176 @@ const $q = useQuasar();
 // Address of the backend
 var backend = appProperties.backend + "projects/";
 
-// list with all arcs
-var list: any[] = [];
+class namespace {
+  avatar_url: string;
+  full_path: string;
+  id: number;
+  kind: string;
+  name: string;
+  parent_id?: string;
+  path: string;
+  web_url: string;
 
-// list with errors
-var errors: any;
+  constructor(
+    avatar_url: string,
+    full_path: string,
+    id: number,
+    kind: string,
+    name: string,
+    parent_id = "",
+    path: string,
+    web_url: string
+  ) {
+    this.avatar_url = avatar_url;
+    this.full_path = full_path;
+    this.id = id;
+    this.kind = kind;
+    this.name = name;
+    this.parent_id = parent_id;
+    this.path = path;
+    this.web_url = web_url;
+  }
+}
+
+class Arc {
+  avatar_url?: string;
+  created_at: string;
+  default_branch: string;
+  description: string;
+  forks_count: number;
+  http_url_to_repo: string;
+  id: number;
+  last_activity_at: string;
+  name: string;
+  name_with_namespace: string;
+  namespace: namespace;
+  path: string;
+  path_with_namespace: string;
+  readme_url: string;
+  ssh_url_to_repo: string;
+  star_count: number;
+  tag_list: Array<string>;
+  topics: Array<string>;
+  web_url: string;
+
+  constructor(
+    avatar_url = "",
+    created_at: string,
+    default_branch = "main",
+    description: string,
+    forks_count = 0,
+    http_url_to_repo: string,
+    id: number,
+    last_activity_at = "",
+    name: string,
+    name_with_namespace = "",
+    namespace: namespace,
+    path: string,
+    path_with_namespace = "",
+    readme_url: string,
+    ssh_url_to_repo: string,
+    star_count: number,
+    tag_list: Array<string>,
+    topics: Array<string>,
+    web_url: string
+  ) {
+    this.avatar_url = avatar_url;
+    this.created_at = created_at;
+    this.default_branch = default_branch;
+    this.description = description;
+    this.forks_count = forks_count;
+    this.http_url_to_repo = http_url_to_repo;
+    this.id = id;
+    this.last_activity_at = last_activity_at;
+    this.name = name;
+    this.name_with_namespace = name_with_namespace;
+    this.namespace = namespace;
+    this.path = path;
+    this.path_with_namespace = path_with_namespace;
+    this.readme_url = readme_url;
+    this.ssh_url_to_repo = ssh_url_to_repo;
+    this.star_count = star_count;
+    this.tag_list = tag_list;
+    this.topics = topics;
+    this.web_url = web_url;
+  }
+}
+
+class ArcTree {
+  id: string;
+  mode: string;
+  name: string;
+  path: string;
+  type: string;
+
+  constructor(
+    id: string,
+    mode = "040000",
+    name: string,
+    path: string,
+    type: string
+  ) {
+    this.id = id;
+    this.mode = mode;
+    this.name = name;
+    this.path = path;
+    this.type = type;
+  }
+}
+
+class User {
+  id: number;
+  username: string;
+  name: string;
+  state: string;
+  avatar_url?: string;
+  web_url: string;
+
+  constructor(
+    id: number,
+    username: string,
+    name: string,
+    state: string,
+    avatar_url = "",
+    web_url: string
+  ) {
+    this.id = id;
+    this.username = username;
+    this.name = name;
+    this.state = state;
+    this.avatar_url = avatar_url;
+    this.web_url = web_url;
+  }
+}
+
+const emptyTemplate = new Template(
+  "Empty",
+  [{ firstName: "", lastName: "", email: "" }],
+  "Start with a empty Template",
+  [],
+  "-",
+  "Empty Template",
+  "Custom",
+  new Table(
+    "",
+    [
+      { headertype: "Input", values: ["Source Name"] },
+      { headertype: "Output", values: ["Sample Name"] },
+    ],
+    [
+      [[0, 0], { celltype: "FreeText", values: [""] }],
+      [[1, 0], { celltype: "FreeText", values: [""] }],
+    ]
+  ),
+  [],
+  "1.0.0"
+);
+
+// list with all arcs
+var list: Array<Arc> = [];
+
+// string detailing an error
+var errors: string | null;
 
 // show only arcs with writing permission
 var owned = ref(false);
@@ -28,15 +193,25 @@ var owned = ref(false);
 // enable git lfs
 var lfs = ref(false);
 
+// current page for the arc tree view (if there are more than 50 files/folders inside of an folder)
+var treePage = ref(1);
+
+var treePageMax = 1;
+
+// current page for the list of arcs (if its more than 20)
+var arcsPage = ref(1);
+
+var arcsPageMax = 1;
+
 // list of all the content of the specific arc
-var arcList: any[] = [];
+var arcList: Array<ArcTree> = [];
 // gitlab id of the arc
 var arcId: number;
 // name of the main branch of the arc
 var arcBranch: string;
 
 //list to safe every entry of the isa file
-var isaList: any[] = [];
+var isaList: Array<Array<string>> = [];
 
 // here we save the paths, so we can return to the last page visited in the arc
 var pathHistory: string[] = [];
@@ -44,7 +219,7 @@ var pathHistory: string[] = [];
 // here we get the target git from App.vue
 var git = defineProps(["site"]);
 
-var username = "";
+var username: string | null = "";
 
 // set to true if loading something
 var loading = false;
@@ -66,12 +241,12 @@ var studySync = false;
 // displays the user management screen (-1 for disabled, 0 for add, 1 for remove, 2 for edit)
 var user = -1;
 // list containing all users
-var userList = [];
+var userList: Array<{ label: string; value: number }> = [];
 // the selected user
-var userSelect = ref(null);
+var userSelect = ref({ label: "", value: 0 });
 
 // the different permissions you can select when you add a new member to a project
-const userPermissions = [
+const userPermissions: ReadonlyArray<{ label: string; value: number }> = [
   {
     label: "Guest",
     value: 10,
@@ -94,7 +269,7 @@ const userPermissions = [
   },
 ];
 // the permission level for the new user
-var permission = ref(null);
+var permission = ref({ label: "Developer", value: 30 });
 
 // the selected study and assay
 var studySelect = ref("");
@@ -110,10 +285,10 @@ var identFolder = ref("");
 var search = ref("");
 
 // the filtered list, that will be displayed
-var searchList: any[] = [];
+var searchList: Array<Arc> = [];
 
 // namespace of the arc
-var namespace = ref("");
+var arcNamespace = ref("");
 
 // here we trick vue js to reload the component
 const refresher = ref(0);
@@ -132,7 +307,7 @@ if (document.cookie.includes("logged_in=true")) {
 }
 
 // array containing all the files to upload
-var fileInput = ref([]);
+var fileInput = ref([] as Array<File>);
 
 /** opens the explore page of the selected git in a new tab (only when you're not logged in currently)
  *
@@ -163,11 +338,13 @@ function openGit(target: string) {
 /** get a list of all arcs in the gitlab
  *
  */
-async function fetchArcs() {
+async function fetchArcs(page = 1) {
   loading = true;
   appProperties.showIsaView = false;
   appProperties.arcList = true;
   lfs.value = false;
+  arcsPage.value = page;
+  treePage.value = treePageMax = 1;
   searchList = [];
   // if not logged in, show only public arcs
   if (!appProperties.loggedIn) {
@@ -180,20 +357,23 @@ async function fetchArcs() {
       searchList = [];
       try {
         const response = await fetch(
-          `${backend}public_arcs?target=${git.site.value}`
+          `${backend}public_arcs?target=${git.site.value}&page=${page}`
         );
         const data = await response.json();
         if (!response.ok) {
           throw new Error(response.statusText + ", " + data["detail"]);
         }
+        // get the number of total pages
+        let pages = response.headers.get("total-pages");
+        if (pages) arcsPageMax = parseInt(pages);
 
         list = [];
-        data.projects.forEach((element: any) => {
+        data.projects.forEach((element: Arc) => {
           list.push(element);
         });
         searchList = list;
-      } catch (error) {
-        errors = error;
+      } catch (error: any) {
+        errors = error.toString();
       }
 
       loading = false;
@@ -212,16 +392,23 @@ async function fetchArcs() {
     arcProperties.changes = "";
     pathHistory = [];
     try {
-      const response = await fetch(backend + "arc_list?owned=" + owned.value, {
-        credentials: "include",
-      });
+      const response = await fetch(
+        backend + "arc_list?owned=" + owned.value + "&page=" + page,
+        {
+          credentials: "include",
+        }
+      );
       const data = await response.json();
       if (!response.ok)
         throw new Error(response.statusText + ", " + data["detail"]);
 
+      // get the number of total pages
+      let pages = response.headers.get("total-pages");
+      if (pages) arcsPageMax = parseInt(pages);
+
       errors = null;
       list = [];
-      data.projects.forEach((element: any) => {
+      data.projects.forEach((element: Arc) => {
         list.push(element);
       });
       if (list.length == 0) throw new Error("No arcs found for you!");
@@ -232,8 +419,8 @@ async function fetchArcs() {
       // set the username in sessionStorage and display it
       if (window.sessionStorage.getItem("username") != null)
         username = window.sessionStorage.getItem("username");
-    } catch (error) {
-      errors = error;
+    } catch (error: any) {
+      errors = error.toString();
     }
     loading = false;
     forcereload();
@@ -283,6 +470,7 @@ async function inspectArc(id: number) {
   fileInput.value = [];
   user = -1;
   arcProperties.changes = "";
+  treePage.value = treePageMax = 1;
   forcereload();
   try {
     const response = await fetch(backend + "arc_tree?id=" + id, {
@@ -295,7 +483,7 @@ async function inspectArc(id: number) {
       );
 
     arcList = [];
-    data.Arc.forEach((element: any) => {
+    data.Arc.forEach((element: ArcTree) => {
       arcList.push(element);
     });
 
@@ -304,8 +492,8 @@ async function inspectArc(id: number) {
 
     // get the changes
     getChanges(id);
-  } catch (error) {
-    errors = error;
+  } catch (error: any) {
+    errors = error.toString();
   }
   loading = false;
   forcereload();
@@ -327,13 +515,13 @@ async function getChanges(id: number) {
       })
       .then((changes) => {
         if (changes) {
-          changes.forEach((element) => {
-            arcProperties.changes += element.toString() + "<br />";
+          changes.forEach((element: string) => {
+            arcProperties.changes += element + "<br />";
           });
         }
       });
-  } catch (error) {
-    errors = error;
+  } catch (error: any) {
+    errors = error.toString();
   }
 }
 
@@ -343,7 +531,12 @@ async function getChanges(id: number) {
  * @param path - the selected path (eg. assays/...)
  * @param expand - weather the pathHistory is expanded (going deeper into the folder) or not (removing the last entry in the history)
  */
-async function inspectTree(id: number, path: string, expand?: boolean) {
+async function inspectTree(
+  id: number,
+  path: string,
+  expand?: boolean,
+  page = 1
+) {
   loading = true;
   assaySync = studySync = false;
   appProperties.showIsaView = false;
@@ -351,10 +544,11 @@ async function inspectTree(id: number, path: string, expand?: boolean) {
   errors = "";
   showInput = false;
   showFolderInput = false;
+  treePage.value = page;
   forcereload();
   try {
     const response = await fetch(
-      backend + "arc_path?path=" + path + "&id=" + id,
+      backend + `arc_path?path=${path}&id=${id}&page=${page} `,
       {
         credentials: "include",
       }
@@ -365,7 +559,10 @@ async function inspectTree(id: number, path: string, expand?: boolean) {
       throw new Error(response.statusText + ", " + data["detail"]);
 
     arcList = [];
-    data.Arc.forEach((element: any) => {
+    let pages = response.headers.get("total-pages");
+    if (pages) treePageMax = parseInt(pages);
+
+    data.Arc.forEach((element: ArcTree) => {
       arcList.push(element);
     });
     forcereload();
@@ -373,9 +570,10 @@ async function inspectTree(id: number, path: string, expand?: boolean) {
     else if (expand == undefined) console.log("skip");
     else pathHistory.pop();
     cleanIsaView();
-  } catch (error) {
-    errors = error;
+  } catch (error: any) {
+    errors = error.toString();
   }
+  if (page > 1) window.scrollTo(0, 0);
   loading = false;
   forcereload();
 }
@@ -397,7 +595,7 @@ async function getFile(id: number, path: string, branch: string) {
 
   cleanIsaView();
   let response;
-
+  let status = 500;
   // get the file from the backend
   try {
     response = await fetch(
@@ -406,6 +604,7 @@ async function getFile(id: number, path: string, branch: string) {
         credentials: "include",
       }
     );
+    status = response.status;
     let data = await response.json();
     if (!response.ok)
       throw new Error(response.statusText + ", " + data["detail"]);
@@ -442,23 +641,25 @@ async function getFile(id: number, path: string, branch: string) {
       }
 
       // if there is no typical content, its an isa file, because then we have a list of entries
+      // if its a non isa xlsx file
     } else if (data.columns != null) {
       fileProperties.name = "XLSX";
       fileProperties.content = data.data.toString();
-      console.log(data.toString());
+
+      // its an isa file
     } else {
       isaList = [];
       isaProperties.identification = [];
       isaProperties.contacts = [];
       isaProperties.publications = [];
-      data.forEach((element: any, i: number) => {
+      data.forEach((element: string[], i: number) => {
         // reads out the file and saves the content to isaProperties
 
         switch (element[0]) {
           case "Study Identifier":
             if (isaProperties.identification.length < 5) {
               for (let j = 0; j < 5; j++) {
-                let entry = data[i + j];
+                let entry: string[] = data[i + j];
                 isaProperties.identification.push([entry[0], entry[1]]);
               }
             }
@@ -486,9 +687,10 @@ async function getFile(id: number, path: string, branch: string) {
             if (isaProperties.contacts.length < 11) {
               for (let j = 0; j < 11; j++) {
                 let entry = data[i + j + 1];
-                let cache = [];
-                entry.forEach((element) => {
-                  cache.push(element);
+                let cache: string[] = [];
+                entry.forEach((element: string | null) => {
+                  if (element) cache.push(element);
+                  else cache.push("");
                 });
                 isaProperties.contacts.push(cache);
               }
@@ -501,9 +703,10 @@ async function getFile(id: number, path: string, branch: string) {
             if (isaProperties.publications.length < 7) {
               for (let j = 0; j < 7; j++) {
                 let entry = data[i + j + 1];
-                let cache = [];
-                entry.forEach((element) => {
-                  cache.push(element);
+                let cache: Array<string> = [];
+                entry.forEach((element: string | null) => {
+                  if (element) cache.push(element);
+                  else cache.push("");
                 });
                 isaProperties.publications.push(cache);
               }
@@ -524,7 +727,7 @@ async function getFile(id: number, path: string, branch: string) {
     // catch any error and display it
   } catch (error: any) {
     fileProperties.content = error.toString();
-    fileProperties.name = response?.status.toString();
+    fileProperties.name = status.toString();
   }
   loading = false;
   forcereload();
@@ -578,11 +781,11 @@ function sortArcs(searchTerm: string) {
   list.forEach((element) => {
     // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
     let searchString =
-      element["name_with_namespace"].toLowerCase() +
+      element.name_with_namespace.toLowerCase() +
       " " +
-      element["id"] +
+      element.id +
       " " +
-      element["topics"].toString().toLowerCase();
+      element.topics.toString().toLowerCase();
     if (searchString.includes(searchTerm)) {
       searchList.push(element);
     }
@@ -650,14 +853,14 @@ async function fileUpload() {
 
         // body for the backend containing all necessary data
         formData.append("file", chunk);
-        formData.append("chunkNumber", chunkNumber);
-        formData.append("totalChunks", totalChunks);
+        formData.append("chunkNumber", chunkNumber.toString());
+        formData.append("totalChunks", totalChunks.toString());
         formData.append("name", fileInput.value[i].name);
-        formData.append("id", arcId);
+        formData.append("id", arcId.toString());
         formData.append("branch", arcBranch);
         formData.append("path", filePath);
-        formData.append("namespace", namespace.value);
-        formData.append("lfs", lfs.value);
+        formData.append("namespace", arcNamespace.value);
+        formData.append("lfs", lfs.value.toString());
 
         try {
           let response = await fetch(backend + "uploadFile", {
@@ -720,6 +923,7 @@ async function getTemplates() {
   loading = true;
   appProperties.showIsaView = true;
   assaySync = studySync = false;
+  templateProperties.rowId = 1;
   user = -1;
   forcereload();
 
@@ -730,57 +934,13 @@ async function getTemplates() {
 
   if (!response.ok) {
     errors = "ERROR: No templates found!";
-    templateProperties.templates = [
-      {
-        id: "Empty",
-        name: "Empty Template",
-        description: "Start with a empty Template",
-        organisation: "Custom",
-        version: "1.0.0",
-        last_updated: "-",
-        authors: ["-"],
-        table: {},
-      },
-    ];
-    templateProperties.filtered = [
-      {
-        id: "Empty",
-        name: "Empty Template",
-        description: "Start with a empty Template",
-        organisation: "Custom",
-        version: "1.0.0",
-        last_updated: "-",
-        authors: ["-"],
-        table: {},
-      },
-    ];
+    templateProperties.templates = [emptyTemplate];
+    templateProperties.filtered = [emptyTemplate];
     forcereload();
   } else {
     // save the templates
-    templateProperties.templates = [
-      {
-        id: "Empty",
-        name: "Empty Template",
-        description: "Start with a empty Template",
-        organisation: "Custom",
-        version: "1.0.0",
-        last_updated: "-",
-        authors: ["-"],
-        table: {},
-      },
-    ];
-    templateProperties.filtered = [
-      {
-        id: "Empty",
-        name: "Empty Template",
-        description: "Start with a empty Template",
-        organisation: "Custom",
-        version: "1.0.0",
-        last_updated: "-",
-        authors: ["-"],
-        table: {},
-      },
-    ];
+    templateProperties.templates = [emptyTemplate];
+    templateProperties.filtered = [emptyTemplate];
     templateProperties.templates = templateProperties.templates.concat(
       templates.templates
     );
@@ -859,8 +1019,8 @@ async function getAssaysAndStudies(id: number) {
 
     arcProperties.assays = await assays.json();
     arcProperties.studies = await studies.json();
-  } catch (error) {
-    errors = error;
+  } catch (error: any) {
+    errors = error.toString();
   }
 
   // if either no assay or no study is found, return error
@@ -910,8 +1070,8 @@ async function syncAssay(
       const data = await response.json();
       throw new Error(response.statusText + ", " + data["detail"]);
     }
-  } catch (error) {
-    errors = error;
+  } catch (error: any) {
+    errors = error.toString();
   }
 
   loading = false;
@@ -949,8 +1109,8 @@ async function syncStudy(id: number, study: string, branch: string) {
       const data = await response.json();
       throw new Error(response.statusText + ", " + data["detail"]);
     }
-  } catch (error) {
-    errors = error;
+  } catch (error: any) {
+    errors = error.toString();
   }
 
   loading = false;
@@ -1008,8 +1168,8 @@ async function getArchive(id: number) {
 
     // start the download
     downloadLink.click();
-  } catch (error) {
-    errors = error;
+  } catch (error: any) {
+    errors = error.toString();
   }
   loading = false;
   forcereload();
@@ -1168,8 +1328,8 @@ async function getUser() {
   loading = true;
   forcereload();
   userList = [];
-  userSelect.value = null;
-  permission.value = null;
+  userSelect.value = { label: "", value: 0 };
+  permission.value = { label: "Developer", value: 30 };
   try {
     // get all users
     let user = await fetch(appProperties.backend + "user/" + "getUser", {
@@ -1182,13 +1342,12 @@ async function getUser() {
 
     let users = await user.json();
     // fill the list of users with the username and the id
-    users["users"].forEach((user) => {
+    users["users"].forEach((user: User) => {
       userList.push({
-        label: user["username"],
-        value: user["id"],
+        label: user.username,
+        value: user.id,
       });
     });
-
     // if there are no user found, return error
     if (userList.length == 0) throw new Error("ERROR: " + users["detail"]);
     // sort users alphabetically
@@ -1203,8 +1362,8 @@ async function getUser() {
       }
       return 0;
     });
-  } catch (error) {
-    errors = error;
+  } catch (error: any) {
+    errors = error.toString();
   }
   loading = false;
   forcereload();
@@ -1218,8 +1377,8 @@ async function getArcUser(id: number) {
   loading = true;
   forcereload();
   userList = [];
-  userSelect.value = null;
-  permission.value = null;
+  userSelect.value = { label: "", value: 0 };
+  permission.value = { label: "Developer", value: 30 };
   try {
     // get all users that are part of the arc
     let user = await fetch(
@@ -1235,10 +1394,10 @@ async function getArcUser(id: number) {
 
     let users = await user.json();
     // fill the list of users with the username and id
-    users["users"].forEach((user) => {
+    users["users"].forEach((user: User) => {
       userList.push({
-        label: user["username"],
-        value: user["id"],
+        label: user.username,
+        value: user.id,
       });
     });
 
@@ -1256,8 +1415,8 @@ async function getArcUser(id: number) {
       }
       return 0;
     });
-  } catch (error) {
-    errors = error;
+  } catch (error: any) {
+    errors = error.toString();
   }
   loading = false;
   forcereload();
@@ -1274,7 +1433,11 @@ async function getArcUser(id: number) {
  * @param {Object} role - the role of the user
  * @param {number} role.value - the role value of the user setting the access rights(30,40,...)
  */
-async function addUser(id: number, user: any, role: any) {
+async function addUser(
+  id: number,
+  user: { value: number; label: string },
+  role: { label: string; value: number }
+) {
   loading = true;
   forcereload();
   // send the necessary user info to the backend
@@ -1335,7 +1498,11 @@ async function removeUser(id: number, user: any) {
  * @param {Object} role - the role of the user
  * @param {number} role.value - the role value of the user setting the access rights(30,40,...)
  */
-async function editUser(id: number, user: any, role: any) {
+async function editUser(
+  id: number,
+  user: { label: string; value: number },
+  role: { label: string; value: number }
+) {
   loading = true;
   forcereload();
   // send PUT request to the backend updating the role of the user
@@ -1376,8 +1543,8 @@ async function downloadFile(path: string) {
 
     // start the download
     downloadLink.click();
-  } catch (error) {
-    errors = error;
+  } catch (error: any) {
+    errors = error.toString();
   }
   loading = false;
   forcereload();
@@ -1392,7 +1559,9 @@ async function downloadFile(path: string) {
       @click="fetchArcs(), forcereload()"
       icon="downloading"
       dense
-      ><template v-if="!appProperties.showIsaView">Load Arcs</template></q-btn
+      ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+        >Load Arcs</template
+      ></q-btn
     ><q-btn
       icon="open_in_new"
       dense
@@ -1407,9 +1576,12 @@ async function downloadFile(path: string) {
       v-model="owned"
       label="Your Arcs:"
       v-show="arcList.length == 0 && appProperties.loggedIn"
-      @update:model-value="fetchArcs" />
+      @update:model-value="
+        arcsPage = 1;
+        fetchArcs(arcsPage);
+      " />
     <template v-if="arcList.length != 0">
-      <q-btn-group>
+      <q-btn-group style="max-height: 3em">
         <!-- File Upload -->
         <q-file
           :style="
@@ -1444,11 +1616,15 @@ async function downloadFile(path: string) {
           icon="open_in_new"
           glossy
           :key="refresher + 1"
-          ><template v-if="!appProperties.showIsaView">Open</template></q-btn
+          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+            >Open</template
+          ></q-btn
         >
         <!-- ZIP -->
         <q-btn icon="download" @click="getArchive(arcId)" glossy color="teal-10"
-          ><template v-if="!appProperties.showIsaView">zip</template></q-btn
+          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+            >zip</template
+          ></q-btn
         >
         <!-- SYNC ASSAY-->
         <q-btn
@@ -1463,7 +1639,7 @@ async function downloadFile(path: string) {
             getAssaysAndStudies(arcId);
           "
           :key="refresher + 2"
-          ><template v-if="!appProperties.showIsaView"
+          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
             >Sync Assay/Study</template
           ></q-btn
         >
@@ -1480,17 +1656,20 @@ async function downloadFile(path: string) {
             getAssaysAndStudies(arcId);
           "
           :key="refresher + 3"
-          ><template v-if="!appProperties.showIsaView"
+          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
             >Sync Study/Invest</template
           ></q-btn
         >
         <!-- Reloads the arc -->
         <q-btn icon="refresh" @click="inspectArc(arcId)" glossy
-          ><template v-if="!appProperties.showIsaView">Reload</template></q-btn
+          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+            >Reload</template
+          ></q-btn
         >
         <!-- USER MANAGEMENT-->
         <q-btn icon="person" glossy id="user"
-          ><template v-if="!appProperties.showIsaView">Members</template
+          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+            >Members</template
           ><q-menu>
             <q-list style="min-width: 100px">
               <q-item
@@ -1555,7 +1734,7 @@ async function downloadFile(path: string) {
   <p v-if="lfs">Note: Large file uploads may take a while!</p>
   <q-list bordered dense class="rounded-borders">
     <!-- USERNAME -->
-    <q-item v-if="username.length > 1"
+    <q-item v-if="username && username.length > 1"
       >User: {{ username }} / ARC: {{ arcProperties.identifier }}</q-item
     >
     <!-- LIST WITH ALL ARCS AND ARC TREE VIEW-->
@@ -1794,7 +1973,7 @@ async function downloadFile(path: string) {
                 icon="css"></q-avatar>
               <q-avatar
                 v-else-if="item.name.toLowerCase().includes('.js')"
-                icon="js"></q-avatar>
+                icon="javascript"></q-avatar>
               <q-avatar
                 v-else-if="item.name.toLowerCase().includes('.zip')"
                 icon="folder_zip"></q-avatar>
@@ -1854,6 +2033,24 @@ async function downloadFile(path: string) {
           "
           >New Folder</q-btn
         >
+        <div
+          class="q-pa-lg flex flex-center"
+          v-if="arcList.length != 0"
+          v-show="treePageMax > 1">
+          <q-pagination
+            v-model="treePage"
+            :max="treePageMax"
+            boundary-numbers
+            :max-pages="10"
+            @update:model-value="
+              inspectTree(
+                arcId,
+                pathHistory[pathHistory.length - 1],
+                undefined,
+                treePage
+              )
+            " />
+        </div>
 
         <!-- LIST OF ARCS -->
         <q-list style="padding: 1em" separator v-if="arcList.length == 0">
@@ -1873,7 +2070,7 @@ async function downloadFile(path: string) {
               arcProperties.branch = arcBranch;
               arcProperties.identifier = item.name;
               arcProperties.url = item.http_url_to_repo;
-              namespace = item.path_with_namespace;
+              arcNamespace = item.path_with_namespace;
               inspectArc(item.id);
             ">
             <!-- load the avatar if there is one -->
@@ -1881,12 +2078,9 @@ async function downloadFile(path: string) {
               <q-avatar v-if="item.avatar_url != null">
                 <img :src="item.avatar_url" />
               </q-avatar>
-              <q-avatar
-                :color="item.isOwner ? 'primary' : 'secondary'"
-                text-color="white"
-                v-else
-                >{{ item.namespace.name[0] }}</q-avatar
-              >
+              <q-avatar color="secondary" text-color="white" v-else>{{
+                item.namespace.name[0]
+              }}</q-avatar>
             </q-item-section>
             <!-- Arcs are displayed with name, id; then creation date and description; on the bottom is the name of the creator -->
             <q-item-section>
@@ -1945,6 +2139,17 @@ async function downloadFile(path: string) {
             </q-item-section>
           </q-item>
         </q-list>
+        <div
+          class="q-pa-lg flex flex-center"
+          v-if="arcList.length == 0"
+          v-show="arcsPageMax > 1">
+          <q-pagination
+            :max="arcsPageMax"
+            v-model="arcsPage"
+            boundary-numbers
+            :max-pages="6"
+            @update:model-value="fetchArcs(arcsPage)"></q-pagination>
+        </div>
       </div>
     </q-expansion-item>
     <!-- SYNC ASSAY TO STUDY-->
@@ -2050,10 +2255,11 @@ async function downloadFile(path: string) {
             @click="
               user = -1;
               addUser(arcId, userSelect, permission);
-              userSelect = permission = null;
+              userSelect = { label: '', value: 0 };
+              permission = { label: 'Developer', value: 30 };
               forcereload();
             "
-            :disable="userSelect == null || permission == null"
+            :disable="userSelect.label == '' || permission.label == ''"
             glossy
             >Add</q-btn
           >
@@ -2062,10 +2268,11 @@ async function downloadFile(path: string) {
             @click="
               user = -1;
               removeUser(arcId, userSelect);
-              userSelect = permission = null;
+              userSelect = { label: '', value: 0 };
+              permission = { label: 'Developer', value: 30 };
               forcereload();
             "
-            :disable="userSelect == null"
+            :disable="userSelect.label == ''"
             glossy
             >Remove</q-btn
           >
@@ -2074,10 +2281,11 @@ async function downloadFile(path: string) {
             @click="
               user = -1;
               editUser(arcId, userSelect, permission);
-              userSelect = permission = null;
+              userSelect = { label: '', value: 0 };
+              permission = { label: 'Developer', value: 30 };
               forcereload();
             "
-            :disable="userSelect == null || permission == null"
+            :disable="userSelect.label == '' || permission.label == ''"
             glossy
             >Edit</q-btn
           >

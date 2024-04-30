@@ -2,8 +2,8 @@
 import { ref } from "vue";
 
 import { useQuasar } from "quasar";
-import templateProperties from "@/TemplateProperties";
-import termProperties from "@/TermProperties";
+import { templateProperties } from "@/TemplateProperties";
+import { Term, termProperties } from "@/TermProperties";
 import isaProperties from "@/IsaProperties";
 import sheetProperties from "@/SheetProperties";
 import appProperties from "@/AppProperties";
@@ -21,7 +21,7 @@ var advanced = ref(false);
 // hide term columns
 var hidden = ref(true);
 
-const parameterOptions = [
+const parameterOptions: ReadonlyArray<string> = [
   "Parameter",
   "Factor",
   "Characteristic",
@@ -77,11 +77,14 @@ async function getTerms(input: string) {
   } else {
     // if the list of terms is empty
     if (data["terms"].length == 0) {
-      termProperties.terms = [{ Name: "No Term was found!" }];
+      termProperties.terms = [
+        new Term("", "No Term was found!", "", false, ""),
+      ];
     }
     // save the list of terms
     else {
       termProperties.terms = data["terms"];
+      templateProperties.rowId = sheetProperties.rowIds.length;
     }
   }
   loading = false;
@@ -114,7 +117,8 @@ async function saveSheet() {
     loading = false;
   }
   // cleanup view
-  templateProperties.template = templateProperties.templates = [];
+  templateProperties.template = [];
+  templateProperties.templates = [];
   templateProperties.content = [[]];
   termProperties.terms = [];
   loading = false;
@@ -162,20 +166,16 @@ function extendTemplate() {
   // extend each column by a new cell
   templateProperties.template.forEach((element, i) => {
     // if the column is a unit, fill the new cell with the name of the unit
-    if (templateProperties.template[i].Type.toString().startsWith("Unit")) {
+    if (templateProperties.template[i].Type.startsWith("Unit")) {
       templateProperties.content[i].push(templateProperties.content[i][0]);
-      if (
-        templateProperties.template[i - 1].Type.toString().startsWith("Term")
-      ) {
+      if (templateProperties.template[i - 1].Type.startsWith("Term")) {
         templateProperties.content[i - 1].pop();
         templateProperties.content[i - 1].push(
           templateProperties.content[i - 1][0]
         );
       }
       // add the term values for the two (or more) term columns after
-      while (
-        templateProperties.template[i + 1].Type.toString().startsWith("Term")
-      ) {
+      while (templateProperties.template[i + 1].Type.startsWith("Term")) {
         templateProperties.content[i + 1].push(
           templateProperties.content[i + 1][0]
         );
@@ -184,18 +184,17 @@ function extendTemplate() {
     } else {
       // skip adding an empty field if its a term column related to a unit
       if (
-        !templateProperties.template[i].Type.toString().startsWith("Term") ||
+        !templateProperties.template[i].Type.startsWith("Term") ||
         !(
-          templateProperties.template[i - 1].Type.toString().startsWith(
-            "Unit"
-          ) ||
-          templateProperties.template[i - 2].Type.toString().startsWith("Unit")
+          templateProperties.template[i - 1].Type.startsWith("Unit") ||
+          templateProperties.template[i - 2].Type.startsWith("Unit")
         )
       )
-        templateProperties.content[i].push(null);
+        templateProperties.content[i].push("");
     }
   });
   sheetProperties.rowIds.push(sheetProperties.rowIds.length);
+  templateProperties.rowId = sheetProperties.rowIds.length;
   keyNumber.value += 1;
 }
 
@@ -209,10 +208,9 @@ async function getSuggestionsByParent() {
 
   // reset terms and templates to clear up IsaView
   templateProperties.templates = [];
-  termProperties.terms =
-    termProperties.buildingBlocks =
-    termProperties.unitTerms =
-      [];
+  termProperties.terms = [];
+  termProperties.buildingBlocks = [];
+  termProperties.unitTerms = [];
   sheetProperties.sheets = sheetProperties.names = [];
 
   // get the list of terms
@@ -226,11 +224,14 @@ async function getSuggestionsByParent() {
     appProperties.showIsaView = true;
     // if the list of terms is empty
     if (data["terms"].length == 0) {
-      termProperties.terms = [{ Name: "No Term was found!" }];
+      termProperties.terms = [
+        new Term("", "No Term was found!", "", false, ""),
+      ];
     }
     // save the list of terms
     else {
       termProperties.terms = data["terms"];
+      templateProperties.rowId = sheetProperties.rowIds.length;
     }
   }
   loading = false;
@@ -262,7 +263,9 @@ async function getSuggestions() {
     appProperties.showIsaView = true;
     // if the list of terms is empty
     if (data["terms"].length == 0) {
-      termProperties.buildingBlocks = [{ Name: "No Term was found!" }];
+      termProperties.buildingBlocks = [
+        new Term("", "No Term was found!", "", false, ""),
+      ];
     }
     // save the list of terms
     else {
@@ -297,7 +300,9 @@ async function getUnitSuggestions() {
     appProperties.showIsaView = true;
     // if the list of terms is empty
     if (data["terms"].length == 0) {
-      termProperties.unitTerms = [{ Name: "No Term was found!" }];
+      termProperties.unitTerms = [
+        new Term("", "No Term was found!", "", false, ""),
+      ];
     }
     // save the list of terms
     else {
@@ -564,7 +569,7 @@ function deleteRow(rowIndex: number) {
                     showBuildingBlock = false;
                     search = '';
                     searchType = searchName(column.Type);
-                    searchAccession = column.Accession;
+                    if (column.Accession) searchAccession = column.Accession;
                     templateProperties.id = i;
                     keyNumber += 1;
                   "

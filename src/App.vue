@@ -16,12 +16,12 @@ import TemplateEditView from "./views/TemplateEditView.vue";
 
 import logoURL from "./assets/dpLogo2_w.png";
 import IsaEditView from "./views/IsaEditView.vue";
-import templateProperties from "./TemplateProperties";
+import { templateProperties } from "./TemplateProperties";
 import appProperties from "./AppProperties";
 import arcProperties from "./ArcProperties";
 import fileProperties from "./FileProperties";
 import sheetProperties from "./SheetProperties";
-import termProperties from "./TermProperties";
+import { termProperties } from "./TermProperties";
 
 const $q = useQuasar();
 
@@ -52,8 +52,8 @@ var loading = false;
 // when there is something to announce, it will be displayed in the header area
 var announcement = "";
 
-// list with errors
-var errors: any;
+// string containing info about a current error
+var errors: string;
 
 var drawerWidth = ref(1000);
 
@@ -71,7 +71,11 @@ function checkMini(width: number) {
 checkMini(windowWidth);
 
 // the different login options with name and description
-const loginOptions = [
+const loginOptions: ReadonlyArray<{
+  label: string;
+  value: string;
+  description: string;
+}> = [
   {
     label: "DataHUB (federated)",
     value: "tuebingen",
@@ -139,7 +143,8 @@ async function createArc() {
  */
 function cleanIsaView() {
   // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
-  templateProperties.templates = templateProperties.template = [];
+  templateProperties.templates = [];
+  templateProperties.template = [];
   termProperties.terms = [];
   isaProperties.entries = [];
   isaProperties.entry = [];
@@ -237,6 +242,7 @@ function openArcSearch() {
             v-on:click="
               showInput = true;
               templateEdit = false;
+              appProperties.showIsaView = false;
               errors = '';
               cleanIsaView();
               forcereload();
@@ -329,21 +335,22 @@ function openArcSearch() {
     <!-- MAIN PART -->
     <q-page-container>
       <!-- FOOTER -->
-      <q-footer bordered class="footer">
+      <q-footer bordered class="footer row">
         <a
           class="footer"
           href="https://www.nfdi4plants.de/nfdi4plants.knowledgebase/docs/ARCmanager-manual/index.html"
           target="_blank"
           style="margin-left: 45%"
           >Manual</a
-        ><!--<a style="margin-left: 10%;" href="mailto:arcmanager.support@nfdi4plants.de" class="footer">Support&#128231;</a>-->
+        >
+        <!--<a style="margin-left: 10%;" href="mailto:arcmanager.support@nfdi4plants.de" class="footer">Support&#128231;</a>-->
       </q-footer>
       <!-- HEADER -->
       <q-header bordered class="footer" v-if="announcement != ''">
         <span style="margin-left: 30%">{{ announcement }}</span>
       </q-header>
       <q-page padding>
-        <q-item-section v-if="errors != null">{{ errors }}</q-item-section>
+        <q-item-section v-if="errors != ''">{{ errors }}</q-item-section>
         <template v-if="showInput"
           ><q-btn
             class="return"
