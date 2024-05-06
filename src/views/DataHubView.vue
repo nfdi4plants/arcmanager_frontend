@@ -786,7 +786,7 @@ function sortArcs(searchTerm: string) {
       element.id +
       " " +
       element.topics.toString().toLowerCase();
-    if (searchString.includes(searchTerm)) {
+    if (searchString.includes(searchTerm.toLowerCase())) {
       searchList.push(element);
     }
   });
@@ -794,8 +794,9 @@ function sortArcs(searchTerm: string) {
 
 /** uploads the file(s) to the hub
  *
+ * @param folder - if a folder is uploaded instead of a list of files (in case of folder the webkitRelativePath is used)
  */
-async function fileUpload() {
+async function fileUpload(folder = false) {
   uploading = true;
 
   errors = "";
@@ -806,17 +807,27 @@ async function fileUpload() {
   forcereload();
   // loop for the amount of selected files
   for (let i = 0; i < fileInput.value.length; i++) {
+    let filePath = "";
     // save the file on the most recent path
-    let filePath = pathHistory[pathHistory.length - 1];
+    if (folder)
+      if (pathHistory[pathHistory.length - 1] != "")
+        filePath =
+          pathHistory[pathHistory.length - 1] +
+          "/" +
+          fileInput.value[i].webkitRelativePath;
+      else filePath = fileInput.value[i].webkitRelativePath;
+    else filePath = pathHistory[pathHistory.length - 1];
     $q.loading.show({
       message: "Uploading the file(s)...",
     });
 
-    // if the file is in a subfolder, include an "/"
-    if (filePath == "") {
-      filePath += fileInput.value[i].name;
-    } else {
-      filePath += "/" + fileInput.value[i].name;
+    if (!folder) {
+      // if the file is in a subfolder, include an "/"
+      if (filePath == "") {
+        filePath += fileInput.value[i].name;
+      } else {
+        filePath += "/" + fileInput.value[i].name;
+      }
     }
 
     // amount of chunks for the largest file
@@ -1259,6 +1270,8 @@ async function deleteFolder(
     message: "Are you sure you want to delete the entirety of '" + name + "'?",
     cancel: true,
   }).onOk(async () => {
+    loading = true;
+    forcereload();
     // user confirmed the deletion
     console.log("Deleting " + name + "...");
     // send delete request to backend
@@ -1275,6 +1288,7 @@ async function deleteFolder(
       $q.notify(data);
       await inspectTree(arcId, pathHistory[pathHistory.length - 2], false);
     }
+    loading = false;
     forcereload();
   });
 }
@@ -1549,6 +1563,23 @@ async function downloadFile(path: string) {
   loading = false;
   forcereload();
 }
+
+/** uploads the given folder to the Arc
+ *
+ * @param event - the input event containing all the files
+ */
+function uploadFileFolder(event: InputEvent) {
+  let files: Array<File> = [];
+
+  // if there is a valid event target, read out the files
+  if (event.target) files = event.target.files;
+
+  // set fileInput to the list of files
+  fileInput.value = files;
+
+  // upload the files with property "folder" set to true
+  fileUpload(true);
+}
 </script>
 
 <template>
@@ -1609,6 +1640,20 @@ async function downloadFile(path: string) {
           :disable="progress > 0 && progress != 1 && progress != null"
           ><template v-slot:before> <q-icon name="file_upload" /> </template
         ></q-file>
+        <div>
+          <label for="folderUp" class="customFilePicker"
+            ><q-icon name="drive_folder_upload" size="md" /><span
+              v-if="appProperties.arcList && !appProperties.showIsaView"
+              >Upload Folder</span
+            ></label
+          >
+          <input
+            type="file"
+            id="folderUp"
+            webkitdirectory
+            multiple
+            @change="uploadFileFolder" />
+        </div>
         <!-- OPEN -->
         <q-btn
           id="open"
@@ -1743,8 +1788,12 @@ async function downloadFile(path: string) {
       :key="refresher + 5"
       expand-separator
       icon="cloud_download"
-      label="List ARCs/Projects"
-      caption="List of ARCs and other projects from the DataHUB"
+      :label="arcList.length > 0 ? 'List ARC content' : 'List ARCs/Projects'"
+      :caption="
+        arcList.length > 0
+          ? 'List of the files and folders of the ARC'
+          : 'List of ARCs and other projects from the DataHUB'
+      "
       header-class="bg-grey-33"
       default-opened>
       <div style="display: block; margin: 0 auto; max-width: 80%">
@@ -1883,8 +1932,26 @@ async function downloadFile(path: string) {
                 >
               </div></q-item-section
             >
-          </q-item></q-item-section
-        >
+          </q-item>
+        </q-item-section>
+        <q-item-section v-else>
+          <q-item
+            class="alt"
+            v-if="arcList.length > 0"
+            dense
+            clickable
+            @click="
+              arcList = [];
+              lfs = false;
+              showInput = showFolderInput = false;
+              forcereload();
+            "
+            ><q-item-section avatar
+              ><q-icon name="arrow_back"></q-icon
+            ></q-item-section>
+            <q-item-section>Return to ARCs</q-item-section>
+          </q-item>
+        </q-item-section>
         <!-- TREE VIEW OF ARC -->
         <q-item
           v-if="arcList.length != 0"
@@ -2304,6 +2371,16 @@ async function downloadFile(path: string) {
   </q-list>
 </template>
 <style>
+input[type="file"] {
+  display: none;
+}
+
+.customFilePicker {
+  border: 1px solid;
+  display: inline-block;
+  padding: 6px 12px;
+  cursor: pointer;
+}
 /* LIGHT MODE */
 .body--light #arcFetch {
   background-color: aquamarine;
