@@ -149,6 +149,7 @@ function cleanIsaView() {
   isaProperties.entries = [];
   isaProperties.entry = [];
   fileProperties.content = "";
+  fileProperties.pdfContent = "";
   sheetProperties.names = sheetProperties.sheets = [];
   sheetProperties.name = "";
   arcProperties.changes = "";

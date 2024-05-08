@@ -682,6 +682,8 @@ function checkName(name: String) {
     "license",
     "licence",
     ".gitkeep",
+    ".ipynb",
+    ".tsv",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -1225,6 +1227,16 @@ function setIds() {
       </q-expansion-item>
     </q-item>
   </q-list>
+  <!-- IF its an PDF-->
+  <q-item-section
+    v-if="
+      fileProperties.name.toLowerCase().endsWith('.pdf') &&
+      fileProperties.pdfContent != ''
+    ">
+    <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
+
+    <span v-html="fileProperties.pdfContent"></span>
+  </q-item-section>
   <!-- If its an non isa file, display the content-->
   <q-item-section v-if="fileProperties.content != ''">
     <template
@@ -1240,14 +1252,13 @@ function setIds() {
         ></q-toolbar-title
       >
       <q-editor
+        readonly
         v-model="fileProperties.content"
         style="white-space: pre-line"
         @paste="onPaste"></q-editor>
     </template>
     <template v-else>
       <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
-      <!-- IF its an PDF-->
-
       <!-- IF its an png -->
       <q-img
         v-if="fileProperties.name.toLowerCase().includes('.png')"
@@ -1284,14 +1295,19 @@ function setIds() {
   </q-item-section>
   <!-- Display the changes made in the arc-->
   <q-item-section
-    v-else-if="checkEmptyIsaView() && arcProperties.changes != ''">
+    v-else-if="
+      checkEmptyIsaView() &&
+      arcProperties.changes != '' &&
+      fileProperties.pdfContent == ''
+    ">
     <q-checkbox v-model="showChanges" label="View changes" />
     <q-card v-if="showChanges">
       <q-card-section>Changes</q-card-section>
       <q-card-section v-html="arcProperties.changes"></q-card-section>
     </q-card>
   </q-item-section>
-  <q-item-section v-else-if="checkEmptyIsaView()">
+  <q-item-section
+    v-else-if="checkEmptyIsaView() && fileProperties.pdfContent == ''">
     <q-checkbox v-model="appProperties.experimental">Experimental</q-checkbox>
   </q-item-section>
 </template>

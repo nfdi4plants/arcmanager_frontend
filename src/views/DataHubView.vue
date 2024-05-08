@@ -193,7 +193,7 @@ var owned = ref(false);
 // enable git lfs
 var lfs = ref(false);
 
-// current page for the arc tree view (if there are more than 50 files/folders inside of an folder)
+// current page for the arc tree view (if there are more than 20 files/folders inside of an folder)
 var treePage = ref(1);
 
 var treePageMax = 1;
@@ -446,6 +446,7 @@ function cleanIsaView() {
   isaProperties.entries = [];
   isaProperties.entry = [];
   fileProperties.content = "";
+  fileProperties.pdfContent = "";
   sheetProperties.names = sheetProperties.sheets = [];
   sheetProperties.name = "";
   errors = "";
@@ -605,125 +606,132 @@ async function getFile(id: number, path: string, branch: string) {
       }
     );
     status = response.status;
-    let data = await response.json();
-    if (!response.ok)
-      throw new Error(response.statusText + ", " + data["detail"]);
 
-    // if the file has no content, display "Empty File"
-    if (data.size == 0) {
-      fileProperties.name = data.file_name;
-      data.content = btoa("Empty File");
-    }
-    // if there is content, it cant be an isa file/regular excel file
-    if (data.content) {
-      let size;
-      // check the size of the file (display either in kb or mb)
-      if (data.size > 1000000) size = data.size / 1000000 + " MB";
-      else size = data.size / 1000 + " KB";
+    // if its a pdf file, render it as html stored inside pdfContent
+    if (response.headers.get("content-type")?.includes("html")) {
+      let htmlContent = await response.text();
 
-      // display name of the file
-      fileProperties.name = data.file_name + " (" + size + ")";
-      fileProperties.id = id;
-      fileProperties.path = path;
-
-      // display the decoded content
-      try {
-        fileProperties.content = decodeURIComponent(
-          atob(data.content)
-            .split("")
-            .map(function (c) {
-              return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-            })
-            .join("")
-        );
-      } catch (error) {
-        fileProperties.content = data.content;
-      }
-
-      // if there is no typical content, its an isa file, because then we have a list of entries
-      // if its a non isa xlsx file
-    } else if (data.columns != null) {
-      fileProperties.name = "XLSX";
-      fileProperties.content = data.data.toString();
-
-      // its an isa file
+      fileProperties.pdfContent = htmlContent;
     } else {
-      isaList = [];
-      isaProperties.identification = [];
-      isaProperties.contacts = [];
-      isaProperties.publications = [];
-      data.forEach((element: string[], i: number) => {
-        // reads out the file and saves the content to isaProperties
+      let data = await response.json();
+      if (!response.ok)
+        throw new Error(response.statusText + ", " + data["detail"]);
 
-        switch (element[0]) {
-          case "Study Identifier":
-            if (isaProperties.identification.length < 5) {
-              for (let j = 0; j < 5; j++) {
-                let entry: string[] = data[i + j];
-                isaProperties.identification.push([entry[0], entry[1]]);
-              }
-            }
-            break;
+      // if the file has no content, display "Empty File"
+      if (data.size == 0) {
+        fileProperties.name = data.file_name;
+        data.content = btoa("Empty File");
+      }
+      // if there is content, it cant be an isa file/regular excel file
+      if (data.content) {
+        let size;
+        // check the size of the file (display either in kb or mb)
+        if (data.size > 1000000) size = data.size / 1000000 + " MB";
+        else size = data.size / 1000 + " KB";
 
-          case "Measurement Type":
-          case "Assay Measurement Type":
-            for (let j = 0; j < 8; j++) {
-              isaProperties.identification.push([data[j][0], data[j][1]]);
-            }
-            break;
-          case "INVESTIGATION":
-            if (isaProperties.identification.length < 5) {
-              for (let j = 0; j < 5; j++) {
-                let entry = data[i + j + 1];
-                isaProperties.identification.push([entry[0], entry[1]]);
-              }
-            }
-            break;
+        // display name of the file
+        fileProperties.name = data.file_name + " (" + size + ")";
+        fileProperties.id = id;
+        fileProperties.path = path;
 
-          // contact information
-          case "STUDY CONTACTS":
-          case "INVESTIGATION CONTACTS":
-          case "ASSAY PERFORMERS":
-            if (isaProperties.contacts.length < 11) {
-              for (let j = 0; j < 11; j++) {
-                let entry = data[i + j + 1];
-                let cache: string[] = [];
-                entry.forEach((element: string | null) => {
-                  if (element) cache.push(element);
-                  else cache.push("");
-                });
-                isaProperties.contacts.push(cache);
-              }
-            }
-            break;
-
-          // publications
-          case "INVESTIGATION PUBLICATIONS":
-          case "STUDY PUBLICATIONS":
-            if (isaProperties.publications.length < 7) {
-              for (let j = 0; j < 7; j++) {
-                let entry = data[i + j + 1];
-                let cache: Array<string> = [];
-                entry.forEach((element: string | null) => {
-                  if (element) cache.push(element);
-                  else cache.push("");
-                });
-                isaProperties.publications.push(cache);
-              }
-            }
-            break;
+        // display the decoded content
+        try {
+          fileProperties.content = decodeURIComponent(
+            atob(data.content)
+              .split("")
+              .map(function (c) {
+                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+              })
+              .join("")
+          );
+        } catch (error) {
+          fileProperties.content = data.content;
         }
-        isaList.push(element);
-      });
-      // write the new data to isaProperties
-      isaProperties.entries = isaList;
-      isaProperties.repoId = id;
-      isaProperties.path = path;
-      isaProperties.repoTarget = git.site.value;
-      isaProperties.contact = "contact 1";
-      isaProperties.publication = "publication 1";
-    }
 
+        // if there is no typical content, its an isa file, because then we have a list of entries
+        // if its a non isa xlsx file
+      } else if (data.columns != null) {
+        fileProperties.name = "XLSX";
+        fileProperties.content = data.data.toString();
+
+        // its an isa file
+      } else {
+        isaList = [];
+        isaProperties.identification = [];
+        isaProperties.contacts = [];
+        isaProperties.publications = [];
+        data.forEach((element: string[], i: number) => {
+          // reads out the file and saves the content to isaProperties
+
+          switch (element[0]) {
+            case "Study Identifier":
+              if (isaProperties.identification.length < 5) {
+                for (let j = 0; j < 5; j++) {
+                  let entry: string[] = data[i + j];
+                  isaProperties.identification.push([entry[0], entry[1]]);
+                }
+              }
+              break;
+
+            case "Measurement Type":
+            case "Assay Measurement Type":
+              for (let j = 0; j < 8; j++) {
+                isaProperties.identification.push([data[j][0], data[j][1]]);
+              }
+              break;
+            case "INVESTIGATION":
+              if (isaProperties.identification.length < 5) {
+                for (let j = 0; j < 5; j++) {
+                  let entry = data[i + j + 1];
+                  isaProperties.identification.push([entry[0], entry[1]]);
+                }
+              }
+              break;
+
+            // contact information
+            case "STUDY CONTACTS":
+            case "INVESTIGATION CONTACTS":
+            case "ASSAY PERFORMERS":
+              if (isaProperties.contacts.length < 11) {
+                for (let j = 0; j < 11; j++) {
+                  let entry = data[i + j + 1];
+                  let cache: string[] = [];
+                  entry.forEach((element: string | null) => {
+                    if (element) cache.push(element);
+                    else cache.push("");
+                  });
+                  isaProperties.contacts.push(cache);
+                }
+              }
+              break;
+
+            // publications
+            case "INVESTIGATION PUBLICATIONS":
+            case "STUDY PUBLICATIONS":
+              if (isaProperties.publications.length < 7) {
+                for (let j = 0; j < 7; j++) {
+                  let entry = data[i + j + 1];
+                  let cache: Array<string> = [];
+                  entry.forEach((element: string | null) => {
+                    if (element) cache.push(element);
+                    else cache.push("");
+                  });
+                  isaProperties.publications.push(cache);
+                }
+              }
+              break;
+          }
+          isaList.push(element);
+        });
+        // write the new data to isaProperties
+        isaProperties.entries = isaList;
+        isaProperties.repoId = id;
+        isaProperties.path = path;
+        isaProperties.repoTarget = git.site.value;
+        isaProperties.contact = "contact 1";
+        isaProperties.publication = "publication 1";
+      }
+    }
     // catch any error and display it
   } catch (error: any) {
     fileProperties.content = error.toString();
@@ -1136,7 +1144,6 @@ function checkName(name: string) {
   let includes = false;
   // list of file formats that shouldn't be selectable
   let formats = [
-    ".pdf",
     ".xml",
     ".zip",
     ".gz",
@@ -1151,6 +1158,12 @@ function checkName(name: string) {
     ".pdb",
     ".pptx",
     ".bt2",
+    ".rdata",
+    ".rhistory",
+    ".ds_store",
+    ".cys",
+    ".bam",
+    "._output",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -1580,6 +1593,55 @@ function uploadFileFolder(event: InputEvent) {
   // upload the files with property "folder" set to true
   fileUpload(true);
 }
+
+/** views the selected tree from the breadcrumb
+ *
+ * @param index - the index value of the breadcrumb
+ */
+async function inspectTreeCrumb(index: number) {
+  loading = true;
+  assaySync = studySync = false;
+  appProperties.showIsaView = false;
+  user = -1;
+  errors = "";
+  showInput = false;
+  showFolderInput = false;
+  treePage.value = 1;
+  forcereload();
+  try {
+    const response = await fetch(
+      backend + `arc_path?path=${pathHistory[index + 1]}&id=${arcId}`,
+      {
+        credentials: "include",
+      }
+    );
+
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(response.statusText + ", " + data["detail"]);
+
+    arcList = [];
+    let pages = response.headers.get("total-pages");
+    if (pages) treePageMax = parseInt(pages);
+
+    data.Arc.forEach((element: ArcTree) => {
+      arcList.push(element);
+    });
+    forcereload();
+
+    const historyLength = pathHistory.length;
+
+    for (let i = index; i < historyLength - 2; i++) {
+      pathHistory.pop();
+    }
+    cleanIsaView();
+  } catch (error: any) {
+    errors = error.toString();
+  }
+  window.scrollTo(0, 0);
+  loading = false;
+  forcereload();
+}
 </script>
 
 <template>
@@ -1890,9 +1952,15 @@ function uploadFileFolder(event: InputEvent) {
           v-if="pathHistory.length > 1"
           :key="refresher + 7"
           ><q-breadcrumbs
-            ><span>Path:</span>
+            ><span @click="inspectArc(arcId)" style="cursor: pointer"
+              >Path:</span
+            >
             <q-breadcrumbs-el
-              v-for="item in pathHistory[pathHistory.length - 1].split('/')"
+              style="cursor: pointer"
+              @click="inspectTreeCrumb(i)"
+              v-for="(item, i) in pathHistory[pathHistory.length - 1].split(
+                '/'
+              )"
               >{{ item }}</q-breadcrumbs-el
             >
           </q-breadcrumbs>
@@ -1942,6 +2010,8 @@ function uploadFileFolder(event: InputEvent) {
             clickable
             @click="
               arcList = [];
+              appProperties.showIsaView = false;
+              appProperties.arcList = true;
               lfs = false;
               showInput = showFolderInput = false;
               forcereload();
@@ -1962,6 +2032,7 @@ function uploadFileFolder(event: InputEvent) {
             if (item.type == 'tree') {
               inspectTree(arcId, item.path, true);
             } else {
+              if (item.name.endsWith('.pdf')) fileProperties.name = item.name;
               getFile(arcId, item.path, arcBranch);
             }
           "
