@@ -479,9 +479,7 @@ async function inspectArc(id: number) {
     });
     const data = await response.json();
     if (!response.ok)
-      throw new Error(
-        response.statusText + ", " + data["detail"].toString().slice(0, 150)
-      );
+      throw new Error(response.statusText + ", " + data["detail"].toString());
 
     arcList = [];
     data.Arc.forEach((element: ArcTree) => {
@@ -1164,6 +1162,7 @@ function checkName(name: string) {
     ".cys",
     ".bam",
     "._output",
+    ".swp",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -1860,7 +1859,9 @@ async function inspectTreeCrumb(index: number) {
       default-opened>
       <div style="display: block; margin: 0 auto; max-width: 80%">
         <!-- ERRORS -->
-        <q-item-section v-if="errors != null">{{ errors }}</q-item-section>
+        <q-item-section v-if="errors != null">{{
+          errors.slice(0, 200)
+        }}</q-item-section>
         <q-separator />
         <!-- CREATE ISA -->
         <template v-if="showInput"
@@ -2032,7 +2033,8 @@ async function inspectTreeCrumb(index: number) {
             if (item.type == 'tree') {
               inspectTree(arcId, item.path, true);
             } else {
-              if (item.name.endsWith('.pdf')) fileProperties.name = item.name;
+              if (item.name.toLowerCase().endsWith('.pdf'))
+                fileProperties.name = item.name;
               getFile(arcId, item.path, arcBranch);
             }
           "
@@ -2110,7 +2112,7 @@ async function inspectTreeCrumb(index: number) {
                 v-else-if="item.name.toLowerCase().includes('.css')"
                 icon="css"></q-avatar>
               <q-avatar
-                v-else-if="item.name.toLowerCase().includes('.js')"
+                v-else-if="item.name.toLowerCase().endsWith('.js')"
                 icon="javascript"></q-avatar>
               <q-avatar
                 v-else-if="item.name.toLowerCase().includes('.zip')"
