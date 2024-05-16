@@ -1,22 +1,24 @@
-import { reactive } from 'vue'
+import { reactive } from "vue";
 
 const arcProperties = reactive({
   // name of the arc
-  identifier: '',
+  identifier: "",
 
   // default branch of the arc
-  branch: '',
+  branch: "main",
+
+  // list containing the names of the different branches
+  branches: [] as Array<string>,
 
   // url of the arc
-  url: '',
+  url: "",
 
   // list of changes in the arc
   changes: "",
 
   // list containing the names of studies and assays
   studies: [""],
-  assays: [""]
-
+  assays: [""],
 });
 
 export default arcProperties;

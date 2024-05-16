@@ -184,6 +184,12 @@ const emptyTemplate = new Template(
 // list with all arcs
 var list: Array<Arc> = [];
 
+var windowWidth = window.innerWidth;
+
+window.addEventListener("resize", () => {
+  windowWidth = window.innerWidth;
+});
+
 // string detailing an error
 var errors: string | null;
 
@@ -207,8 +213,6 @@ var arcsPageMax = 1;
 var arcList: Array<ArcTree> = [];
 // gitlab id of the arc
 var arcId: number;
-// name of the main branch of the arc
-var arcBranch: string;
 
 //list to safe every entry of the isa file
 var isaList: Array<Array<string>> = [];
@@ -342,6 +346,7 @@ async function fetchArcs(page = 1) {
   loading = true;
   appProperties.showIsaView = false;
   appProperties.arcList = true;
+  appProperties.branch = "main";
   lfs.value = false;
   arcsPage.value = page;
   treePage.value = treePageMax = 1;
@@ -474,9 +479,12 @@ async function inspectArc(id: number) {
   treePage.value = treePageMax = 1;
   forcereload();
   try {
-    const response = await fetch(backend + "arc_tree?id=" + id, {
-      credentials: "include",
-    });
+    const response = await fetch(
+      backend + "arc_tree?id=" + id + "&branch=" + arcProperties.branch,
+      {
+        credentials: "include",
+      }
+    );
     const data = await response.json();
     if (!response.ok)
       throw new Error(response.statusText + ", " + data["detail"].toString());
@@ -490,7 +498,10 @@ async function inspectArc(id: number) {
     pathHistory.push("");
 
     // get the changes
-    getChanges(id);
+    getChanges(id, arcProperties.branch);
+
+    // get the branches
+    getBranches(id);
   } catch (error: any) {
     errors = error.toString();
   }
@@ -501,10 +512,11 @@ async function inspectArc(id: number) {
 /** get the list of changes
  *
  * @param id - the id of the arc
+ * @param branch - the chosen branch
  */
-async function getChanges(id: number) {
+async function getChanges(id: number, branch: string) {
   try {
-    await fetch(backend + "getChanges?id=" + id, {
+    await fetch(backend + `getChanges?id=${id}&branch=${branch}`, {
       credentials: "include",
     })
       .then((response) => {
@@ -517,6 +529,30 @@ async function getChanges(id: number) {
           changes.forEach((element: string) => {
             arcProperties.changes += element + "<br />";
           });
+        }
+      });
+  } catch (error: any) {
+    errors = error.toString();
+  }
+}
+
+/** get the list of branches
+ *
+ * @param id - the id of the arc
+ */
+async function getBranches(id: number) {
+  try {
+    await fetch(backend + "getBranches?id=" + id, {
+      credentials: "include",
+    })
+      .then((response) => {
+        if (response.ok) {
+          return response.json();
+        }
+      })
+      .then((branches) => {
+        if (branches) {
+          arcProperties.branches = branches;
         }
       });
   } catch (error: any) {
@@ -547,7 +583,8 @@ async function inspectTree(
   forcereload();
   try {
     const response = await fetch(
-      backend + `arc_path?path=${path}&id=${id}&page=${page} `,
+      backend +
+        `arc_path?path=${path}&id=${id}&page=${page}&branch=${arcProperties.branch} `,
       {
         credentials: "include",
       }
@@ -581,11 +618,11 @@ async function inspectTree(
  *
  * @param id - the id of the arc
  * @param path - the file path
- * @param branch - the main branch name of the arc
+ * @param branch - the chosen branch
  */
 async function getFile(id: number, path: string, branch: string) {
   loading = true;
-  appProperties.showIsaView = true;
+  appProperties.showIsaView = false;
 
   // cleanup views
   assaySync = studySync = false;
@@ -728,6 +765,18 @@ async function getFile(id: number, path: string, branch: string) {
         isaProperties.repoTarget = git.site.value;
         isaProperties.contact = "contact 1";
         isaProperties.publication = "publication 1";
+
+        // if there is data missing, fill in empty values to prevent errors
+        if (isaProperties.identification.length == 0)
+          for (let i = 0; i < 5; i++) {
+            isaProperties.identification.push(["", ""]);
+          }
+
+        if (isaProperties.contacts.length == 0)
+          isaProperties.contacts.push([""]);
+
+        if (isaProperties.publications.length == 0)
+          isaProperties.publications.push([""]);
       }
     }
     // catch any error and display it
@@ -735,6 +784,7 @@ async function getFile(id: number, path: string, branch: string) {
     fileProperties.content = error.toString();
     fileProperties.name = status.toString();
   }
+  appProperties.showIsaView = true;
   loading = false;
   forcereload();
 }
@@ -744,7 +794,7 @@ async function getFile(id: number, path: string, branch: string) {
  * @param id - the id of the arc
  * @param identifier - the identifier (the name) of the isa file
  * @param type - the type of isa (study or assay)
- * @param branch - the main branch of the arc
+ * @param branch - the chosen branch
  */
 async function addIsa(
   id: number,
@@ -772,7 +822,7 @@ async function addIsa(
     });
 
   // get the updated changes, assays and studies
-  await getChanges(id);
+  await getChanges(id, arcProperties.branch);
 
   loading = false;
   forcereload();
@@ -874,7 +924,7 @@ async function fileUpload(folder = false) {
         formData.append("totalChunks", totalChunks.toString());
         formData.append("name", fileInput.value[i].name);
         formData.append("id", arcId.toString());
-        formData.append("branch", arcBranch);
+        formData.append("branch", arcProperties.branch);
         formData.append("path", filePath);
         formData.append("namespace", arcNamespace.value);
         formData.append("lfs", lfs.value.toString());
@@ -938,7 +988,7 @@ async function fileUpload(folder = false) {
 async function getTemplates() {
   cleanIsaView();
   loading = true;
-  appProperties.showIsaView = true;
+  appProperties.showIsaView = false;
   assaySync = studySync = false;
   templateProperties.rowId = 1;
   user = -1;
@@ -964,6 +1014,7 @@ async function getTemplates() {
     templateProperties.filtered = templateProperties.filtered.concat(
       templates.templates
     );
+    appProperties.showIsaView = true;
   }
   loading = false;
   forcereload();
@@ -973,14 +1024,14 @@ async function getTemplates() {
  *
  * @param path - the path to the isa file
  * @param id - the id of the arc
- * @param branch - the main branch of the arc
+ * @param branch - the chosen branch
  */
 async function getSheets(path: string, id: number, branch: string) {
   cleanIsaView();
   assaySync = studySync = false;
   user = -1;
+  appProperties.showIsaView = false;
   loading = true;
-  appProperties.showIsaView = true;
   forcereload();
 
   isaProperties.path = path;
@@ -1000,7 +1051,10 @@ async function getSheets(path: string, id: number, branch: string) {
     if (sheets[0].length == 0) {
       errors = "ERROR: No sheets found!";
       forcereload();
+    } else {
+      appProperties.showIsaView = true;
     }
+
     // save the sheets
     sheetProperties.sheets = sheets[0];
     sheetProperties.names = sheets[1];
@@ -1018,17 +1072,23 @@ async function getAssaysAndStudies(id: number) {
   forcereload();
   try {
     // get names of the assays and studies
-    let assays = await fetch(backend + "getAssays?id=" + id, {
-      credentials: "include",
-    });
+    let assays = await fetch(
+      backend + "getAssays?id=" + id + "&branch=" + arcProperties.branch,
+      {
+        credentials: "include",
+      }
+    );
     if (!assays.ok) {
       const data = await assays.json();
       throw new Error(assays.statusText + ", " + data["detail"]);
     }
 
-    let studies = await fetch(backend + "getStudies?id=" + id, {
-      credentials: "include",
-    });
+    let studies = await fetch(
+      backend + "getStudies?id=" + id + "&branch=" + arcProperties.branch,
+      {
+        credentials: "include",
+      }
+    );
     if (!studies.ok) {
       const data = await studies.json();
       throw new Error(studies.statusText + ", " + data["detail"]);
@@ -1099,7 +1159,7 @@ async function syncAssay(
  *
  * @param id - the id of the arc
  * @param study - the name of the study
- * @param branch - the main branch of the arc
+ * @param branch - the chosen branch
  */
 async function syncStudy(id: number, study: string, branch: string) {
   loading = true;
@@ -1144,6 +1204,7 @@ function checkName(name: string) {
   let formats = [
     ".xml",
     ".zip",
+    ".7z",
     ".gz",
     ".html",
     ".css",
@@ -1185,9 +1246,9 @@ async function getArchive(id: number) {
     const downloadLink = document.createElement("a");
 
     // build the link based around the download link used in gitlab to download a zip
-    downloadLink.href = `${
-      arcProperties.url.split(".git")[0]
-    }/-/archive/${arcBranch}/${arcProperties.identifier}-${arcBranch}.zip`;
+    downloadLink.href = `${arcProperties.url.split(".git")[0]}/-/archive/${
+      arcProperties.branch
+    }/${arcProperties.identifier}-${arcProperties.branch}.zip`;
 
     // start the download
     downloadLink.click();
@@ -1225,7 +1286,7 @@ function checkForDeletion(name: string) {
  *
  * @param id - the id of the arc
  * @param path - the file path
- * @param branch - the main branch of the arc
+ * @param branch - the chosen branch
  * @param name - the name of the file
  */
 async function deleteFile(
@@ -1266,7 +1327,7 @@ async function deleteFile(
  *
  * @param id - the id of the arc
  * @param path - the folder path
- * @param branch - the main branch of the arc
+ * @param branch - the chosen branch
  * @param name - the name of the folder
  */
 async function deleteFolder(
@@ -1310,7 +1371,7 @@ async function deleteFolder(
  * @param id - the id of the arc
  * @param identifier - the identifier (the name) of the new folder
  * @param path - the current path
- * @param branch - the main branch of the arc
+ * @param branch - the chosen branch
  */
 async function createFolder(
   id: number,
@@ -1340,7 +1401,7 @@ async function createFolder(
     inspectTree(id, path);
 
     // get the updated changes, assays and studies
-    await getChanges(id);
+    await getChanges(id, arcProperties.branch);
   }
 
   loading = false;
@@ -1563,9 +1624,9 @@ async function downloadFile(path: string) {
     const downloadLink = document.createElement("a");
 
     // build the link based around the download link used in gitlab to download a zip
-    downloadLink.href = `${
-      arcProperties.url.split(".git")[0]
-    }/-/raw/${arcBranch}/${path}?ref_type=heads&inline=false`;
+    downloadLink.href = `${arcProperties.url.split(".git")[0]}/-/raw/${
+      arcProperties.branch
+    }/${path}?ref_type=heads&inline=false`;
 
     // start the download
     downloadLink.click();
@@ -1609,7 +1670,10 @@ async function inspectTreeCrumb(index: number) {
   forcereload();
   try {
     const response = await fetch(
-      backend + `arc_path?path=${pathHistory[index + 1]}&id=${arcId}`,
+      backend +
+        `arc_path?path=${pathHistory[index + 1]}&id=${arcId}&branch=${
+          arcProperties.branch
+        }`,
       {
         credentials: "include",
       }
@@ -1676,16 +1740,16 @@ async function inspectTreeCrumb(index: number) {
       <q-btn-group style="max-height: 3em">
         <!-- File Upload -->
         <q-file
-          :style="
+          :style="[
             $q.dark.isActive
               ? 'background-color: midnightblue'
-              : 'background-color: lightgoldenrodyellow'
-          "
-          style="max-width: 150px"
+              : 'background-color: lightgoldenrodyellow',
+            appProperties.showIsaView ? 'max-width: 56px' : 'max-width: 150px',
+          ]"
           v-model="fileInput"
           dense
           borderless
-          label="Upload File(s)"
+          :label="appProperties.showIsaView ? '' : 'Upload File(s)'"
           multiple
           max-file-size="10737418240"
           @update:model-value="
@@ -1701,10 +1765,15 @@ async function inspectTreeCrumb(index: number) {
           :disable="progress > 0 && progress != 1 && progress != null"
           ><template v-slot:before> <q-icon name="file_upload" /> </template
         ></q-file>
+        <!-- Folder Upload -->
         <div>
           <label for="folderUp" class="customFilePicker"
             ><q-icon name="drive_folder_upload" size="md" /><span
-              v-if="appProperties.arcList && !appProperties.showIsaView"
+              v-if="
+                appProperties.arcList &&
+                !appProperties.showIsaView &&
+                windowWidth > 1520
+              "
               >Upload Folder</span
             ></label
           >
@@ -1745,7 +1814,12 @@ async function inspectTreeCrumb(index: number) {
             getAssaysAndStudies(arcId);
           "
           :key="refresher + 2"
-          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+          ><template
+            v-if="
+              !appProperties.showIsaView &&
+              appProperties.arcList &&
+              windowWidth > 1520
+            "
             >Sync Assay/Study</template
           ></q-btn
         >
@@ -1762,7 +1836,12 @@ async function inspectTreeCrumb(index: number) {
             getAssaysAndStudies(arcId);
           "
           :key="refresher + 3"
-          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+          ><template
+            v-if="
+              !appProperties.showIsaView &&
+              appProperties.arcList &&
+              windowWidth > 1520
+            "
             >Sync Study/Invest</template
           ></q-btn
         >
@@ -1888,7 +1967,7 @@ async function inspectTreeCrumb(index: number) {
                 arcId,
                 ident,
                 pathHistory[pathHistory.length - 1],
-                arcBranch
+                arcProperties.branch
               );
               showInput = false;
               ident = '';
@@ -1925,7 +2004,7 @@ async function inspectTreeCrumb(index: number) {
                 arcId,
                 identFolder,
                 pathHistory[pathHistory.length - 1],
-                arcBranch
+                arcProperties.branch
               );
               showFolderInput = false;
               identFolder = '';
@@ -2035,7 +2114,7 @@ async function inspectTreeCrumb(index: number) {
             } else {
               if (item.name.toLowerCase().endsWith('.pdf'))
                 fileProperties.name = item.name;
-              getFile(arcId, item.path, arcBranch);
+              getFile(arcId, item.path, arcProperties.branch);
             }
           "
           :disable="checkName(item.name)">
@@ -2054,7 +2133,12 @@ async function inspectTreeCrumb(index: number) {
                 dense
                 flat
                 @click="
-                  deleteFolder(arcId, item.path, arcBranch, item.name)
+                  deleteFolder(
+                    arcId,
+                    item.path,
+                    arcProperties.branch,
+                    item.name
+                  )
                 "></q-btn>
             </q-item-section>
           </template>
@@ -2087,7 +2171,7 @@ async function inspectTreeCrumb(index: number) {
                   size="12px"
                   flat
                   dense
-                  @click="getSheets(item.path, arcId, arcBranch)"
+                  @click="getSheets(item.path, arcId, arcProperties.branch)"
                   >Edit Sheet</q-btn
                 >
               </div></q-item-section
@@ -2130,6 +2214,16 @@ async function inspectTreeCrumb(index: number) {
                 ><template v-if="item.name.length > 60"
                   >{{ item.name.slice(0, 60) }}...</template
                 >
+                <template
+                  v-else-if="appProperties.showIsaView && windowWidth < 2000"
+                  >{{ item.name.slice(0, 25) }}...</template
+                >
+                <template v-else-if="windowWidth < 1200"
+                  >{{ item.name.slice(0, 40)
+                  }}<template v-if="item.name.length > 40"
+                    >...</template
+                  ></template
+                >
                 <template v-else>{{ item.name }}</template></q-item-label
               ></q-item-section
             >
@@ -2155,7 +2249,7 @@ async function inspectTreeCrumb(index: number) {
                 dense
                 round
                 @click="
-                  deleteFile(arcId, item.path, arcBranch, item.name)
+                  deleteFile(arcId, item.path, arcProperties.branch, item.name)
                 "></q-btn
             ></q-item-section>
           </template>
@@ -2206,8 +2300,7 @@ async function inspectTreeCrumb(index: number) {
             "
             :clickable="appProperties.loggedIn && item.id != 1"
             @click="
-              arcBranch = item.default_branch;
-              arcProperties.branch = arcBranch;
+              arcProperties.branch = item.default_branch;
               arcProperties.identifier = item.name;
               arcProperties.url = item.http_url_to_repo;
               arcNamespace = item.path_with_namespace;
@@ -2266,8 +2359,7 @@ async function inspectTreeCrumb(index: number) {
                 unelevated
                 color="secondary"
                 v-on:click="
-                  arcBranch = item.default_branch;
-                  arcProperties.branch = arcBranch;
+                  arcProperties.branch = item.default_branch;
                   arcProperties.identifier = item.name;
                   arcProperties.url = item.http_url_to_repo;
                   inspectArc(item.id);
@@ -2323,7 +2415,7 @@ async function inspectTreeCrumb(index: number) {
           <q-btn
             @click="
               assaySync = false;
-              syncAssay(arcId, assaySelect, studySelect, arcBranch);
+              syncAssay(arcId, assaySelect, studySelect, arcProperties.branch);
               studySelect = assaySelect = '';
               forcereload();
             "
@@ -2354,7 +2446,7 @@ async function inspectTreeCrumb(index: number) {
           <q-btn
             @click="
               studySync = false;
-              syncStudy(arcId, studySelect, arcBranch);
+              syncStudy(arcId, studySelect, arcProperties.branch);
               studySelect = assaySelect = '';
               forcereload();
             "

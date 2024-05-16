@@ -684,6 +684,16 @@ function checkName(name: String) {
     ".gitkeep",
     ".ipynb",
     ".tsv",
+    ".log",
+    ".nf",
+    ".def",
+    ".bin",
+    ".mac",
+    ".ctl",
+    ".mth",
+    ".xsd",
+    ".ini",
+    ".bak",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -1300,7 +1310,15 @@ function setIds() {
       arcProperties.changes != '' &&
       fileProperties.pdfContent == ''
     ">
-    <q-checkbox v-model="showChanges" label="View changes" />
+    <div class="row">
+      <q-checkbox v-model="showChanges" label="View changes" />
+      <q-select
+        v-model="arcProperties.branch"
+        :options="arcProperties.branches"
+        label="Branch"
+        style="margin-left: 2em; max-width: 150px"></q-select>
+    </div>
+
     <q-card v-if="showChanges">
       <q-card-section>Changes</q-card-section>
       <q-card-section v-html="arcProperties.changes"></q-card-section>

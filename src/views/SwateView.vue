@@ -7,6 +7,7 @@ import { Term, termProperties } from "@/TermProperties";
 import isaProperties from "@/IsaProperties";
 import sheetProperties from "@/SheetProperties";
 import appProperties from "@/AppProperties";
+import arcProperties from "@/ArcProperties";
 
 var backend = appProperties.backend + "tnt/";
 var loading = false;
@@ -109,6 +110,7 @@ async function saveSheet() {
       id: isaProperties.repoId,
       // replace whitespace with underscores
       name: sheetProperties.name.replace(" ", "_"),
+      branch: arcProperties.branch,
     }),
     credentials: "include",
   });
