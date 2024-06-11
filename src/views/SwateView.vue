@@ -396,15 +396,25 @@ function deleteRow(rowIndex: number) {
         ><q-btn @click="getTerms(search)" :disable="search.length == 0"
           >Search</q-btn
         >
-        <q-checkbox v-model="advanced">Extended search</q-checkbox>
+        <q-checkbox v-model="advanced"
+          >Extended search<q-tooltip
+            >Search for any term containing the name</q-tooltip
+          ></q-checkbox
+        >
         <q-btn id="suggestion" @click="getSuggestionsByParent()"
-          >Get suggestions</q-btn
+          >Get suggestions<q-tooltip
+            >Get fitting suggestions for the parent term</q-tooltip
+          ></q-btn
         >
       </template>
       <!-- show search area for inserting a new building block-->
       <template v-else-if="showBuildingBlock">
         <span>Add building block:</span
-        ><q-checkbox v-model="bbUnit">Unit?</q-checkbox>
+        ><q-checkbox v-model="bbUnit"
+          >Unit?<q-tooltip
+            >Add a unit to the building block</q-tooltip
+          ></q-checkbox
+        >
         <div class="q-gutter-md row">
           <q-select
             style="width: 10%"
@@ -445,7 +455,7 @@ function deleteRow(rowIndex: number) {
         class="sheet"
         @click="saveSheet()"
         :disable="sheetProperties.name.length == 0"
-        >Save</q-btn
+        >Save<q-tooltip>Save the sheet and go back to the arc</q-tooltip></q-btn
       ><span style="margin-left: 1em" v-if="sheetProperties.name.length == 0"
         >Please provide a name for the sheet!</span
       >
@@ -454,7 +464,9 @@ function deleteRow(rowIndex: number) {
         size="2em"
         v-show="loading"
         :key="keyNumber"></q-spinner>
-      <q-checkbox v-model="hidden">Hide Terms</q-checkbox>
+      <q-checkbox v-model="hidden"
+        >Hide Terms<q-tooltip>Hide the term columns</q-tooltip></q-checkbox
+      >
       <q-btn
         class="sheet"
         style="margin-left: 1em"
@@ -466,7 +478,7 @@ function deleteRow(rowIndex: number) {
           showSearch = false;
           keyNumber += 1;
         "
-        >building block</q-btn
+        >building block<q-tooltip>Create a new building block</q-tooltip></q-btn
       >
       <!-- The table to enter the values with swate is a default html table -->
       <q-markup-table
@@ -505,7 +517,9 @@ function deleteRow(rowIndex: number) {
                   round
                   dense
                   flat
-                  @click="deleteColumn(column.Type)"></q-btn>
+                  @click="deleteColumn(column.Type)"
+                  ><q-tooltip>Delete the column</q-tooltip></q-btn
+                >
                 {{ column.Type.split("(")[0] }}<br />
                 <template
                   v-if="
@@ -540,7 +554,9 @@ function deleteRow(rowIndex: number) {
                   round
                   dense
                   flat
-                  @click="deleteColumn(column.Type)"></q-btn>
+                  @click="deleteColumn(column.Type)"
+                  ><q-tooltip>Delete the column</q-tooltip></q-btn
+                >
                 {{ column.Type.split("[")[0] }}<br /><template
                   v-if="
                     column.Type.startsWith('Term') && column.Type.includes('[')
@@ -575,8 +591,10 @@ function deleteRow(rowIndex: number) {
                     templateProperties.id = i;
                     keyNumber += 1;
                   "
-                  size="xs"></q-btn
-              ></template>
+                  size="xs"
+                  ><q-tooltip>Search for terms</q-tooltip></q-btn
+                ></template
+              >
             </th>
           </tr>
         </thead>
@@ -591,7 +609,8 @@ function deleteRow(rowIndex: number) {
                 round
                 dense
                 flat
-                @click="deleteRow(j)"></q-btn
+                @click="deleteRow(j)"
+                ><q-tooltip>Delete the row</q-tooltip></q-btn
               >{{ j + 1 }}
             </td>
             <td
@@ -620,7 +639,9 @@ function deleteRow(rowIndex: number) {
           </tr>
         </tbody>
       </q-markup-table>
-      <q-btn icon="add" @click="extendTemplate()">Extend</q-btn>
+      <q-btn icon="add" @click="extendTemplate()"
+        >Extend<q-tooltip>Add a new row</q-tooltip></q-btn
+      >
     </q-scroll-area>
   </div>
 </template>

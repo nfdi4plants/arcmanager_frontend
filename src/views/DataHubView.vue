@@ -346,7 +346,7 @@ async function fetchArcs(page = 1) {
   loading = true;
   appProperties.showIsaView = false;
   appProperties.arcList = true;
-  appProperties.branch = "main";
+  arcProperties.branch = "main";
   lfs.value = false;
   arcsPage.value = page;
   treePage.value = treePageMax = 1;
@@ -688,8 +688,12 @@ async function getFile(id: number, path: string, branch: string) {
       } else if (data.columns != null) {
         fileProperties.name = "XLSX";
         fileProperties.content = data.data.toString();
-
-        // its an isa file
+      }
+      // its an isa file
+      else if (path.includes("isa.datamap.xlsx")) {
+        // save the sheets
+        sheetProperties.sheets = data[0];
+        sheetProperties.names = data[1];
       } else {
         isaList = [];
         isaProperties.identification = [];
@@ -1209,6 +1213,7 @@ function checkName(name: string) {
     ".html",
     ".css",
     ".mp4",
+    ".mp3",
     ".raw",
     ".docx",
     ".db",
@@ -1641,7 +1646,7 @@ async function downloadFile(path: string) {
  *
  * @param event - the input event containing all the files
  */
-function uploadFileFolder(event: InputEvent) {
+function uploadFolder(event: InputEvent) {
   let files: Array<File> = [];
 
   // if there is a valid event target, read out the files
@@ -1705,6 +1710,38 @@ async function inspectTreeCrumb(index: number) {
   loading = false;
   forcereload();
 }
+
+/** create a isa.datamap for the study
+ *
+ */
+async function addDatamap() {
+  loading = true;
+  forcereload();
+  // send name and properties to the backend
+  let response = await fetch(backend + "addDatamap", {
+    credentials: "include",
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: pathHistory[pathHistory.length - 1],
+      id: arcId,
+      branch: arcProperties.branch,
+    }),
+  });
+  let data = await response.json();
+  if (!response.ok) {
+    errors = response.statusText + ", " + data["detail"];
+  } else {
+    // get the updated tree
+    inspectTree(arcId, pathHistory[pathHistory.length - 1]);
+
+    // get the updated changes, assays and studies
+    await getChanges(arcId, arcProperties.branch);
+  }
+
+  loading = false;
+  forcereload();
+}
 </script>
 
 <template>
@@ -1715,6 +1752,7 @@ async function inspectTreeCrumb(index: number) {
       @click="fetchArcs(), forcereload()"
       icon="downloading"
       dense
+      ><q-tooltip>Load a list of all available Arcs</q-tooltip
       ><template v-if="!appProperties.showIsaView && appProperties.arcList"
         >Load Arcs</template
       ></q-btn
@@ -1724,7 +1762,7 @@ async function inspectTreeCrumb(index: number) {
       style="background-color: lightskyblue"
       v-if="arcList.length == 0 && !appProperties.loggedIn"
       @click="openGit(git.site.value)"
-      >Explore Git</q-btn
+      ><q-tooltip>Open the datahub in a new tab</q-tooltip>Explore Git</q-btn
     >
     <q-checkbox
       style="padding-left: 10px"
@@ -1735,7 +1773,9 @@ async function inspectTreeCrumb(index: number) {
       @update:model-value="
         arcsPage = 1;
         fetchArcs(arcsPage);
-      " />
+      "
+      ><q-tooltip>List only your personal Arcs</q-tooltip></q-checkbox
+    >
     <template v-if="arcList.length != 0">
       <q-btn-group style="max-height: 3em">
         <!-- File Upload -->
@@ -1764,7 +1804,10 @@ async function inspectTreeCrumb(index: number) {
           :loading="uploading"
           :disable="progress > 0 && progress != 1 && progress != null"
           ><template v-slot:before> <q-icon name="file_upload" /> </template
-        ></q-file>
+          ><q-tooltip
+            >Upload one or multiple files (max. 10 Gb per file)</q-tooltip
+          ></q-file
+        >
         <!-- Folder Upload -->
         <div>
           <label for="folderUp" class="customFilePicker"
@@ -1782,7 +1825,8 @@ async function inspectTreeCrumb(index: number) {
             id="folderUp"
             webkitdirectory
             multiple
-            @change="uploadFileFolder" />
+            @change="uploadFolder" />
+          <q-tooltip>Upload a single folder</q-tooltip>
         </div>
         <!-- OPEN -->
         <q-btn
@@ -1793,12 +1837,16 @@ async function inspectTreeCrumb(index: number) {
           :key="refresher + 1"
           ><template v-if="!appProperties.showIsaView && appProperties.arcList"
             >Open</template
+          ><q-tooltip
+            >Open the arc from the datahub in a new tab</q-tooltip
           ></q-btn
         >
         <!-- ZIP -->
         <q-btn icon="download" @click="getArchive(arcId)" glossy color="teal-10"
           ><template v-if="!appProperties.showIsaView && appProperties.arcList"
             >zip</template
+          ><q-tooltip
+            >Download the arc compressed as a zip file</q-tooltip
           ></q-btn
         >
         <!-- SYNC ASSAY-->
@@ -1821,7 +1869,7 @@ async function inspectTreeCrumb(index: number) {
               windowWidth > 1520
             "
             >Sync Assay/Study</template
-          ></q-btn
+          ><q-tooltip>Sync the data of an assay to a study</q-tooltip></q-btn
         >
         <!-- SYNC STUDY-->
         <q-btn
@@ -1843,13 +1891,15 @@ async function inspectTreeCrumb(index: number) {
               windowWidth > 1520
             "
             >Sync Study/Invest</template
+          ><q-tooltip
+            >Sync the data of a study to the investigation</q-tooltip
           ></q-btn
         >
         <!-- Reloads the arc -->
         <q-btn icon="refresh" @click="inspectArc(arcId)" glossy
           ><template v-if="!appProperties.showIsaView && appProperties.arcList"
             >Reload</template
-          ></q-btn
+          ><q-tooltip>Reload the content of the arc</q-tooltip></q-btn
         >
         <!-- USER MANAGEMENT-->
         <q-btn icon="person" glossy id="user"
@@ -1867,6 +1917,7 @@ async function inspectTreeCrumb(index: number) {
                   getUser();
                 ">
                 <q-item-section>Add User</q-item-section>
+                <q-tooltip>Add a new user to the arc</q-tooltip>
               </q-item>
               <q-separator />
               <q-item
@@ -1878,7 +1929,8 @@ async function inspectTreeCrumb(index: number) {
                   forcereload();
                   getArcUser(arcId);
                 ">
-                <q-item-section>Remove User</q-item-section>
+                <q-item-section>Remove User</q-item-section
+                ><q-tooltip>Remove a current user of the arc</q-tooltip>
               </q-item>
               <q-separator />
               <q-item
@@ -1890,14 +1942,19 @@ async function inspectTreeCrumb(index: number) {
                   forcereload();
                   getArcUser(arcId);
                 ">
-                <q-item-section>Edit User</q-item-section>
+                <q-item-section>Edit User</q-item-section
+                ><q-tooltip
+                  >Edit the role of a current user of the arc</q-tooltip
+                >
               </q-item>
-            </q-list>
-          </q-menu></q-btn
+            </q-list> </q-menu
+          ><q-tooltip>Add, edit or remove members of your arc</q-tooltip></q-btn
         >
       </q-btn-group>
       <!-- activates swate and annotation sheets-->
-      <q-checkbox v-model="lfs">LFS</q-checkbox></template
+      <q-checkbox v-model="lfs"
+        >LFS<q-tooltip>Activate lfs for your file upload</q-tooltip></q-checkbox
+      ></template
     >
 
     <!-- LOADING SPINNER --><q-spinner
@@ -2022,11 +2079,11 @@ async function inspectTreeCrumb(index: number) {
           label="Search"
           v-if="arcList.length == 0"
           value="name"
-          @update:model-value="(newValue:string) => sortArcs(newValue)"
+          @update:model-value="(newValue:string) => sortArcs(newValue.toLowerCase())"
           :disable="list.length == 0"
           ><template v-slot:append> <q-icon name="search"></q-icon></template
         ></q-input>
-        <!-- PATH; RETURN ARROW; CREATE ISA -->
+        <!-- PATH; RETURN ARROW; CREATE ISA; CREATE DATAMAP -->
         <q-item-section
           style="padding-bottom: 2em"
           v-if="pathHistory.length > 1"
@@ -2076,7 +2133,32 @@ async function inspectTreeCrumb(index: number) {
                     showFolderInput = false;
                     forcereload();
                   "
-                  >Add</q-btn
+                  >Add<q-tooltip>Create a new isa file</q-tooltip></q-btn
+                >
+              </div></q-item-section
+            >
+            <!-- ADD DATAMAP -->
+            <q-item-section
+              side
+              v-if="
+                appProperties.experimental &&
+                (pathHistory[pathHistory.length - 2] == 'studies' ||
+                  pathHistory[pathHistory.length - 2] == 'assays')
+              ">
+              <div class="q-gutter-xs">
+                <q-btn
+                  id="add"
+                  dense
+                  flat
+                  size="12px"
+                  icon="add"
+                  @click="
+                    addDatamap();
+                    forcereload();
+                  "
+                  >Add Datamap<q-tooltip
+                    >Create a new isa file</q-tooltip
+                  ></q-btn
                 >
               </div></q-item-section
             >
@@ -2090,6 +2172,7 @@ async function inspectTreeCrumb(index: number) {
             clickable
             @click="
               arcList = [];
+              arcProperties.changes = '';
               appProperties.showIsaView = false;
               appProperties.arcList = true;
               lfs = false;
@@ -2139,7 +2222,9 @@ async function inspectTreeCrumb(index: number) {
                     arcProperties.branch,
                     item.name
                   )
-                "></q-btn>
+                "
+                ><q-tooltip>Delete the folder</q-tooltip></q-btn
+              >
             </q-item-section>
           </template>
           <template
@@ -2164,7 +2249,9 @@ async function inspectTreeCrumb(index: number) {
                     isaProperties.path = item.path;
                     isaProperties.repoTarget = git.site.value;
                   "
-                  >Add Sheet</q-btn
+                  >Add Sheet<q-tooltip
+                    >Create a new annotation sheet</q-tooltip
+                  ></q-btn
                 ><q-btn
                   icon="edit"
                   class="gt-xs"
@@ -2172,7 +2259,9 @@ async function inspectTreeCrumb(index: number) {
                   flat
                   dense
                   @click="getSheets(item.path, arcId, arcProperties.branch)"
-                  >Edit Sheet</q-btn
+                  >Edit Sheet<q-tooltip
+                    >Edit a annotation sheet</q-tooltip
+                  ></q-btn
                 >
               </div></q-item-section
             ></template
@@ -2236,7 +2325,7 @@ async function inspectTreeCrumb(index: number) {
                 flat
                 dense
                 @click="downloadFile(item.path)"
-                >Download</q-btn
+                ><q-tooltip>Download the file</q-tooltip></q-btn
               ></q-item-section
             >
             <q-item-section
@@ -2250,8 +2339,10 @@ async function inspectTreeCrumb(index: number) {
                 round
                 @click="
                   deleteFile(arcId, item.path, arcProperties.branch, item.name)
-                "></q-btn
-            ></q-item-section>
+                "
+                ><q-tooltip>Delete the file</q-tooltip></q-btn
+              ></q-item-section
+            >
           </template>
         </q-item>
         <!-- CREATE FOLDER BUTTON -->
@@ -2265,7 +2356,7 @@ async function inspectTreeCrumb(index: number) {
             showInput = false;
             forcereload();
           "
-          >New Folder</q-btn
+          >New Folder<q-tooltip>Create a new folder</q-tooltip></q-btn
         >
         <div
           class="q-pa-lg flex flex-center"

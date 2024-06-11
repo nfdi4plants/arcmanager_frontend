@@ -19,7 +19,7 @@ isaProperties.entry = [];
 
 var loading = false;
 
-var backend = appProperties.backend + "projects/";
+var backend = appProperties.backend;
 
 var keyNumber = ref(0);
 
@@ -66,7 +66,7 @@ const setEntry = (entry: string[], id: number) => {
  */
 async function buildChart(password: string) {
   errors = "";
-  let metrics = await fetch(`${backend}getMetrics?pwd=${password}`);
+  let metrics = await fetch(`${backend}projects/getMetrics?pwd=${password}`);
   let data = await metrics.json();
   if (!metrics.ok) {
     errors = "ERROR: " + data["detail"];
@@ -195,7 +195,7 @@ async function commitFile() {
   keyNumber.value += 1;
 
   const response = await fetch(
-    `${backend}commitFile?id=${fileProperties.id}&repoPath=${fileProperties.path}&branch=${arcProperties.branch}`,
+    `${backend}projects/commitFile?id=${fileProperties.id}&repoPath=${fileProperties.path}&branch=${arcProperties.branch}`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -574,7 +574,7 @@ async function selectSheet(name: string, index: number) {
   if (templateProperties.template.length == 0) {
     errors = "ERROR: Sheet is empty! Insert a Template!";
     // retrieve the templates
-    await fetch(backend + "getTemplates")
+    await fetch(backend + "tnt/getTemplates")
       .then((response) => response.json())
       .then((templates) => {
         if (templates.templates.length == 0) {
@@ -585,9 +585,10 @@ async function selectSheet(name: string, index: number) {
         templateProperties.templates = templates.templates;
         templateProperties.filtered = templates.templates;
       });
+  } else {
+    appProperties.arcList = false;
   }
   sheetProperties.sheets = sheetProperties.names = [];
-  appProperties.arcList = false;
   setIds();
 }
 
@@ -694,6 +695,7 @@ function checkName(name: String) {
     ".xsd",
     ".ini",
     ".bak",
+    ".zj",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -722,7 +724,7 @@ async function sendToBackend() {
       if (entry == null) toSend[i][j] = "";
     });
   });
-  let response = await fetch(backend + "saveFile", {
+  let response = await fetch(backend + "projects/saveFile", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     // body for the backend containing all necessary data
@@ -803,7 +805,11 @@ function setIds() {
   <!-- TOOLBAR TITLES | SPINNER-->
   <q-list>
     <q-toolbar-title v-if="isaProperties.entries.length != 0"
-      >Isa Entries<q-checkbox v-model="alternative">alternative</q-checkbox>
+      >Isa Entries<q-checkbox v-model="alternative"
+        >alternative<q-tooltip
+          >Show the alternative view of the isa file</q-tooltip
+        ></q-checkbox
+      >
       <span style="padding-left: 1em; color: red"
         >Mandatory fields are red</span
       ></q-toolbar-title
@@ -977,7 +983,9 @@ function setIds() {
                 isaProperties.publication = 'publication ' + (j + 1);
               "
               v-if="j == isaProperties.publications[0].length - 1"
-              >New Publication</q-btn
+              >New Publication<q-tooltip
+                >Create a new publication</q-tooltip
+              ></q-btn
             >
           </div></q-tab-panel
         ></template
@@ -1013,7 +1021,7 @@ function setIds() {
                 isaProperties.contact = 'contact ' + (j + 1);
               "
               v-if="j == isaProperties.contacts[0].length - 1"
-              >New Contact</q-btn
+              >New Contact<q-tooltip>Create a new contact</q-tooltip></q-btn
             >
           </div></q-tab-panel
         ></template
@@ -1021,7 +1029,7 @@ function setIds() {
     >
     <q-item-section
       ><q-btn icon="save" type="submit" color="teal" @click="sendToBackend()"
-        >Save</q-btn
+        >Save<q-tooltip>Save the data</q-tooltip></q-btn
       ></q-item-section
     >
   </template>
@@ -1084,7 +1092,9 @@ function setIds() {
               class="alt"
               @click="setTerm(term)"
               :disable="term.Name == 'No Term was found!'"
-              >Insert</q-btn
+              >Insert<q-tooltip
+                >Insert the term on the selected row</q-tooltip
+              ></q-btn
             ></q-card-section
           >
         </q-card>
@@ -1128,7 +1138,7 @@ function setIds() {
               class="bb"
               @click="setUnit(term)"
               :disable="term.Name == 'No Term was found!'"
-              >Select</q-btn
+              >Select<q-tooltip>Add the term as a unit</q-tooltip></q-btn
             ></q-card-section
           >
         </q-card>
@@ -1164,7 +1174,9 @@ function setIds() {
               class="bb"
               @click="setBB(term)"
               :disable="term.Name == 'No Term was found!'"
-              >Select</q-btn
+              >Select<q-tooltip
+                >Create a new building block with the term</q-tooltip
+              ></q-btn
             ></q-card-section
           >
         </q-card>
@@ -1230,7 +1242,9 @@ function setIds() {
             {{ template.last_updated.slice(0, 10) }}</q-card-section
           ><q-card-section
             ><q-btn class="alt" @click="setTemplate(template.table)"
-              >Import</q-btn
+              >Import<q-tooltip
+                >Import the template and create a new sheet</q-tooltip
+              ></q-btn
             ></q-card-section
           >
         </q-card>
@@ -1296,9 +1310,11 @@ function setIds() {
           icon="save"
           @click="commitFile()"
           :disable="
-            fileProperties.name == '413' || checkName(fileProperties.name)
+            fileProperties.name == '413' ||
+            checkName(fileProperties.name) ||
+            fileProperties.content.startsWith('Empty File')
           "
-          >Save</q-btn
+          >Save<q-tooltip>Save the content to the file</q-tooltip></q-btn
         ></template
       ></template
     >
@@ -1326,7 +1342,11 @@ function setIds() {
   </q-item-section>
   <q-item-section
     v-else-if="checkEmptyIsaView() && fileProperties.pdfContent == ''">
-    <q-checkbox v-model="appProperties.experimental">Experimental</q-checkbox>
+    <q-checkbox v-model="appProperties.experimental"
+      >Experimental<q-tooltip self="top left" anchor="bottom left"
+        >Show experimental features</q-tooltip
+      ></q-checkbox
+    >
   </q-item-section>
 </template>
 

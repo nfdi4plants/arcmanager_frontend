@@ -22,6 +22,7 @@ import arcProperties from "./ArcProperties";
 import fileProperties from "./FileProperties";
 import sheetProperties from "./SheetProperties";
 import { termProperties } from "./TermProperties";
+import ArcSearchView from "./views/ArcSearchView.vue";
 
 const $q = useQuasar();
 
@@ -34,11 +35,15 @@ $q.dark.set(appProperties.dark);
 var backend = appProperties.backend + "projects/";
 
 var target = ref("");
-// displays arc creation field
-var showInput = false;
 
-// opens up the template editor
-var templateEdit = false;
+var groups: Array<{ name: string; id: number }> = [];
+
+var group = ref({ name: "", id: 0 });
+
+var groupEnable = ref(false);
+
+// -1 - normal mode; 0 - arc creation; 1 - template editing; 2 - Arc search
+var mode: -1 | 0 | 1 | 2 = -1;
 
 // Name of the new arc
 var arcName = ref("");
@@ -114,15 +119,25 @@ const forcereload = () => {
 async function createArc() {
   loading = true;
   forcereload();
+
+  let payload: {
+    name: string;
+    description: string;
+    investIdentifier: string;
+    groupId?: number;
+  } = {
+    name: arcName.value,
+    description: arcDesc.value,
+    investIdentifier: invId.value,
+  };
+
+  if (group.value.id > 0) payload.groupId = group.value.id;
+
   const response = await fetch(backend + "createArc", {
     credentials: "include",
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: arcName.value,
-      description: arcDesc.value,
-      investIdentifier: invId.value,
-    }),
+    body: JSON.stringify(payload),
   });
   let data = await response.json();
   if (!response.ok) {
@@ -164,6 +179,34 @@ if (document.cookie.includes("error")) {
 function openArcSearch() {
   window.open("https://arcregistry.nfdi4plants.org/isasearch");
 }
+
+/** get the list of branches
+ *
+ * @param id - the id of the arc
+ */
+async function getGroups() {
+  groups = [];
+  group.value = { name: "", id: 0 };
+  try {
+    let request = await fetch(backend + "getGroups", {
+      credentials: "include",
+    });
+    if (request.ok) {
+      let groupsJson = await request.json();
+
+      groupsJson.forEach((element: { name: string; id: number }) => {
+        groups.push({
+          name: element.name,
+          id: element.id,
+        });
+      });
+      console.log(groups);
+    }
+  } catch (error: any) {
+    errors = error.toString();
+  }
+  forcereload();
+}
 </script>
 
 <template>
@@ -186,8 +229,7 @@ function openArcSearch() {
             clickable
             class="bg-primary text-white"
             @click="
-              showInput = false;
-              templateEdit = false;
+              mode = -1;
               errors = '';
               forcereload();
             "
@@ -198,8 +240,7 @@ function openArcSearch() {
                 style="margin: 0 -0.2em"
                 :name="'img:' + logoURL"
                 @click="
-                  showInput = false;
-                  templateEdit = false;
+                  mode = -1;
                   errors = '';
                   forcereload();
                 "
@@ -241,10 +282,10 @@ function openArcSearch() {
             v-ripple
             clickable
             v-on:click="
-              showInput = true;
-              templateEdit = false;
+              mode = 0;
               appProperties.showIsaView = false;
               errors = '';
+              getGroups();
               cleanIsaView();
               forcereload();
             "
@@ -252,18 +293,17 @@ function openArcSearch() {
             <q-item-section avatar>
               <q-icon color="grey-7" name="add_circle"></q-icon>
             </q-item-section>
-            <q-item-section style="margin-left: -1.2em"
-              >New ARC</q-item-section
-            > </q-item
+            <q-item-section style="margin-left: -1.2em">New ARC</q-item-section
+            ><q-tooltip>Create a new Arc</q-tooltip> </q-item
           ><q-separator />
-          <!-- ARC SEARCH-->
+          <!-- ARC REGISTRY-->
           <q-item v-ripple clickable v-on:click="openArcSearch()">
             <q-item-section avatar>
               <q-icon color="grey-7" name="open_in_new"></q-icon>
             </q-item-section>
             <q-item-section style="margin-left: -1.2em"
-              >ARC Search</q-item-section
-            >
+              >ARC Registry</q-item-section
+            ><q-tooltip>Open the Arc registry in a new tab</q-tooltip>
           </q-item>
           <!-- TEMPLATE EDITOR-->
           <q-item
@@ -272,10 +312,9 @@ function openArcSearch() {
             clickable
             v-on:click="
               errors = '';
-              templateEdit = true;
+              mode = 1;
               appProperties.showIsaView = false;
               appProperties.arcList = false;
-              showInput = false;
               cleanIsaView();
               forcereload();
             ">
@@ -284,7 +323,28 @@ function openArcSearch() {
             </q-item-section>
             <q-item-section style="margin-left: -1.2em"
               >Template Editor</q-item-section
-            >
+            ><q-tooltip>Open the template editor</q-tooltip>
+          </q-item>
+          <!-- ARC SEARCH -->
+          <q-separator v-if="appProperties.experimental"></q-separator>
+          <q-item
+            v-if="appProperties.experimental"
+            v-ripple
+            clickable
+            v-on:click="
+              errors = '';
+              mode = 2;
+              appProperties.showIsaView = false;
+              appProperties.arcList = false;
+              cleanIsaView();
+              forcereload();
+            ">
+            <q-item-section avatar>
+              <q-icon color="grey-7" name="search"></q-icon>
+            </q-item-section>
+            <q-item-section style="margin-left: -1.2em"
+              >ARC Search</q-item-section
+            ><q-tooltip>Open the search area for public arcs</q-tooltip>
           </q-item>
           <q-item v-if="!appProperties.dark">
             <q-btn
@@ -294,8 +354,10 @@ function openArcSearch() {
               "
               round
               outline
-              icon="dark_mode"></q-btn
-          ></q-item>
+              icon="dark_mode"
+              ><q-tooltip>Switch to dark mode</q-tooltip></q-btn
+            ></q-item
+          >
           <q-item v-else>
             <q-btn
               @click="
@@ -305,7 +367,9 @@ function openArcSearch() {
               round
               outline
               color="yellow"
-              icon="light_mode"></q-btn>
+              icon="light_mode"
+              ><q-tooltip>Switch to light mode</q-tooltip></q-btn
+            >
           </q-item>
         </q-list>
         <q-spinner-gears
@@ -344,6 +408,14 @@ function openArcSearch() {
           style="margin-left: 45%"
           >Manual</a
         >
+        <q-separator vertical style="margin-left: 1%" size="2px"></q-separator>
+        <a
+          class="footer"
+          href="https://helpdesk.nfdi4plants.org/"
+          target="_blank"
+          style="margin-left: 1%"
+          >Helpdesk</a
+        >
         <!--<a style="margin-left: 10%;" href="mailto:arcmanager.support@nfdi4plants.de" class="footer">Support&#128231;</a>-->
       </q-footer>
       <!-- HEADER -->
@@ -352,12 +424,15 @@ function openArcSearch() {
       </q-header>
       <q-page padding>
         <q-item-section v-if="errors != ''">{{ errors }}</q-item-section>
-        <template v-if="showInput"
+        <!-- MODE 0: ARC CREATION-->
+        <template v-if="mode == 0"
           ><q-btn
             class="return"
             icon="arrow_back"
             @click="
-              showInput = false;
+              mode = -1;
+              groupEnable = false;
+              appProperties.arcList = true;
               forcereload();
             "
             :key="refresher + 3"></q-btn>
@@ -371,6 +446,21 @@ function openArcSearch() {
             :rules="[
               (val) => !val.includes(' ') || 'No whitespace allowed!',
             ]" />
+          <div v-show="groups.length > 0">
+            <q-checkbox v-model="groupEnable"
+              >Group?<q-tooltip
+                >Create a new Arc for a Group</q-tooltip
+              ></q-checkbox
+            >
+            <q-select
+              v-if="groupEnable"
+              :options="groups"
+              option-label="name"
+              label="Group"
+              v-model="group"
+              :key="refresher + 6"
+              style="width: 200px"></q-select>
+          </div>
           <q-separator
             style="margin-top: 1em; margin-bottom: 1em"></q-separator>
 
@@ -379,7 +469,7 @@ function openArcSearch() {
             icon="send"
             @click="
               createArc();
-              showInput = false;
+              mode = -1;
               arcDesc = arcName = invId = '';
               forcereload();
             "
@@ -395,18 +485,33 @@ function openArcSearch() {
             >Please provide an identifier for the ARC!</span
           >
         </template>
-        <template v-else-if="templateEdit"
+        <!-- MODE 1: TEMPLATE EDITOR-->
+        <template v-else-if="mode == 1"
           ><q-btn
             class="return"
             icon="arrow_back"
             @click="
-              templateEdit = false;
+              mode = -1;
               appProperties.arcList = true;
               forcereload();
             "
             :key="refresher + 4"></q-btn>
           <TemplateEditView></TemplateEditView>
         </template>
+        <!-- MODE 2: ARC SEARCH-->
+        <template v-else-if="mode == 2">
+          <q-btn
+            class="return"
+            icon="arrow_back"
+            @click="
+              mode = -1;
+              appProperties.arcList = true;
+              forcereload();
+            "
+            :key="refresher + 4"></q-btn>
+          <ArcSearchView></ArcSearchView>
+        </template>
+        <!-- MODE -1: NORMAL MODE-->
         <template v-else>
           <q-btn
             flat
