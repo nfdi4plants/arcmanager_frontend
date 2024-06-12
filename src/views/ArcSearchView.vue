@@ -23,6 +23,7 @@ class ArcSearch {
     html_url: string;
     source_url?: string;
   };
+  assay_study_relation: {};
   identifier: string;
   url: string;
 
@@ -33,11 +34,11 @@ class ArcSearch {
     id: number,
     last_activity: string,
     name: string,
-    path: string,
     topics: Array<string>,
     author: { name: string; username: string },
     identifier: string,
     url: string,
+    assay_study_relation: {},
     license?: {
       key: string;
       name: string;
@@ -56,6 +57,7 @@ class ArcSearch {
     this.author = author;
     this.identifier = identifier;
     this.url = url;
+    this.assay_study_relation = assay_study_relation;
     this.license = license;
   }
 }
@@ -219,6 +221,7 @@ getArcJson();
         <th>Description</th>
         <th>Identifier</th>
         <th>License</th>
+        <th>Study-Assay Relation</th>
         <th>Created at</th>
         <th>Last Activity</th>
       </tr>
@@ -235,6 +238,14 @@ getArcJson();
         <td>{{ entry.description }}</td>
         <td>{{ entry.identifier }}</td>
         <td>{{ entry.license?.name }}</td>
+        <td>
+          <p
+            v-for="study in Object.keys(entry.assay_study_relation)"
+            style="font-size: small">
+            {{ study }}: {{ entry.assay_study_relation[study] }}
+          </p>
+        </td>
+
         <td>{{ entry.created_at }}</td>
         <td>{{ entry.last_activity }}</td>
       </tr>

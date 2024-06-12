@@ -115,17 +115,22 @@ async function saveSheet() {
     credentials: "include",
   });
   if (!response.ok) {
-    errors = "ERROR: Couldn't save Table!";
-    loading = false;
+    try {
+      let errorJson = await response.json();
+      errors = "ERROR: " + response.statusText + "; " + errorJson["detail"];
+    } catch (error) {
+      errors = "ERROR: Couldn't save Table!";
+    }
+  } else {
+    // cleanup view
+    templateProperties.template = [];
+    templateProperties.templates = [];
+    templateProperties.content = [[]];
+    termProperties.terms = [];
+    appProperties.arcList = true;
+    appProperties.showIsaView = false;
   }
-  // cleanup view
-  templateProperties.template = [];
-  templateProperties.templates = [];
-  templateProperties.content = [[]];
-  termProperties.terms = [];
   loading = false;
-  appProperties.arcList = true;
-  appProperties.showIsaView = false;
   keyNumber.value += 1;
 }
 

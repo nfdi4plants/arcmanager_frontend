@@ -37,7 +37,8 @@ async function sendToBackend() {
   });
 
   if (!response.ok) {
-    errors = "ERROR: " + response.statusText;
+    let errorJson = await response.json();
+    errors = "ERROR: " + response.statusText + "; " + errorJson["detail"];
     keyNumber.value += 1;
   } else {
     isaProperties.entries[isaProperties.rowId] = isaProperties.entry;

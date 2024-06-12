@@ -779,7 +779,10 @@ async function getFile(id: number, path: string, branch: string) {
         if (isaProperties.contacts.length == 0)
           isaProperties.contacts.push([""]);
 
-        if (isaProperties.publications.length == 0)
+        if (
+          isaProperties.publications.length == 0 &&
+          !path.endsWith("isa.assay.xlsx")
+        )
           isaProperties.publications.push([""]);
       }
     }
