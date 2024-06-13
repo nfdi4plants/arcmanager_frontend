@@ -7,6 +7,74 @@ var backend = appProperties.backend + "projects/";
 
 var loading = false;
 
+class Contact {
+  "Investigation Person Last Name": string;
+  "Investigation Person First Name": string;
+  "Investigation Person Mid Initials"?: string;
+  "Investigation Person Email"?: string;
+  "Investigation Person Phone"?: string | number;
+  "Investigation Person Fax"?: string;
+  "Investigation Person Address"?: string;
+  "Investigation Person Affiliation"?: string;
+  "Investigation Person Roles"?: string;
+  "Investigation Person Term Accession Number"?: string;
+  "Investigation Person Term Source REF"?: string;
+
+  constructor(
+    lastName: string,
+    firstName: string,
+    midInitials?: string,
+    email?: string,
+    phone?: string | number,
+    fax?: string,
+    address?: string,
+    affiliation?: string,
+    roles?: string,
+    rolesTan?: string,
+    rolesREF?: string
+  ) {
+    this["Investigation Person Last Name"] = lastName;
+    this["Investigation Person First Name"] = firstName;
+    this["Investigation Person Mid Initials"] = midInitials;
+    this["Investigation Person Email"] = email;
+    this["Investigation Person Phone"] = phone;
+    this["Investigation Person Fax"] = fax;
+    this["Investigation Person Address"] = address;
+    this["Investigation Person Affiliation"] = affiliation;
+    this["Investigation Person Roles"] = roles;
+    this["Investigation Person Term Accession Number"] = rolesTan;
+    this["Investigation Person Term Source REF"] = rolesREF;
+  }
+}
+
+class Publication {
+  "Investigation Publication PubMed ID"?: number | string;
+  "Investigation Publication DOI": string;
+  "Investigation Publication Author List"?: string;
+  "Investigation Publication Title": string;
+  "Investigation Publication Status"?: string;
+  "Investigation Publication Status Term Accession Number"?: string;
+  "Investigation Publication Status Term Source REF"?: string;
+
+  constructor(
+    doi: string,
+    title: string,
+    pubMedID?: number | string,
+    authors?: string,
+    status?: string,
+    statusTan?: string,
+    statusREF?: string
+  ) {
+    this["Investigation Publication PubMed ID"] = pubMedID;
+    this["Investigation Publication DOI"] = doi;
+    this["Investigation Publication Author List"] = authors;
+    this["Investigation Publication Title"] = title;
+    this["Investigation Publication Status"] = status;
+    this["Investigation Publication Status Term Accession Number"] = statusTan;
+    this["Investigation Publication Status Term Source REF"] = statusREF;
+  }
+}
+
 class ArcSearch {
   datahub: string;
   id: number;
@@ -26,6 +94,8 @@ class ArcSearch {
   assay_study_relation: {};
   identifier: string;
   url: string;
+  contacts: Array<Contact>;
+  publications: Array<Publication>;
 
   constructor(
     datahub: string,
@@ -39,6 +109,8 @@ class ArcSearch {
     identifier: string,
     url: string,
     assay_study_relation: {},
+    contacts: [],
+    publications: [],
     license?: {
       key: string;
       name: string;
@@ -58,6 +130,8 @@ class ArcSearch {
     this.identifier = identifier;
     this.url = url;
     this.assay_study_relation = assay_study_relation;
+    this.contacts = contacts;
+    this.publications = publications;
     this.license = license;
   }
 }
@@ -65,6 +139,12 @@ class ArcSearch {
 var search = ref("");
 
 var sort = ref("datahub");
+
+var card = ref(false);
+
+var tab = ref("desc");
+
+var cardArc: ArcSearch;
 
 var arcJson: Array<ArcSearch> = [];
 
@@ -163,6 +243,19 @@ let errors = "";
 let keyNumber = ref(0);
 
 getArcJson();
+
+function openCard(name: string, id: number) {
+  let selectedArc = searchList.find(
+    (item) => item.name === name && item.id === id
+  );
+
+  if (selectedArc) {
+    cardArc = selectedArc;
+    tab.value = "desc";
+
+    card.value = true;
+  }
+}
 </script>
 
 <template>
@@ -229,7 +322,7 @@ getArcJson();
     <tbody>
       <tr
         v-for="entry in searchList"
-        @click="openArc(entry.url)"
+        @click="openCard(entry.name, entry.id)"
         style="cursor: pointer">
         <td>{{ entry.datahub }}</td>
         <td>{{ entry.name }}</td>
@@ -251,4 +344,216 @@ getArcJson();
       </tr>
     </tbody>
   </q-markup-table>
+  <q-dialog v-model="card">
+    <q-card style="width: 700px; max-width: 80vw">
+      <q-item>
+        <q-item-section>
+          <q-item-label>{{ cardArc.name }}</q-item-label>
+          <q-item-label caption>
+            {{ cardArc.datahub }}, {{ cardArc.id }}
+          </q-item-label>
+        </q-item-section>
+        <q-item-section>
+          <q-item-label>by {{ cardArc.author.name }}</q-item-label>
+          <q-item-label caption>({{ cardArc.author.username }})</q-item-label>
+        </q-item-section>
+      </q-item>
+
+      <q-separator />
+
+      <q-card-section horizontal>
+        <q-card-section
+          ><q-item-label caption class="caption"> created at: </q-item-label>
+          {{ cardArc.created_at }}
+        </q-card-section>
+
+        <q-separator vertical />
+
+        <q-card-section class="col-4">
+          <q-item-label caption class="caption">
+            last activity at:
+          </q-item-label>
+          {{ cardArc.last_activity }} </q-card-section
+        ><q-item-section side>
+          <q-btn
+            icon="open_in_new"
+            color="light-blue"
+            @click="openArc(cardArc.url)"></q-btn>
+        </q-item-section> </q-card-section
+      ><q-separator />
+      <q-tabs v-model="tab" class="text-teal">
+        <q-tab label="Description" name="desc" />
+        <q-tab label="Assay-Study Relations" name="assayStudy" />
+        <q-tab
+          label="Contacts"
+          name="contacts"
+          v-show="cardArc.contacts.length > 0" />
+        <q-tab
+          label="Publications"
+          name="publications"
+          v-show="cardArc.publications.length > 0" />
+      </q-tabs>
+
+      <q-separator />
+
+      <q-tab-panels v-model="tab" animated>
+        <q-tab-panel name="desc">
+          {{ cardArc.description }}
+          <span v-if="cardArc.description == '' || cardArc.description == null"
+            >No description available!</span
+          >
+        </q-tab-panel>
+
+        <q-tab-panel name="assayStudy">
+          <q-markup-table
+            wrap-cells
+            bordered
+            separator="cell"
+            flat
+            :key="keyNumber">
+            <thead>
+              <th>Study</th>
+              <th>Assays</th>
+            </thead>
+            <tbody>
+              <tr v-for="study in Object.keys(cardArc.assay_study_relation)">
+                <td>{{ study }}</td>
+                <td>
+                  <ul>
+                    <li
+                      v-for="assay in cardArc.assay_study_relation[study]"
+                      style="font-size: small">
+                      {{ assay }}
+                    </li>
+                  </ul>
+                </td>
+              </tr>
+            </tbody>
+          </q-markup-table>
+        </q-tab-panel>
+        <q-tab-panel name="contacts">
+          <q-list bordered>
+            <q-item
+              v-for="contact in cardArc.contacts"
+              class="q-my-sm"
+              v-ripple>
+              <q-item-section>
+                <q-item-label
+                  >{{ contact["Investigation Person First Name"] }}
+                  <template
+                    v-if="contact['Investigation Person Mid Initials']"
+                    >{{
+                      contact["Investigation Person Mid Initials"]
+                    }}</template
+                  >
+                  {{ contact["Investigation Person Last Name"] }}</q-item-label
+                >
+                <q-item-label caption lines="1">{{
+                  contact["Investigation Person Email"]
+                }}</q-item-label>
+                <q-item-label
+                  caption
+                  lines="1"
+                  v-if="contact['Investigation Person Roles']"
+                  >{{ contact["Investigation Person Roles"] }}</q-item-label
+                >
+              </q-item-section>
+
+              <q-item-section>
+                <q-item-label>{{
+                  contact["Investigation Person Affiliation"]
+                }}</q-item-label>
+                <q-item-label v-if="contact['Investigation Person Address']">{{
+                  contact["Investigation Person Address"]
+                }}</q-item-label>
+                <q-item-label
+                  caption
+                  lines="1"
+                  v-if="contact['Investigation Person Phone']"
+                  >Phone:
+                  {{ contact["Investigation Person Phone"] }}</q-item-label
+                >
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-tab-panel>
+        <q-tab-panel name="publications">
+          <q-list bordered>
+            <q-item
+              v-for="publication in cardArc.publications"
+              class="q-my-sm"
+              v-ripple>
+              <q-item-section>
+                <q-item-label>{{
+                  publication["Investigation Publication Title"]
+                }}</q-item-label>
+                <q-item-label
+                  caption
+                  lines="1"
+                  v-if="publication['Investigation Publication PubMed ID']"
+                  >PubMed ID:
+                  {{
+                    publication["Investigation Publication PubMed ID"]
+                  }}</q-item-label
+                >
+                <q-item-label
+                  caption
+                  lines="1"
+                  v-if="publication['Investigation Publication Status']"
+                  >Status:
+                  {{
+                    publication["Investigation Publication Status"]
+                  }}</q-item-label
+                >
+              </q-item-section>
+
+              <q-item-section>
+                <q-item-label>{{
+                  publication["Investigation Publication Author List"]
+                }}</q-item-label>
+                <q-item-label
+                  v-if="publication['Investigation Publication DOI']">
+                  <a
+                    v-if="
+                      publication['Investigation Publication DOI'].startsWith(
+                        'http'
+                      )
+                    "
+                    :href="publication['Investigation Publication DOI']"
+                    target="_blank"
+                    >{{ publication["Investigation Publication DOI"] }}</a
+                  >
+                  <a
+                    v-else-if="
+                      publication['Investigation Publication DOI'].startsWith(
+                        '10.'
+                      )
+                    "
+                    :href="
+                      'https://doi.org/' +
+                      publication['Investigation Publication DOI']
+                    "
+                    target="_blank"
+                    >{{ publication["Investigation Publication DOI"] }}</a
+                  >
+                  <template v-else>{{
+                    publication["Investigation Publication DOI"]
+                  }}</template>
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-tab-panel>
+      </q-tab-panels>
+    </q-card>
+  </q-dialog>
 </template>
+<style>
+.body--light .caption {
+  color: black;
+}
+
+.body--dark .caption {
+  color: white;
+}
+</style>

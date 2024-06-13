@@ -1232,6 +1232,8 @@ function checkName(name: string) {
     ".bam",
     "._output",
     ".swp",
+    ".ab1",
+    ".spf",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
