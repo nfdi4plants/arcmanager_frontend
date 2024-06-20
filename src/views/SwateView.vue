@@ -43,6 +43,25 @@ var showSearch = false;
 // show the building block area
 var showBuildingBlock = false;
 
+///// CUSTOM COLUMN
+
+// show the custom column creation area
+var showCustomColumn = false;
+
+// the index where the column should be inserted to
+var customColumnNumber = ref(0);
+
+// the name of the new column
+var customColumnName = ref("");
+
+// whether or not the new column should have the two term columns as well
+var customColumnTerms = ref(false);
+
+// whether or not the new column should also have a unit column
+var customColumnUnit = ref(false);
+
+////////
+
 // set to true if the building block has a unit
 var bbUnit = ref(false);
 
@@ -333,7 +352,6 @@ function deleteColumn(columnType: string) {
   }).onOk(() => {
     // user confirmed the deletion
     console.log("Deleting " + columnType + "...");
-    console.log(templateProperties.template);
 
     let columnIndex = templateProperties.template.findIndex(
       (element) => element.Type == columnType
@@ -351,6 +369,7 @@ function deleteColumn(columnType: string) {
       templateProperties.content.splice(columnIndex, 1);
       counter++;
     }
+    sheetProperties.columnIds -= 1;
     $q.notify("Successfully deleted the column " + columnType + " !");
     keyNumber.value += 1;
   });
@@ -378,6 +397,97 @@ function deleteRow(rowIndex: number) {
     else sheetProperties.rowIds.pop();
     keyNumber.value += 1;
   });
+}
+
+/** adds a customizable column at the desired index
+ *
+ */
+function addColumn() {
+  if (
+    customColumnName.value != "" &&
+    customColumnNumber.value > 0 &&
+    customColumnNumber.value <= sheetProperties.columnIds
+  ) {
+    let counter = 0;
+    templateProperties.template.forEach((entry, i) => {
+      if (
+        !entry.Type.startsWith("Input ") &&
+        !entry.Type.startsWith("Output ") &&
+        !entry.Type.startsWith("Term ") &&
+        !entry.Type.startsWith("Unit ")
+      ) {
+        counter += 1;
+        if (counter == customColumnNumber.value) {
+          templateProperties.template.splice(i, 0, {
+            Type:
+              termProperties.parameterType +
+              " [" +
+              customColumnName.value +
+              "]",
+            Custom: true,
+          });
+          let emptyArray = Array.from(
+            { length: templateProperties.content[0].length },
+            (_) => ""
+          );
+          templateProperties.content.splice(i, 0, emptyArray);
+
+          if (customColumnTerms.value) {
+            templateProperties.template.splice(i + 1, 0, {
+              Type: "Term Source REF [" + customColumnName.value + "]",
+              Custom: true,
+            });
+            templateProperties.template.splice(i + 2, 0, {
+              Type: "Term Accession Number [" + customColumnName.value + "]",
+              Custom: true,
+            });
+
+            templateProperties.content.splice(i + 1, 0, emptyArray);
+            templateProperties.content.splice(i + 2, 0, emptyArray);
+          }
+          if (customColumnUnit.value) {
+            templateProperties.template.splice(i + 1, 0, {
+              Type: "Unit [" + customColumnName.value + "]",
+              Custom: true,
+            });
+            templateProperties.content.splice(i + 1, 0, emptyArray);
+          }
+        }
+      }
+      if (
+        i == templateProperties.template.length - 1 &&
+        customColumnNumber.value == sheetProperties.columnIds
+      ) {
+        templateProperties.template.splice(
+          templateProperties.template.length - 1,
+          0,
+          {
+            Type:
+              termProperties.parameterType +
+              " [" +
+              customColumnName.value +
+              "]",
+            Custom: true,
+          }
+        );
+        let emptyArray = Array.from(
+          { length: templateProperties.content[0].length },
+          (_) => ""
+        );
+        templateProperties.content.splice(
+          templateProperties.template.length - 1,
+          0,
+          emptyArray
+        );
+      }
+    });
+    customColumnTerms.value = false;
+    customColumnUnit.value = false;
+    customColumnNumber.value = 0;
+    sheetProperties.columnIds += 1;
+    customColumnName.value = "";
+    showCustomColumn = false;
+  }
 }
 </script>
 
@@ -448,6 +558,54 @@ function deleteRow(rowIndex: number) {
           >Search unit</q-btn
         >
       </template>
+      <template v-else-if="showCustomColumn">
+        <div class="row">
+          <div>
+            <span>Select where you want to add the column:</span>
+            <q-input
+              style="width: 150px"
+              type="number"
+              v-model.number="customColumnNumber"
+              :max="sheetProperties.columnIds"
+              min="1"></q-input>
+          </div>
+          <div style="margin-left: 3em">
+            Name:
+            <q-input outlined v-model="customColumnName" style="width: 200px" />
+          </div>
+          <div style="margin-left: 3em">
+            Parameter type:
+            <q-select
+              style="width: 200px"
+              outlined
+              v-model="termProperties.parameterType"
+              :options="parameterOptions"
+              label="Parameter Type" />
+          </div>
+          <div style="margin-left: 3em">
+            <q-checkbox v-model="customColumnTerms"
+              >Term Columns?<q-tooltip
+                >Adds two term columns to the new custom column</q-tooltip
+              ></q-checkbox
+            >
+            <q-checkbox v-model="customColumnUnit"
+              >Unit Column?<q-tooltip
+                >Adds a unit column to the custom column</q-tooltip
+              ></q-checkbox
+            >
+          </div>
+        </div>
+        <q-btn
+          class="active"
+          @click="addColumn"
+          :disable="
+            customColumnName == '' ||
+            customColumnNumber < 1 ||
+            customColumnNumber > sheetProperties.columnIds
+          "
+          >Add</q-btn
+        >
+      </template>
       <q-separator></q-separator>
       <!-- Area for sheet naming and other options-->
       <q-input
@@ -481,9 +639,23 @@ function deleteRow(rowIndex: number) {
           showBuildingBlock = !showBuildingBlock;
           search = '';
           showSearch = false;
+          showCustomColumn = false;
           keyNumber += 1;
         "
         >building block<q-tooltip>Create a new building block</q-tooltip></q-btn
+      ><q-btn
+        class="send"
+        icon="add"
+        dense
+        style="margin-left: 1em"
+        @click="
+          showCustomColumn = !showCustomColumn;
+          search = '';
+          showSearch = false;
+          showBuildingBlock = false;
+          keyNumber += 1;
+        "
+        >Add custom column</q-btn
       >
       <!-- The table to enter the values with swate is a default html table -->
       <q-markup-table
@@ -561,8 +733,14 @@ function deleteRow(rowIndex: number) {
                   flat
                   @click="deleteColumn(column.Type)"
                   ><q-tooltip>Delete the column</q-tooltip></q-btn
-                >
-                {{ column.Type.split("[")[0] }}<br /><template
+                ><input
+                  v-if="column.Custom"
+                  type="text"
+                  style="width: 80%; height: unset; border: 0px"
+                  v-model="column.Type" />
+                <template v-else>
+                  {{ column.Type.split("[")[0] }}<br /></template
+                ><template
                   v-if="
                     column.Type.startsWith('Term') && column.Type.includes('[')
                   ">
@@ -573,23 +751,28 @@ function deleteRow(rowIndex: number) {
                     "
                     style="font-size: small"
                     target="_blank"
-                    >[{{ column.Type.split("[")[1] }}</a
+                    ><template v-if="!column.Custom"
+                      >[{{ column.Type.split("[")[1] }}</template
+                    ></a
                   ></template
                 ><template v-else>
-                  <template v-if="column.Type.includes(']')">[</template>
-                  {{ column.Type.split("[")[1] }}</template
+                  <template v-if="!column.Custom">
+                    <template v-if="column.Type.includes(']')">[</template>
+                    {{ column.Type.split("[")[1] }}</template
+                  ></template
                 >
               </template>
 
               <!-- if the type is neither a term accession or a unit, insert a search button -->
               <!-- also the parameter should not be of type "unit" -->
-              <template v-if="checkName(column.Type)"
+              <template v-if="checkName(column.Type) && !column.Custom"
                 ><q-btn
                   icon="search"
                   round
                   @click="
                     showSearch = true;
                     showBuildingBlock = false;
+                    showCustomColumn = false;
                     search = '';
                     searchType = searchName(column.Type);
                     if (column.Accession) searchAccession = column.Accession;

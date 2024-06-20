@@ -231,6 +231,7 @@ function setTemplate(table: Table) {
   appProperties.arcList = false;
   search.value = "";
   keyNumber.value += 1;
+  sheetProperties.columnIds = 1;
 
   if (table != null) {
     // set the sheet name to the name set by the template
@@ -265,7 +266,6 @@ function setTemplate(table: Table) {
     }
 
     table.header.forEach((entry, index: number) => {
-      console.log(typeof entry.values[0]);
       if (typeof entry.values[0] != typeof "") {
         try {
           templateProperties.template.push({
@@ -325,6 +325,9 @@ function setTemplate(table: Table) {
           Type: `${entry.headertype} [${entry.values[0]}]`,
         });
         templateProperties.content.push([""]);
+      }
+      if (entry.headertype != "Input" && entry.headertype != "Output") {
+        sheetProperties.columnIds += 1;
       }
     });
   } else {

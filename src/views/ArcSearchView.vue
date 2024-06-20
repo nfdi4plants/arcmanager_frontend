@@ -3,7 +3,7 @@ import appProperties from "@/AppProperties";
 import isaProperties from "@/IsaProperties";
 import { ref } from "vue";
 
-var backend = appProperties.backend + "projects/";
+var backend = appProperties.backend + "search/";
 
 var loading = false;
 
@@ -185,11 +185,12 @@ function sortArcs(searchTerm: string) {
   searchTerm = searchTerm.replace("ü", "ue");
   arcJson.forEach((element) => {
     // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
-    let searchString = `${element.name.toLowerCase()} ${element.id} ${
-      element.datahub
-    } ${element.topics
-      .toString()
-      .toLowerCase()} ${element.author.name.toLowerCase()}`;
+    let searchString = `${element.name.toLowerCase()}
+    ${element.id}
+    ${element.datahub}
+    ${element.topics.toString().toLowerCase()}
+    ${element.author.name.toLowerCase()}
+    ${element.author.username.toLowerCase()}`;
     if (searchString.includes(searchTerm.toLowerCase())) {
       searchList.push(element);
     }
@@ -244,6 +245,11 @@ let keyNumber = ref(0);
 
 getArcJson();
 
+/** opens a card when you click on an Arc
+ *
+ * @param name - name of the arc
+ * @param id - id of the arc
+ */
 function openCard(name: string, id: number) {
   let selectedArc = searchList.find(
     (item) => item.name === name && item.id === id
@@ -254,6 +260,28 @@ function openCard(name: string, id: number) {
     tab.value = "desc";
 
     card.value = true;
+  }
+}
+
+/** download the json containing the data about the arcs
+ *
+ */
+async function downloadJson() {
+  let searchJson = await fetch(backend + "getArcJson");
+
+  if (!searchJson.ok) {
+    errors = "ERROR: " + searchJson.json();
+    keyNumber.value += 1;
+  } else {
+    const url = window.URL.createObjectURL(await searchJson.blob());
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = url;
+
+    a.download = "searchableArcs.json";
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
   }
 }
 </script>
@@ -297,7 +325,15 @@ function openCard(name: string, id: number) {
       label="Author"
       @update:model-value="sortList('author')" />
   </div>
-  <q-btn @click="getArcJson">Get</q-btn>
+  <q-btn @click="getArcJson" class="return">Get</q-btn>
+  <q-btn
+    icon="download"
+    @click="downloadJson"
+    dense
+    class="send"
+    style="margin-left: 1em"
+    >Json</q-btn
+  >
   <q-markup-table
     wrap-cells
     bordered
@@ -350,7 +386,7 @@ function openCard(name: string, id: number) {
         <q-item-section>
           <q-item-label>{{ cardArc.name }}</q-item-label>
           <q-item-label caption>
-            {{ cardArc.datahub }}, {{ cardArc.id }}
+            {{ cardArc.datahub }}, ID: {{ cardArc.id }}
           </q-item-label>
         </q-item-section>
         <q-item-section>
@@ -374,7 +410,8 @@ function openCard(name: string, id: number) {
             last activity at:
           </q-item-label>
           {{ cardArc.last_activity }} </q-card-section
-        ><q-item-section side>
+        ><q-item-section side style="padding-left: 10%">
+          Open ARC:
           <q-btn
             icon="open_in_new"
             color="light-blue"
@@ -436,7 +473,7 @@ function openCard(name: string, id: number) {
             <q-item
               v-for="contact in cardArc.contacts"
               class="q-my-sm"
-              v-ripple>
+              v-ripple="false">
               <q-item-section>
                 <q-item-label
                   >{{ contact["Investigation Person First Name"] }}
@@ -482,7 +519,7 @@ function openCard(name: string, id: number) {
             <q-item
               v-for="publication in cardArc.publications"
               class="q-my-sm"
-              v-ripple>
+              v-ripple="false">
               <q-item-section>
                 <q-item-label>{{
                   publication["Investigation Publication Title"]

@@ -16,6 +16,9 @@ const sheetProperties = reactive({
 
   // amount of rows
   rowIds: [1],
+
+  // amount of columns
+  columnIds: 1,
 });
 
 export default sheetProperties;

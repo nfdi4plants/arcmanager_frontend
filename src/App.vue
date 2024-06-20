@@ -188,7 +188,7 @@ async function getGroups() {
   groups = [];
   group.value = { name: "", id: 0 };
   try {
-    let request = await fetch(backend + "getGroups", {
+    let request = await fetch(appProperties.backend + "user/getGroups", {
       credentials: "include",
     });
     if (request.ok) {
@@ -201,6 +201,8 @@ async function getGroups() {
         });
       });
       console.log(groups);
+    } else {
+      errors = "Error retrieving your groups! Try to login again!";
     }
   } catch (error: any) {
     errors = error.toString();
@@ -454,6 +456,7 @@ async function getGroups() {
             >
             <q-select
               v-if="groupEnable"
+              clearable
               :options="groups"
               option-label="name"
               label="Group"

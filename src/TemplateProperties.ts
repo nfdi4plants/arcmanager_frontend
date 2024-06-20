@@ -102,7 +102,7 @@ const templateProperties = reactive({
   filtered: [] as Array<Template>,
 
   // the chosen template
-  template: [] as Array<{ Type: string; Accession?: string }>,
+  template: [] as Array<{ Type: string; Accession?: string; Custom?: boolean }>,
 
   // the content of the cells of the chosen template
   content: [] as Array<Array<string>>,

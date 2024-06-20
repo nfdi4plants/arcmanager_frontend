@@ -294,6 +294,9 @@ var searchList: Array<Arc> = [];
 // namespace of the arc
 var arcNamespace = ref("");
 
+// set to true if folder contains a datamap xlsx file
+var containsDatamap = false;
+
 // here we trick vue js to reload the component
 const refresher = ref(0);
 const forcereload = () => {
@@ -579,6 +582,7 @@ async function inspectTree(
   errors = "";
   showInput = false;
   showFolderInput = false;
+  containsDatamap = false;
   treePage.value = page;
   forcereload();
   try {
@@ -600,6 +604,7 @@ async function inspectTree(
 
     data.Arc.forEach((element: ArcTree) => {
       arcList.push(element);
+      if (element.name == "isa.datamap.xlsx") containsDatamap = true;
     });
     forcereload();
     if (expand) pathHistory.push(path);
@@ -1346,6 +1351,7 @@ async function deleteFolder(
   branch: string,
   name: string
 ) {
+  inspectTree(id, pathHistory[pathHistory.length - 1], undefined);
   // ask the user for confirmation
   $q.dialog({
     dark: appProperties.dark,
@@ -1747,6 +1753,59 @@ async function addDatamap() {
   loading = false;
   forcereload();
 }
+
+/** deletes the entire folder on the given path
+ *
+ * @param id - the id of the arc
+ * @param path - the folder path
+ * @param branch - the chosen branch
+ */
+async function renameFolder(id: number, path: string, branch: string) {
+  inspectTree(id, pathHistory[pathHistory.length - 1], undefined);
+  // open a message window asking the user for confirmation
+  $q.dialog({
+    dark: appProperties.dark,
+    title: "Rename " + path.split("/")[-1],
+    message: "Type in the new name for your folder (no whitespace): ",
+    prompt: {
+      model: "",
+      isValid: (val) => val.length > 0,
+      type: "text",
+    },
+    cancel: true,
+  }).onOk(async (name) => {
+    loading = true;
+    forcereload();
+
+    // replace whitespace and "/"
+    name = name.replaceAll(" ", "_");
+    name = name.replaceAll("/", "");
+
+    // user confirmed the deletion
+    console.log("Renaming folder " + path + "...");
+    // send delete request to backend
+    let pathSplit = path.split("/");
+
+    let newPath = pathSplit.slice(0, -1).toString() + "/" + name;
+
+    let response = await fetch(
+      backend +
+        `renameFolder?oldPath=${path}&newPath=${newPath}&id=${id}&branch=${branch}`,
+      {
+        method: "PUT",
+        credentials: "include",
+      }
+    );
+    let data = await response.json();
+    if (!response.ok) errors = response.statusText + ", " + data["detail"];
+    else {
+      $q.notify(data);
+      await inspectTree(arcId, pathHistory[pathHistory.length - 2], false);
+    }
+    loading = false;
+    forcereload();
+  });
+}
 </script>
 
 <template>
@@ -1968,6 +2027,7 @@ async function addDatamap() {
       v-show="loading"
       :key="refresher + 4"></q-spinner>
   </div>
+  <!-- PROGRESS BAR-->
   <template v-if="progress > 0 && progress != 1 && progress != null">
     <q-linear-progress
       style="margin-top: 1em"
@@ -2157,18 +2217,20 @@ async function addDatamap() {
                   flat
                   size="12px"
                   icon="add"
+                  :disable="containsDatamap"
                   @click="
                     addDatamap();
                     forcereload();
                   "
                   >Add Datamap<q-tooltip
-                    >Create a new isa file</q-tooltip
+                    >Create a new datamap file</q-tooltip
                   ></q-btn
                 >
               </div></q-item-section
             >
           </q-item>
         </q-item-section>
+        <!-- RETURN TO ARCS BUTTON -->
         <q-item-section v-else>
           <q-item
             class="alt"
@@ -2211,24 +2273,39 @@ async function addDatamap() {
               ><q-avatar icon="folder"></q-avatar
             ></q-item-section>
             <q-item-section
-              ><q-item-label>{{ item.name }}</q-item-label></q-item-section
+              ><q-item-label v-if="windowWidth < 1200">{{
+                item.name.slice(0, 20)
+              }}</q-item-label>
+              <q-item-label v-else>{{
+                item.name
+              }}</q-item-label></q-item-section
             >
-            <q-item-section side v-if="!checkForDeletion(item.name)"
-              ><q-btn
-                icon="close"
-                color="red"
-                round
-                dense
-                flat
-                @click="
-                  deleteFolder(
-                    arcId,
-                    item.path,
-                    arcProperties.branch,
-                    item.name
-                  )
-                "
-                ><q-tooltip>Delete the folder</q-tooltip></q-btn
+            <q-item-section side v-if="!checkForDeletion(item.name)">
+              <q-btn-group outline>
+                <q-btn
+                  icon="drive_file_rename_outline"
+                  color="gray"
+                  round
+                  dense
+                  flat
+                  @click="renameFolder(arcId, item.path, arcProperties.branch)"
+                  ><q-tooltip>Rename the folder</q-tooltip></q-btn
+                ><q-btn
+                  icon="close"
+                  color="red"
+                  round
+                  dense
+                  flat
+                  @click="
+                    deleteFolder(
+                      arcId,
+                      item.path,
+                      arcProperties.branch,
+                      item.name
+                    )
+                  "
+                  ><q-tooltip>Delete the folder</q-tooltip></q-btn
+                ></q-btn-group
               >
             </q-item-section>
           </template>
@@ -2312,8 +2389,8 @@ async function addDatamap() {
                   v-else-if="appProperties.showIsaView && windowWidth < 2000"
                   >{{ item.name.slice(0, 25) }}...</template
                 >
-                <template v-else-if="windowWidth < 1200"
-                  >{{ item.name.slice(0, 40)
+                <template v-else-if="windowWidth < 1200">
+                  {{ item.name.slice(0, 40)
                   }}<template v-if="item.name.length > 40"
                     >...</template
                   ></template
@@ -2363,6 +2440,7 @@ async function addDatamap() {
           "
           >New Folder<q-tooltip>Create a new folder</q-tooltip></q-btn
         >
+        <!-- PAGE SELECTOR-->
         <div
           class="q-pa-lg flex flex-center"
           v-if="arcList.length != 0"
@@ -2416,22 +2494,25 @@ async function addDatamap() {
               <q-item-label style="font-weight: bold"
                 >{{ item.name }}, ID: {{ item.id }}</q-item-label
               >
-              <div class="q-pa-xs q-gutter-md" v-if="item.topics.length > 0">
-                <q-badge
-                  outline
-                  v-for="i in item.topics"
-                  :color="$q.dark.isActive ? 'orange' : 'brown'"
-                  >{{ i }}</q-badge
+              <template v-if="!appProperties.showIsaView || windowWidth > 1200">
+                <div class="q-pa-xs q-gutter-md" v-if="item.topics.length > 0">
+                  <q-badge
+                    outline
+                    v-for="i in item.topics"
+                    :color="$q.dark.isActive ? 'orange' : 'brown'"
+                    >{{ i }}</q-badge
+                  >
+                </div>
+                <q-item-label class="text"
+                  >[{{ item.created_at }}]</q-item-label
                 >
-              </div>
-              <q-item-label class="text">[{{ item.created_at }}]</q-item-label>
-              <q-item-label v-if="item.description != null">
-                <template v-if="item.description.length > 200"
-                  >{{ item.description.slice(0, 200) }}...</template
-                >
-                <template v-else>{{ item.description }}</template>
-              </q-item-label>
-
+                <q-item-label v-if="item.description != null">
+                  <template v-if="item.description.length > 200"
+                    >{{ item.description.slice(0, 200) }}...</template
+                  >
+                  <template v-else>{{ item.description }}</template>
+                </q-item-label>
+              </template>
               <q-item-label
                 class="text"
                 :style="
