@@ -517,6 +517,7 @@ async function selectSheet(name: string, index: number) {
   templateProperties.content = [];
   templateProperties.rowId = 1;
   errors = "";
+  sheetProperties.columnIds = 1;
 
   if (sheetProperties.sheets[index].columns.length > 0)
     appProperties.showIsaView = false;
@@ -524,17 +525,27 @@ async function selectSheet(name: string, index: number) {
   for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
     let element = sheetProperties.sheets[index].columns[i];
     let words = element.split(" [");
+    // whether its a custom column
+    let custom = false;
     if (
-      words[0] != "Term Accession Number " &&
-      words[0] != "Unit " &&
-      words[0] != "Term Source REF "
+      !words[0].startsWith("Term Accession Number") &&
+      !words[0].startsWith("Unit") &&
+      !words[0].startsWith("Term Source REF") &&
+      words[0] != "Input" &&
+      words[0] != "Output"
     ) {
       let accession = "";
       try {
+        let name = sheetProperties.sheets[index].columns[i]
+          .split("[")[1]
+          .split("]")[0];
+
         // retrieve the accession (get the word between the square brackets)
         accession = sheetProperties.sheets[index].columns[i + 1]
           .split("[")[1]
           .split("]")[0];
+
+        if (name == accession) custom = true;
       } catch (error) {
         try {
           // retrieve the accession (get the word between the round brackets)
@@ -545,14 +556,34 @@ async function selectSheet(name: string, index: number) {
           accession = "";
         }
       }
-      templateProperties.template.push({
-        Type: element,
-        Accession: accession,
-      });
+      if (custom) {
+        templateProperties.template.push({
+          Type: element,
+          Accession: accession,
+          Custom: true,
+        });
+      } else {
+        templateProperties.template.push({
+          Type: element,
+          Accession: accession,
+        });
+      }
+
+      sheetProperties.columnIds += 1;
     } else {
-      templateProperties.template.push({
-        Type: element,
-      });
+      if (
+        templateProperties.template.length > 1 &&
+        templateProperties.template.slice(-1)[0].Custom
+      ) {
+        templateProperties.template.push({
+          Type: element,
+          Custom: true,
+        });
+      } else {
+        templateProperties.template.push({
+          Type: element,
+        });
+      }
     }
     let cellContent: string[] = [];
 
