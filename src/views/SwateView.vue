@@ -441,16 +441,27 @@ function addColumn() {
               Type: "Term Accession Number [" + customColumnName.value + "]",
               Custom: true,
             });
-
-            templateProperties.content.splice(i + 1, 0, emptyArray);
-            templateProperties.content.splice(i + 2, 0, emptyArray);
+            let emptyArray2 = Array.from(
+              { length: templateProperties.content[0].length },
+              (_) => ""
+            );
+            let emptyArray3 = Array.from(
+              { length: templateProperties.content[0].length },
+              (_) => ""
+            );
+            templateProperties.content.splice(i + 1, 0, emptyArray2);
+            templateProperties.content.splice(i + 2, 0, emptyArray3);
           }
           if (customColumnUnit.value) {
+            let emptyArray4 = Array.from(
+              { length: templateProperties.content[0].length },
+              (_) => ""
+            );
             templateProperties.template.splice(i + 1, 0, {
               Type: "Unit [" + customColumnName.value + "]",
               Custom: true,
             });
-            templateProperties.content.splice(i + 1, 0, emptyArray);
+            templateProperties.content.splice(i + 1, 0, emptyArray4);
           }
         }
       }

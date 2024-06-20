@@ -1761,11 +1761,14 @@ async function addDatamap() {
  * @param branch - the chosen branch
  */
 async function renameFolder(id: number, path: string, branch: string) {
-  inspectTree(id, pathHistory[pathHistory.length - 1], undefined);
+  // send delete request to backend
+  let pathSplit = path.split("/");
+
+  inspectTree(id, pathSplit.slice(0, -1).toString(), undefined);
   // open a message window asking the user for confirmation
   $q.dialog({
     dark: appProperties.dark,
-    title: "Rename " + path.split("/")[-1],
+    title: "Rename " + pathSplit.slice(-1)[0],
     message: "Type in the new name for your folder (no whitespace): ",
     prompt: {
       model: "",
@@ -1783,8 +1786,6 @@ async function renameFolder(id: number, path: string, branch: string) {
 
     // user confirmed the deletion
     console.log("Renaming folder " + path + "...");
-    // send delete request to backend
-    let pathSplit = path.split("/");
 
     let newPath = pathSplit.slice(0, -1).toString() + "/" + name;
 
@@ -1800,7 +1801,7 @@ async function renameFolder(id: number, path: string, branch: string) {
     if (!response.ok) errors = response.statusText + ", " + data["detail"];
     else {
       $q.notify(data);
-      await inspectTree(arcId, pathHistory[pathHistory.length - 2], false);
+      await inspectTree(arcId, pathSplit.slice(0, -1).toString(), undefined);
     }
     loading = false;
     forcereload();
