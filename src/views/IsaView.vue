@@ -536,16 +536,15 @@ async function selectSheet(name: string, index: number) {
     ) {
       let accession = "";
       try {
-        let name = sheetProperties.sheets[index].columns[i]
-          .split("[")[1]
-          .split("]")[0];
-
         // retrieve the accession (get the word between the square brackets)
         accession = sheetProperties.sheets[index].columns[i + 1]
           .split("[")[1]
           .split("]")[0];
 
-        if (name == accession) custom = true;
+        if (element.includes("[C]")) {
+          custom = true;
+          element = element.split("[C]")[0];
+        }
       } catch (error) {
         try {
           // retrieve the accession (get the word between the round brackets)
@@ -571,12 +570,9 @@ async function selectSheet(name: string, index: number) {
 
       sheetProperties.columnIds += 1;
     } else {
-      if (
-        templateProperties.template.length > 1 &&
-        templateProperties.template.slice(-1)[0].Custom
-      ) {
+      if (element.includes("[C]")) {
         templateProperties.template.push({
-          Type: element,
+          Type: element.split("[C]")[0],
           Custom: true,
         });
       } else {
@@ -622,6 +618,7 @@ async function selectSheet(name: string, index: number) {
   } else {
     appProperties.arcList = false;
   }
+  console.log(templateProperties.template);
   sheetProperties.sheets = sheetProperties.names = [];
   setIds();
 }

@@ -432,6 +432,7 @@ function addColumn() {
           );
           templateProperties.content.splice(i, 0, emptyArray);
 
+          // adds two term columns
           if (customColumnTerms.value) {
             templateProperties.template.splice(i + 1, 0, {
               Type: "Term Source REF [" + customColumnName.value + "]",
@@ -452,6 +453,8 @@ function addColumn() {
             templateProperties.content.splice(i + 1, 0, emptyArray2);
             templateProperties.content.splice(i + 2, 0, emptyArray3);
           }
+
+          // adds a unit column
           if (customColumnUnit.value) {
             let emptyArray4 = Array.from(
               { length: templateProperties.content[0].length },
@@ -490,6 +493,41 @@ function addColumn() {
           0,
           emptyArray
         );
+
+        // adds two term columns
+        if (customColumnTerms.value) {
+          templateProperties.template.splice(i + 1, 0, {
+            Type: "Term Source REF [" + customColumnName.value + "]",
+            Custom: true,
+          });
+          templateProperties.template.splice(i + 2, 0, {
+            Type: "Term Accession Number [" + customColumnName.value + "]",
+            Custom: true,
+          });
+          let emptyArray2 = Array.from(
+            { length: templateProperties.content[0].length },
+            (_) => ""
+          );
+          let emptyArray3 = Array.from(
+            { length: templateProperties.content[0].length },
+            (_) => ""
+          );
+          templateProperties.content.splice(i + 1, 0, emptyArray2);
+          templateProperties.content.splice(i + 2, 0, emptyArray3);
+        }
+
+        // adds a unit column
+        if (customColumnUnit.value) {
+          let emptyArray4 = Array.from(
+            { length: templateProperties.content[0].length },
+            (_) => ""
+          );
+          templateProperties.template.splice(i + 1, 0, {
+            Type: "Unit [" + customColumnName.value + "]",
+            Custom: true,
+          });
+          templateProperties.content.splice(i + 1, 0, emptyArray4);
+        }
       }
     });
     customColumnTerms.value = false;
