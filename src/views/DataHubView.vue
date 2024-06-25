@@ -1458,7 +1458,7 @@ async function deleteFolder(
     if (!response.ok) errors = response.statusText + ", " + data["detail"];
     else {
       $q.notify(data);
-      await inspectTree(arcId, pathHistory[pathHistory.length - 2], false);
+      await inspectTree(arcId, pathHistory[pathHistory.length - 1], false);
     }
     loading = false;
     forcereload();
@@ -1847,7 +1847,9 @@ async function renameFolder(id: number, path: string, branch: string) {
   // send delete request to backend
   let pathSplit = path.split("/");
 
-  inspectTree(id, pathSplit.slice(0, -1).toString(), undefined);
+  let currentPath = pathSplit.slice(0, -1).toString().replaceAll(",", "/");
+
+  inspectTree(id, currentPath, undefined);
   // open a message window asking the user for confirmation
   $q.dialog({
     dark: appProperties.dark,
@@ -1870,7 +1872,7 @@ async function renameFolder(id: number, path: string, branch: string) {
     // user confirmed the deletion
     console.log("Renaming folder " + path + "...");
 
-    let newPath = pathSplit.slice(0, -1).toString() + "/" + name;
+    let newPath = currentPath + "/" + name;
 
     let response = await fetch(
       backend +
@@ -1884,7 +1886,7 @@ async function renameFolder(id: number, path: string, branch: string) {
     if (!response.ok) errors = response.statusText + ", " + data["detail"];
     else {
       $q.notify(data);
-      await inspectTree(arcId, pathSplit.slice(0, -1).toString(), undefined);
+      await inspectTree(arcId, currentPath, undefined);
     }
     loading = false;
     forcereload();

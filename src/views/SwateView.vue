@@ -662,7 +662,8 @@ function addColumn() {
         style="width: 10%"
         label="Sheet name"
         v-model="sheetProperties.name"
-        placeholder="Name your sheet" />
+        placeholder="Name your sheet"
+        :rules="[(val) => !val.includes(' ') || 'No whitespace allowed!']" />
       <q-btn
         class="sheet"
         @click="saveSheet()"

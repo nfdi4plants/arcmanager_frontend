@@ -200,7 +200,6 @@ async function getGroups() {
           id: element.id,
         });
       });
-      console.log(groups);
     } else {
       errors = "Error retrieving your groups! Try to login again!";
     }
