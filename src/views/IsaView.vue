@@ -618,7 +618,6 @@ async function selectSheet(name: string, index: number) {
   } else {
     appProperties.arcList = false;
   }
-  console.log(templateProperties.template);
   sheetProperties.sheets = sheetProperties.names = [];
   setIds();
 }
@@ -824,10 +823,12 @@ function extendIsa() {
  *
  */
 function setIds() {
-  sheetProperties.rowIds = Array.from(
-    { length: templateProperties.content[0].length },
-    (_, i) => i + 1
-  );
+  if (templateProperties.content.length > 0) {
+    sheetProperties.rowIds = Array.from(
+      { length: templateProperties.content[0].length },
+      (_, i) => i + 1
+    );
+  }
   keyNumber.value += 1;
 }
 </script>

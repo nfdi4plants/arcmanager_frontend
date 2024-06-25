@@ -291,6 +291,9 @@ var search = ref("");
 // the filtered list, that will be displayed
 var searchList: Array<Arc> = [];
 
+// whether to search inside of all arcs for the name or not
+var extendedSearch = ref(false);
+
 // namespace of the arc
 var arcNamespace = ref("");
 
@@ -419,6 +422,86 @@ async function fetchArcs(page = 1) {
       data.projects.forEach((element: Arc) => {
         list.push(element);
       });
+      if (list.length == 0) throw new Error("No arcs found for you!");
+      // fill searchList with the full list and clear the search bar
+      searchList = list;
+      search.value = "";
+
+      // set the username in sessionStorage and display it
+      if (window.sessionStorage.getItem("username") != null)
+        username = window.sessionStorage.getItem("username");
+    } catch (error: any) {
+      errors = error.toString();
+    }
+    loading = false;
+    forcereload();
+  }
+}
+
+/** get a list of all arcs at the same time in the gitlab
+ *
+ */
+async function fetchAllArcs() {
+  loading = true;
+  appProperties.showIsaView = false;
+  appProperties.arcList = true;
+  arcProperties.branch = "main";
+  lfs.value = false;
+  arcsPage.value = 1;
+  treePage.value = treePageMax = 1;
+  arcsPageMax = 1;
+  searchList = [];
+  // if not logged in, show only public arcs
+  if (!appProperties.loggedIn) {
+    errors = "Please login first!";
+    loading = false;
+    forcereload();
+
+    // if logged in, reset the properties and views and fetch the arc list from the backend
+  } else {
+    // reset Properties and histories
+    arcList = [];
+    arcProperties.identifier = "";
+    assaySync = studySync = false;
+    user = -1;
+    cleanIsaView();
+    isaProperties.rowId = 0;
+    fileProperties.name = "";
+    arcProperties.changes = "";
+    pathHistory = [];
+    try {
+      // get page number
+      let pageCount = await fetch(backend + "arc_list?owned=" + owned.value, {
+        credentials: "include",
+        method: "HEAD",
+      });
+      list = [];
+
+      // get the number of total pages
+      let pages = pageCount.headers.get("total-pages");
+      let totalPages = 1;
+
+      if (pages) {
+        totalPages = parseInt(pages);
+      }
+      for (let i = 1; i <= totalPages; i++) {
+        const response = await fetch(
+          backend + "arc_list?owned=" + owned.value + "&page=" + i,
+          {
+            credentials: "include",
+          }
+        );
+        const data = await response.json();
+        if (!response.ok)
+          throw new Error(response.statusText + ", " + data["detail"]);
+
+        errors = null;
+
+        data.projects.forEach((element: Arc) => {
+          list.push(element);
+        });
+      }
+
       if (list.length == 0) throw new Error("No arcs found for you!");
       // fill searchList with the full list and clear the search bar
       searchList = list;
@@ -1814,7 +1897,11 @@ async function renameFolder(id: number, path: string, branch: string) {
   <div class="q-pa-xs row q-gutter-sm">
     <q-btn
       id="arcFetch"
-      @click="fetchArcs(), forcereload()"
+      @click="
+        if (extendedSearch) fetchAllArcs();
+        else fetchArcs();
+        forcereload();
+      "
       icon="downloading"
       dense
       ><q-tooltip>Load a list of all available Arcs</q-tooltip
@@ -2016,7 +2103,7 @@ async function renameFolder(id: number, path: string, branch: string) {
           ><q-tooltip>Add, edit or remove members of your arc</q-tooltip></q-btn
         >
       </q-btn-group>
-      <!-- activates swate and annotation sheets-->
+      <!-- activates lfs -->
       <q-checkbox v-model="lfs"
         >LFS<q-tooltip>Activate lfs for your file upload</q-tooltip></q-checkbox
       ></template
@@ -2039,7 +2126,11 @@ async function renameFolder(id: number, path: string, branch: string) {
     <p v-if="progress < 0.99">Uploading File...</p>
     <p v-else>Processing data... This may take a moment!</p>
   </template>
+  <!-- HINTS FOR LFS AND EXT. SEARCH-->
   <p v-if="lfs">Note: Large file uploads may take a while!</p>
+  <p v-if="extendedSearch">
+    Note: Retrieving the list of all available ARCs may take a moment!
+  </p>
   <q-list bordered dense class="rounded-borders">
     <!-- USERNAME -->
     <q-item v-if="username && username.length > 1"
@@ -2149,6 +2240,22 @@ async function renameFolder(id: number, path: string, branch: string) {
           :disable="list.length == 0"
           ><template v-slot:append> <q-icon name="search"></q-icon></template
         ></q-input>
+        <!-- EXTENDED SEARCH-->
+        <q-checkbox
+          @click="
+            if (extendedSearch) fetchAllArcs();
+            else fetchArcs();
+          "
+          v-model="extendedSearch"
+          v-if="
+            appProperties.loggedIn &&
+            arcList.length == 0 &&
+            appProperties.experimental
+          "
+          >Extended search<q-tooltip
+            >Extends the search to include all ARCs available</q-tooltip
+          ></q-checkbox
+        >
         <!-- PATH; RETURN ARROW; CREATE ISA; CREATE DATAMAP -->
         <q-item-section
           style="padding-bottom: 2em"
@@ -2549,6 +2656,7 @@ async function renameFolder(id: number, path: string, branch: string) {
             </q-item-section>
           </q-item>
         </q-list>
+        <!-- PAGE SELECTOR ARCS-->
         <div
           class="q-pa-lg flex flex-center"
           v-if="arcList.length == 0"
