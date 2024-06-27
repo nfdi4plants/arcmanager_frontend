@@ -131,7 +131,7 @@ async function createArc() {
     investIdentifier: invId.value,
   };
 
-  if (group.value.id > 0) payload.groupId = group.value.id;
+  if (group.value && group.value.id > 0) payload.groupId = group.value.id;
 
   const response = await fetch(backend + "createArc", {
     credentials: "include",
@@ -141,7 +141,7 @@ async function createArc() {
   });
   let data = await response.json();
   if (!response.ok) {
-    errors = "ERROR: " + data["detail"];
+    $q.notify("ERROR: " + data["detail"]);
     forcereload();
   } else {
     console.log(data);

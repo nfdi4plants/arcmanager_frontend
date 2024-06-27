@@ -4,6 +4,9 @@ const arcProperties = reactive({
   // name of the arc
   identifier: "",
 
+  // description of the arc
+  description: "",
+
   // default branch of the arc
   branch: "main",
 

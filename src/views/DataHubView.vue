@@ -310,14 +310,23 @@ if (document.cookie.includes("logged_in=true")) {
   appProperties.loggedIn = true;
 
   // set username
-  window.sessionStorage.setItem(
-    "username",
-    document.cookie.split('username="')[1].split('"')[0]
-  );
+  try {
+    window.sessionStorage.setItem(
+      "username",
+      decodeURI(document.cookie.split("username=")[1])
+    );
+  } catch (error) {
+    window.sessionStorage.setItem(
+      "username",
+      decodeURI(document.cookie.split('username="')[1].split('"')[0])
+    );
+  }
 }
 
 // array containing all the files to upload
 var fileInput = ref([] as Array<File>);
+
+var repairClicked = ref(false);
 
 /** opens the explore page of the selected git in a new tab (only when you're not logged in currently)
  *
@@ -357,6 +366,7 @@ async function fetchArcs(page = 1) {
   arcsPage.value = page;
   treePage.value = treePageMax = 1;
   searchList = [];
+  repairClicked.value = false;
   // if not logged in, show only public arcs
   if (!appProperties.loggedIn) {
     // if no datahub is selected, show an error
@@ -394,6 +404,7 @@ async function fetchArcs(page = 1) {
   } else {
     arcList = [];
     arcProperties.identifier = "";
+    arcProperties.description = "";
     assaySync = studySync = false;
     user = -1;
     cleanIsaView();
@@ -451,6 +462,7 @@ async function fetchAllArcs() {
   treePage.value = treePageMax = 1;
   arcsPageMax = 1;
   searchList = [];
+  repairClicked.value = false;
   // if not logged in, show only public arcs
   if (!appProperties.loggedIn) {
     errors = "Please login first!";
@@ -462,6 +474,7 @@ async function fetchAllArcs() {
     // reset Properties and histories
     arcList = [];
     arcProperties.identifier = "";
+    arcProperties.description = "";
     assaySync = studySync = false;
     user = -1;
     cleanIsaView();
@@ -563,6 +576,7 @@ async function inspectArc(id: number) {
   user = -1;
   arcProperties.changes = "";
   treePage.value = treePageMax = 1;
+  repairClicked.value = false;
   forcereload();
   try {
     const response = await fetch(
@@ -1022,7 +1036,13 @@ async function fileUpload(folder = false) {
         formData.append("branch", arcProperties.branch);
         formData.append("path", filePath);
         formData.append("namespace", arcNamespace.value);
-        formData.append("lfs", lfs.value.toString());
+
+        // force lfs for files larger than 1 gb
+        if (totalChunks > 10) {
+          formData.append("lfs", "true");
+        } else {
+          formData.append("lfs", lfs.value.toString());
+        }
 
         try {
           let response = await fetch(backend + "uploadFile", {
@@ -1458,7 +1478,7 @@ async function deleteFolder(
     if (!response.ok) errors = response.statusText + ", " + data["detail"];
     else {
       $q.notify(data);
-      await inspectTree(arcId, pathHistory[pathHistory.length - 1], false);
+      await inspectTree(arcId, pathHistory[pathHistory.length - 1], undefined);
     }
     loading = false;
     forcereload();
@@ -1478,6 +1498,7 @@ async function createFolder(
   path: string,
   branch: string
 ) {
+  if (path == null) path = "";
   loading = true;
   forcereload();
   // send name and properties to the backend
@@ -1891,6 +1912,42 @@ async function renameFolder(id: number, path: string, branch: string) {
     loading = false;
     forcereload();
   });
+}
+
+/** repairs the arc with all necessary identifiers
+ *
+ */
+async function repairArc() {
+  loading = true;
+  forcereload();
+
+  let payload = {
+    name: arcProperties.identifier,
+    description: arcProperties.description,
+    investIdentifier: arcProperties.identifier,
+  };
+
+  const response = await fetch(
+    backend + "repairArc?id=" + arcId + "&branch=" + arcProperties.branch,
+    {
+      credentials: "include",
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+  let data = await response.json();
+  if (!response.ok) {
+    errors = "ERROR: " + data["detail"];
+    forcereload();
+  }
+
+  isaProperties.entries = [];
+
+  await inspectArc(arcId);
+
+  loading = false;
+  forcereload();
 }
 </script>
 
@@ -2360,6 +2417,21 @@ async function renameFolder(id: number, path: string, branch: string) {
               ><q-icon name="arrow_back"></q-icon
             ></q-item-section>
             <q-item-section>Return to ARCs</q-item-section>
+            <q-btn
+              color="orange"
+              icon="build"
+              v-if="
+                appProperties.experimental &&
+                arcList.length == 1 &&
+                arcList[0].path == 'README.md'
+              "
+              @click="
+                repairClicked = true;
+                repairArc;
+              "
+              :disable="repairClicked"
+              >Repair Arc</q-btn
+            >
           </q-item>
         </q-item-section>
         <!-- TREE VIEW OF ARC -->
@@ -2586,6 +2658,7 @@ async function renameFolder(id: number, path: string, branch: string) {
             @click="
               arcProperties.branch = item.default_branch;
               arcProperties.identifier = item.name;
+              arcProperties.description = item.description;
               arcProperties.url = item.http_url_to_repo;
               arcNamespace = item.path_with_namespace;
               inspectArc(item.id);
@@ -2648,6 +2721,7 @@ async function renameFolder(id: number, path: string, branch: string) {
                 v-on:click="
                   arcProperties.branch = item.default_branch;
                   arcProperties.identifier = item.name;
+                  arcProperties.description = item.description;
                   arcProperties.url = item.http_url_to_repo;
                   inspectArc(item.id);
                 "
