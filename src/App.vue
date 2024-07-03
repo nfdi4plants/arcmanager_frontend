@@ -420,8 +420,12 @@ async function getGroups() {
         <!--<a style="margin-left: 10%;" href="mailto:arcmanager.support@nfdi4plants.de" class="footer">Support&#128231;</a>-->
       </q-footer>
       <!-- HEADER -->
-      <q-header bordered class="footer" v-if="announcement != ''">
-        <span style="margin-left: 30%">{{ announcement }}</span>
+      <q-header
+        bordered
+        class="footer"
+        v-if="announcement != ''"
+        :key="refresher + 7">
+        <span style="margin-left: 40%">{{ announcement }}</span>
       </q-header>
       <q-page padding>
         <q-item-section v-if="errors != ''">{{ errors }}</q-item-section>

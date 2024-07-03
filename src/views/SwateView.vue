@@ -17,7 +17,7 @@ const $q = useQuasar();
 var errors = "";
 
 // if the search for terms should be extended or not
-var advanced = ref(false);
+var advanced = ref(true);
 
 // hide term columns
 var hidden = ref(true);
@@ -279,7 +279,7 @@ async function getSuggestions() {
   termProperties.unitTerms = [];
 
   const terms = await fetch(
-    backend + "getTermSuggestions?input=" + search.value
+    `${backend}getTerms?input=${search.value}&advanced=true`
   );
 
   let data = await terms.json();
@@ -317,7 +317,7 @@ async function getUnitSuggestions() {
   termProperties.buildingBlocks = [];
 
   const terms = await fetch(
-    backend + "getTermSuggestions?input=" + unitSearch.value
+    `${backend}getTerms?input=${search.value}&advanced=true`
   );
   let data = await terms.json();
   if (!terms.ok) {
@@ -755,7 +755,7 @@ function addColumn() {
                   ><a
                     :href="
                       'http://purl.obolibrary.org/obo/' +
-                      column.Type.split('(')[1].split(')')[0]
+                      column.Type.split('(')[1].split(')')[0].replace(':', '_')
                     "
                     style="font-size: small"
                     target="_blank"
@@ -797,7 +797,7 @@ function addColumn() {
                   <a
                     :href="
                       'http://purl.obolibrary.org/obo/' +
-                      column.Type.split('[')[1].split(']')[0]
+                      column.Type.split('[')[1].split(']')[0].replace(':', '_')
                     "
                     style="font-size: small"
                     target="_blank"

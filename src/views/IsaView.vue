@@ -1099,7 +1099,10 @@ function setIds() {
           <span style="font-size: medium"
             >{{ term.Name }}
             <a
-              :href="'http://purl.obolibrary.org/obo/' + term.Accession"
+              :href="
+                'http://purl.obolibrary.org/obo/' +
+                term.Accession.replace(':', '_')
+              "
               target="_blank"
               style="font-size: medium"
               >({{ term.Accession }})</a
@@ -1151,7 +1154,10 @@ function setIds() {
           <span style="font-size: medium"
             >{{ term.Name }}
             <a
-              :href="'http://purl.obolibrary.org/obo/' + term.Accession"
+              :href="
+                'http://purl.obolibrary.org/obo/' +
+                term.Accession.replace(':', '_')
+              "
               target="_blank"
               style="font-size: medium"
               >({{ term.Accession }})</a
@@ -1187,7 +1193,10 @@ function setIds() {
           <span style="font-size: medium"
             >{{ term.Name }}
             <a
-              :href="'http://purl.obolibrary.org/obo/' + term.Accession"
+              :href="
+                'http://purl.obolibrary.org/obo/' +
+                term.Accession.replace(':', '_')
+              "
               target="_blank"
               style="font-size: medium"
               >({{ term.Accession }})</a
