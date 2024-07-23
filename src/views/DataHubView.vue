@@ -242,6 +242,29 @@ var showFolderInput = false;
 var assaySync = false;
 var studySync = false;
 
+// show validation of the arc
+var validate = ref(false);
+var slide = ref("structure");
+var validateData = {
+  Assays: [] as Array<Object>,
+  Studies: [] as Array<{
+    Name: true;
+    identifier: {
+      identifier: false;
+      title: false;
+      description: false;
+    };
+  }>,
+  ARC_Structure: true as boolean | string,
+  Investigation: {
+    identifier: false,
+    title: false,
+    description: false,
+    contacts: [] as Array<boolean | string>,
+  },
+  ARC: false,
+};
+
 // displays the user management screen (-1 for disabled, 0 for add, 1 for remove, 2 for edit)
 var user = -1;
 // list containing all users
@@ -675,6 +698,7 @@ async function inspectTree(
   loading = true;
   assaySync = studySync = false;
   appProperties.showIsaView = false;
+  isaProperties.entry = [];
   user = -1;
   errors = "";
   showInput = false;
@@ -1949,6 +1973,29 @@ async function repairArc() {
   loading = false;
   forcereload();
 }
+
+async function validateArc() {
+  loading = true;
+  forcereload();
+
+  const response = await fetch(
+    appProperties.backend + "validate/validateArc?id=" + arcId,
+    {
+      credentials: "include",
+    }
+  );
+  let data = await response.json();
+  if (!response.ok) {
+    errors = "ERROR: " + data["detail"];
+    forcereload();
+  } else {
+    slide.value = "structure";
+    validateData = data;
+    validate.value = true;
+  }
+  loading = false;
+  forcereload();
+}
 </script>
 
 <template>
@@ -2002,13 +2049,17 @@ async function repairArc() {
           borderless
           :label="appProperties.showIsaView ? '' : 'Upload File(s)'"
           multiple
-          max-file-size="10737418240"
+          :max-file-size="
+            appProperties.experimental ? '53687091200' : '10737418240'
+          "
           @update:model-value="
             fileUpload();
             uploading = true;
           "
           @rejected="
-            errors = 'ERROR: File too big (max. 10 GB) or too many selected!';
+            errors = appProperties.experimental
+              ? 'ERROR: File too big (max. 50 GB) or too many selected!'
+              : 'ERROR: File too big (max. 10 GB) or too many selected!';
             forcereload();
           "
           :key="refresher"
@@ -2016,7 +2067,10 @@ async function repairArc() {
           :disable="progress > 0 && progress != 1 && progress != null"
           ><template v-slot:before> <q-icon name="file_upload" /> </template
           ><q-tooltip
-            >Upload one or multiple files (max. 10 Gb per file)</q-tooltip
+            >Upload one or multiple files
+            <template v-if="appProperties.experimental"
+              >(max. 50 Gb per file)</template
+            ><template v-else>(max. 10 Gb per file)</template></q-tooltip
           ></q-file
         >
         <!-- Folder Upload -->
@@ -2060,106 +2114,12 @@ async function repairArc() {
             >Download the arc compressed as a zip file</q-tooltip
           ></q-btn
         >
-        <!-- SYNC ASSAY-->
-        <q-btn
-          id="assay"
-          icon="sync_alt"
-          glossy
-          @click="
-            assaySync = !assaySync;
-            studySync = false;
-            user = -1;
-            forcereload();
-            getAssaysAndStudies(arcId);
-          "
-          :key="refresher + 2"
-          ><template
-            v-if="
-              !appProperties.showIsaView &&
-              appProperties.arcList &&
-              windowWidth > 1520
-            "
-            >Sync Assay/Study</template
-          ><q-tooltip>Sync the data of an assay to a study</q-tooltip></q-btn
-        >
-        <!-- SYNC STUDY-->
-        <q-btn
-          id="study"
-          icon="sync"
-          glossy
-          @click="
-            studySync = !studySync;
-            assaySync = false;
-            user = -1;
-            forcereload();
-            getAssaysAndStudies(arcId);
-          "
-          :key="refresher + 3"
-          ><template
-            v-if="
-              !appProperties.showIsaView &&
-              appProperties.arcList &&
-              windowWidth > 1520
-            "
-            >Sync Study/Invest</template
-          ><q-tooltip
-            >Sync the data of a study to the investigation</q-tooltip
-          ></q-btn
-        >
+
         <!-- Reloads the arc -->
         <q-btn icon="refresh" @click="inspectArc(arcId)" glossy
           ><template v-if="!appProperties.showIsaView && appProperties.arcList"
             >Reload</template
           ><q-tooltip>Reload the content of the arc</q-tooltip></q-btn
-        >
-        <!-- USER MANAGEMENT-->
-        <q-btn icon="person" glossy id="user"
-          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
-            >Members</template
-          ><q-menu>
-            <q-list style="min-width: 100px">
-              <q-item
-                clickable
-                v-close-popup
-                @click="
-                  user = 0;
-                  assaySync = studySync = false;
-                  forcereload();
-                  getUser();
-                ">
-                <q-item-section>Add User</q-item-section>
-                <q-tooltip>Add a new user to the arc</q-tooltip>
-              </q-item>
-              <q-separator />
-              <q-item
-                clickable
-                v-close-popup
-                @click="
-                  user = 1;
-                  assaySync = studySync = false;
-                  forcereload();
-                  getArcUser(arcId);
-                ">
-                <q-item-section>Remove User</q-item-section
-                ><q-tooltip>Remove a current user of the arc</q-tooltip>
-              </q-item>
-              <q-separator />
-              <q-item
-                clickable
-                v-close-popup
-                @click="
-                  user = 2;
-                  assaySync = studySync = false;
-                  forcereload();
-                  getArcUser(arcId);
-                ">
-                <q-item-section>Edit User</q-item-section
-                ><q-tooltip
-                  >Edit the role of a current user of the arc</q-tooltip
-                >
-              </q-item>
-            </q-list> </q-menu
-          ><q-tooltip>Add, edit or remove members of your arc</q-tooltip></q-btn
         >
       </q-btn-group>
       <!-- activates lfs -->
@@ -2174,6 +2134,273 @@ async function repairArc() {
       v-show="loading"
       :key="refresher + 4"></q-spinner>
   </div>
+  <!-- ARC VALIDATION -->
+  <div class="q-pa-xs row q-gutter-sm" v-if="arcList.length != 0">
+    <q-btn-group style="max-height: 3em">
+      <q-btn class="send" icon="checklist" @click="validateArc()"
+        ><template v-if="!appProperties.showIsaView">Validate</template
+        ><q-tooltip>Performs a validation check on your ARC</q-tooltip></q-btn
+      ><!-- SYNC ASSAY-->
+      <q-btn
+        id="assay"
+        icon="sync_alt"
+        glossy
+        @click="
+          assaySync = !assaySync;
+          studySync = false;
+          user = -1;
+          forcereload();
+          getAssaysAndStudies(arcId);
+        "
+        :key="refresher + 2"
+        ><template
+          v-if="
+            !appProperties.showIsaView &&
+            appProperties.arcList &&
+            windowWidth > 1520
+          "
+          >Sync Assay/Study</template
+        ><q-tooltip>Sync the data of an assay to a study</q-tooltip></q-btn
+      >
+      <!-- SYNC STUDY-->
+      <q-btn
+        id="study"
+        icon="sync"
+        glossy
+        @click="
+          studySync = !studySync;
+          assaySync = false;
+          user = -1;
+          forcereload();
+          getAssaysAndStudies(arcId);
+        "
+        :key="refresher + 3"
+        ><template
+          v-if="
+            !appProperties.showIsaView &&
+            appProperties.arcList &&
+            windowWidth > 1520
+          "
+          >Sync Study/Invest</template
+        ><q-tooltip
+          >Sync the data of a study to the investigation</q-tooltip
+        ></q-btn
+      ><!-- USER MANAGEMENT-->
+      <q-btn icon="person" glossy id="user"
+        ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+          >Members</template
+        ><q-menu>
+          <q-list style="min-width: 100px">
+            <q-item
+              clickable
+              v-close-popup
+              @click="
+                user = 0;
+                assaySync = studySync = false;
+                forcereload();
+                getUser();
+              ">
+              <q-item-section>Add User</q-item-section>
+              <q-tooltip>Add a new user to the arc</q-tooltip>
+            </q-item>
+            <q-separator />
+            <q-item
+              clickable
+              v-close-popup
+              @click="
+                user = 1;
+                assaySync = studySync = false;
+                forcereload();
+                getArcUser(arcId);
+              ">
+              <q-item-section>Remove User</q-item-section
+              ><q-tooltip>Remove a current user of the arc</q-tooltip>
+            </q-item>
+            <q-separator />
+            <q-item
+              clickable
+              v-close-popup
+              @click="
+                user = 2;
+                assaySync = studySync = false;
+                forcereload();
+                getArcUser(arcId);
+              ">
+              <q-item-section>Edit User</q-item-section
+              ><q-tooltip>Edit the role of a current user of the arc</q-tooltip>
+            </q-item>
+          </q-list> </q-menu
+        ><q-tooltip>Add, edit or remove members of your arc</q-tooltip></q-btn
+      ></q-btn-group
+    ><q-dialog v-model="validate">
+      <q-carousel
+        style="width: 80%"
+        v-model="slide"
+        transition-prev="scale"
+        transition-next="scale"
+        swipeable
+        animated
+        control-color="white"
+        navigation
+        padding
+        arrows
+        height="80%"
+        width
+        class="bg-primary text-white shadow-1 rounded-borders">
+        <!-- BASIC STRUCTURE -->
+        <q-carousel-slide name="structure" class="column no-wrap flex-center"
+          ><h5>Basic structure:</h5>
+          <div
+            class="q-mt-md text-center"
+            v-if="typeof validateData.ARC_Structure === 'boolean'">
+            Your ARC structure is valid. It contains all necessary folders and
+            files.
+          </div>
+          <div
+            class="q-mt-md text-center"
+            v-else-if="typeof validateData.ARC_Structure === 'string'">
+            Your ARC structure is not valid. {{ validateData.ARC_Structure }}
+          </div>
+        </q-carousel-slide>
+        <!-- ASSAYS -->
+        <q-carousel-slide name="assays" class="column no-wrap flex-center">
+          <h5>Assays:</h5>
+          <div class="q-pa-none text-center">
+            <q-list>
+              <q-item v-for="item in validateData.Assays">
+                <q-item-section>{{ Object.keys(item)[0] }}</q-item-section>
+                <q-item-section avatar>
+                  <q-icon
+                    v-if="Boolean(Object.values(item)[0])"
+                    name="done"
+                    :color="validateData.ARC ? 'gold' : 'green'" />
+                  <q-icon v-else name="clear" color="red"
+                /></q-item-section>
+              </q-item>
+            </q-list>
+            <span v-if="validateData.Assays.length == 0">No assays found!</span>
+          </div>
+        </q-carousel-slide>
+        <!-- STUDIES-->
+        <q-carousel-slide name="studies" class="column no-wrap flex-center">
+          <h5>Studies:</h5>
+          <div class="q-pa-sm text-center">
+            <span v-if="validateData.Studies.length == 0"
+              >No studies found!</span
+            >
+            <q-list>
+              <q-expansion-item
+                :default-opened="
+                  validateData.Studies.length == 1 ? true : false
+                "
+                v-for="item in validateData.Studies"
+                :label="Object.keys(item)[0]"
+                header-class="text-orange">
+                <!-- Identifier-->
+                <q-item>
+                  <q-item-section>Identifier</q-item-section>
+                  <q-item-section avatar>
+                    <q-icon
+                      v-if="item.identifier.identifier"
+                      name="done"
+                      :color="validateData.ARC ? 'gold' : 'green'" />
+                    <q-icon v-else name="clear" color="red"
+                  /></q-item-section>
+                </q-item>
+                <!-- Title -->
+                <q-item>
+                  <q-item-section>Title</q-item-section>
+                  <q-item-section avatar>
+                    <q-icon
+                      v-if="item.identifier.title"
+                      name="done"
+                      :color="validateData.ARC ? 'gold' : 'green'" />
+                    <q-icon v-else name="clear" color="red"
+                  /></q-item-section>
+                </q-item>
+                <!-- Description -->
+                <q-item>
+                  <q-item-section>Description</q-item-section>
+                  <q-item-section avatar>
+                    <q-icon
+                      v-if="item.identifier.description"
+                      name="done"
+                      :color="validateData.ARC ? 'gold' : 'green'" />
+                    <q-icon v-else name="clear" color="red"
+                  /></q-item-section>
+                </q-item>
+              </q-expansion-item>
+            </q-list>
+          </div>
+        </q-carousel-slide>
+        <!-- INVESTIGATION -->
+        <q-carousel-slide
+          v-if="validateData.Investigation"
+          name="investigation"
+          class="column no-wrap flex-center">
+          <h5>Investigation:</h5>
+          <div class="q-pa-none text-center">
+            <!-- Identifier-->
+            <q-item>
+              <q-item-section>Identifier</q-item-section>
+              <q-item-section avatar>
+                <q-icon
+                  v-if="validateData.Investigation.identifier"
+                  name="done"
+                  :color="validateData.ARC ? 'gold' : 'green'" />
+                <q-icon v-else name="clear" color="red"
+              /></q-item-section>
+            </q-item>
+            <!-- Title -->
+            <q-item>
+              <q-item-section>Title</q-item-section>
+              <q-item-section avatar>
+                <q-icon
+                  v-if="validateData.Investigation.title"
+                  name="done"
+                  :color="validateData.ARC ? 'gold' : 'green'" />
+                <q-icon v-else name="clear" color="red"
+              /></q-item-section>
+            </q-item>
+            <!-- Description -->
+            <q-item>
+              <q-item-section>Description</q-item-section>
+              <q-item-section avatar>
+                <q-icon
+                  v-if="validateData.Investigation.description"
+                  name="done"
+                  :color="validateData.ARC ? 'gold' : 'green'" />
+                <q-icon v-else name="clear" color="red"
+              /></q-item-section>
+            </q-item>
+            <!-- Contacts-->
+            <q-item>
+              <q-item-section>
+                <q-expansion-item label="Contacts">
+                  <ol>
+                    <li v-for="contact in validateData.Investigation.contacts">
+                      <span v-if="typeof contact === 'boolean'"
+                        >Is a valid contact</span
+                      ><span v-else>{{ contact }}</span>
+                    </li>
+                  </ol>
+                </q-expansion-item></q-item-section
+              >
+            </q-item>
+          </div>
+        </q-carousel-slide>
+        <q-carousel-slide
+          v-if="validateData.ARC"
+          name="Arc"
+          class="column no-wrap flex-center"
+          ><div class="q-pa-none text-center">
+            <h4 class="text-gold">
+              Your ARC is fully valid! <q-icon name="check" color="gold" />
+            </h4>
+          </div> </q-carousel-slide
+      ></q-carousel>
+    </q-dialog>
+  </div>
   <!-- PROGRESS BAR-->
   <template v-if="progress > 0 && progress != 1 && progress != null">
     <q-linear-progress
@@ -2187,7 +2414,7 @@ async function repairArc() {
   </template>
   <!-- HINTS FOR LFS AND EXT. SEARCH-->
   <p v-if="lfs">Note: Large file uploads may take a while!</p>
-  <p v-if="extendedSearch">
+  <p v-if="extendedSearch && arcList.length == 0">
     Note: Retrieving the list of all available ARCs may take a moment!
   </p>
   <q-list bordered dense class="rounded-borders">
@@ -2409,6 +2636,8 @@ async function repairArc() {
               arcProperties.changes = '';
               appProperties.showIsaView = false;
               appProperties.arcList = true;
+              isaProperties.entries = [];
+              isaProperties.entry = [];
               lfs = false;
               showInput = showFolderInput = false;
               forcereload();
@@ -2430,7 +2659,10 @@ async function repairArc() {
                 repairArc;
               "
               :disable="repairClicked"
-              >Repair Arc</q-btn
+              >Repair Arc<q-tooltip
+                >Adds all necessary files and folders to complete the ARC
+                structure</q-tooltip
+              ></q-btn
             >
           </q-item>
         </q-item-section>

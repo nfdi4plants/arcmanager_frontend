@@ -793,6 +793,7 @@ function mandatory(field: Array<string>, index: number) {
     case "Investigation Description":
     case "Study Identifier":
     case "Study File Name":
+    case "Study Description":
     case "Assay Measurement Type":
     case "Assay File Name":
     case "Measurement Type":

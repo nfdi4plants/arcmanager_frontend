@@ -541,6 +541,10 @@ async function getGroups() {
   font-size: large;
 }
 
+.text-gold {
+  color: #ffd700 !important;
+}
+
 .body--light .return {
   background-color: antiquewhite;
 }
