@@ -329,22 +329,6 @@ const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the page
   refresher.value += 1;
 };
-if (document.cookie.includes("logged_in=true")) {
-  appProperties.loggedIn = true;
-
-  // set username
-  try {
-    window.sessionStorage.setItem(
-      "username",
-      decodeURI(document.cookie.split("username=")[1])
-    );
-  } catch (error) {
-    window.sessionStorage.setItem(
-      "username",
-      decodeURI(document.cookie.split('username="')[1].split('"')[0])
-    );
-  }
-}
 
 // array containing all the files to upload
 var fileInput = ref([] as Array<File>);

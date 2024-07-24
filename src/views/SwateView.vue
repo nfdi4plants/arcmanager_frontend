@@ -65,6 +65,9 @@ var customColumnUnit = ref(false);
 // set to true if the building block has a unit
 var bbUnit = ref(false);
 
+// different type of columns for protocol
+var protocolColumns = ref({ version: false, description: false, uri: false });
+
 // the type of unit for the building block
 var unitSearch = ref("");
 
@@ -538,6 +541,59 @@ function addColumn() {
     showCustomColumn = false;
   }
 }
+
+/** adds protocol columns to the end
+ *
+ */
+function addProtocols() {
+  appProperties.showIsaView = false;
+  let protocolTypes = ["Protocol REF", "Protocol Type"];
+  let counter = 0;
+
+  // add protocol version
+  if (protocolColumns.value.version) protocolTypes.push("Protocol Version");
+  if (protocolColumns.value.description)
+    protocolTypes.push("Protocol Description");
+  if (protocolColumns.value.uri) protocolTypes.push("Protocol Uri");
+
+  protocolTypes.forEach((protocol) => {
+    // if protocol column already exists, throw an error
+    if (
+      !templateProperties.template.some((element) => element.Type == protocol)
+    ) {
+      // the new block will be inserted right before the output column
+      templateProperties.template.splice(
+        templateProperties.template.length - 1,
+        0,
+        {
+          Type: protocol,
+        }
+      );
+      counter++;
+    }
+  });
+  // fill the new columns with empty field with the same amount of rows the table already has
+  let emptyCells = [] as Array<Array<string>>;
+
+  // add as many empty arrays, as there are protocol columns added
+  for (let i = 0; i < counter; i++) {
+    emptyCells.push([]);
+  }
+  // fill columns with as many empty strings, as there are rows
+  templateProperties.content[0].forEach(() => {
+    emptyCells.forEach((element) => {
+      element.push("");
+    });
+  });
+  // add new empty cells to the new protocol columns
+  emptyCells.forEach((element) => {
+    templateProperties.content.splice(
+      templateProperties.content.length - 1,
+      0,
+      element
+    );
+  });
+}
 </script>
 
 <template>
@@ -573,11 +629,13 @@ function addColumn() {
       </template>
       <!-- show search area for inserting a new building block-->
       <template v-else-if="showBuildingBlock">
-        <span>Add building block:</span
-        ><q-checkbox v-model="bbUnit"
-          >Unit?<q-tooltip
-            >Add a unit to the building block</q-tooltip
-          ></q-checkbox
+        <span>Add building block:</span>
+        <template v-if="termProperties.parameterType != 'Protocol'">
+          <q-checkbox v-model="bbUnit"
+            >Unit?<q-tooltip
+              >Add a unit to the building block</q-tooltip
+            ></q-checkbox
+          ></template
         >
         <div class="q-gutter-md row">
           <q-select
@@ -587,24 +645,48 @@ function addColumn() {
             :options="parameterOptions"
             label="Parameter Type" />
         </div>
-        <q-input
-          v-model="search"
-          label="Search building blocks"
-          style="width: 10%"></q-input
-        ><q-btn @click="getSuggestions()" :disable="search.length == 0"
-          >Search</q-btn
-        >
+        <template v-if="termProperties.parameterType != 'Protocol'">
+          <q-input
+            v-model="search"
+            label="Search building blocks"
+            style="width: 10%"></q-input
+          ><q-btn @click="getSuggestions()" :disable="search.length == 0"
+            >Search</q-btn
+          >
 
-        <q-input
-          v-show="bbUnit"
-          style="width: 10%"
-          v-model="unitSearch"
-          label="Search building block unit"></q-input
-        ><q-btn
-          v-show="bbUnit"
-          @click="getUnitSuggestions()"
-          :disable="unitSearch.length == 0"
-          >Search unit</q-btn
+          <q-input
+            v-show="bbUnit"
+            style="width: 10%"
+            v-model="unitSearch"
+            label="Search building block unit"></q-input
+          ><q-btn
+            v-show="bbUnit"
+            @click="getUnitSuggestions()"
+            :disable="unitSearch.length == 0"
+            >Search unit</q-btn
+          ></template
+        >
+        <template v-else
+          ><q-checkbox v-model="protocolColumns.version"
+            >Protocol Version<q-tooltip
+              >Add a version to the protocol</q-tooltip
+            ></q-checkbox
+          ><q-checkbox v-model="protocolColumns.description"
+            >Protocol Description<q-tooltip
+              >Add a description to the protocol</q-tooltip
+            ></q-checkbox
+          ><q-checkbox v-model="protocolColumns.uri"
+            >Protocol Uri<q-tooltip
+              >Add a URI or a file path to the protocol file location</q-tooltip
+            ></q-checkbox
+          ><br /><q-btn
+            @click="
+              addProtocols();
+              showBuildingBlock = false;
+              keyNumber += 1;
+            "
+            >Select</q-btn
+          ></template
         >
       </template>
       <template v-else-if="showCustomColumn">

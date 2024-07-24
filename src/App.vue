@@ -54,6 +54,11 @@ var invId = ref("");
 
 var loading = false;
 
+// countdown to show time left for the current session
+var countDown = { hour: 2, minute: 0, second: 0 };
+// key number for countdown
+var timer = ref(10);
+
 // when there is something to announce, it will be displayed in the header area
 var announcement = "";
 
@@ -104,6 +109,23 @@ const loginOptions: ReadonlyArray<{
     description: "Development server for testing purposes",
   },
 ];
+
+if ($q.cookies.get("logged_in") != null) {
+  appProperties.loggedIn = true;
+
+  let userName = $q.cookies.get("username");
+  if (userName == null) userName = "User";
+
+  // set username
+  try {
+    window.sessionStorage.setItem("username", decodeURI(userName));
+  } catch (error) {
+    window.sessionStorage.setItem(
+      "username",
+      decodeURI(userName.split('"')[0])
+    );
+  }
+}
 
 // here we trick vue js to reload the component
 const refresher = ref(0);
@@ -207,6 +229,46 @@ async function getGroups() {
     errors = error.toString();
   }
   forcereload();
+}
+
+if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
+  let time = Number($q.cookies.get("timer")) + 7200;
+  let timeLeft = time - Math.floor(new Date().getTime() / 1000);
+
+  if (timeLeft > 0) {
+    countDown.hour = Math.floor(timeLeft / 3600);
+    countDown.minute = Math.floor(timeLeft / 60) % 60;
+    countDown.second = Math.floor(timeLeft % 60);
+
+    let interval = setInterval(() => {
+      if (countDown.minute == 0) {
+        countDown.hour -= 1;
+        countDown.minute = 59;
+        countDown.second = 59;
+      }
+      if (countDown.second == 0) {
+        countDown.minute -= 1;
+        countDown.second = 59;
+      } else {
+        countDown.second -= 1;
+      }
+      // reset counter
+      if (countDown.hour < 0) {
+        countDown.hour = 0;
+        countDown.minute = 0;
+        countDown.second = 0;
+        clearInterval(interval);
+      }
+
+      // refresh time left to accommodate to rounding errors after one hour
+      if (timeLeft == 3600)
+        timeLeft = time - Math.floor(new Date().getTime() / 1000);
+
+      timer.value += 1;
+    }, 1000);
+  } else {
+    countDown.hour = 0;
+  }
 }
 </script>
 
@@ -347,6 +409,7 @@ async function getGroups() {
               >ARC Search</q-item-section
             ><q-tooltip>Open the search area for public arcs</q-tooltip>
           </q-item>
+          <!-- DARK MODE-->
           <q-item v-if="!appProperties.dark">
             <q-btn
               @click="
@@ -373,11 +436,27 @@ async function getGroups() {
             >
           </q-item>
         </q-list>
+        <!-- LOADING SPINNER-->
         <q-spinner-gears
           size="5em"
           style="margin-left: 1cm"
           v-show="loading"
           :key="refresher + 2"></q-spinner-gears>
+        <q-separator inset style="margin-top: 1em; margin-bottom: 1em" />
+        <p class="text-center" v-if="appProperties.arcList">
+          Session time left:
+        </p>
+
+        <span
+          style="margin-left: 25%"
+          :key="timer"
+          v-show="appProperties.arcList"
+          >{{ countDown.hour }} :
+          <template v-if="countDown.minute < 10">0</template
+          >{{ countDown.minute }} :
+          <template v-if="countDown.second < 10">0</template
+          >{{ countDown.second }}</span
+        >
       </q-scroll-area>
     </q-drawer>
 
