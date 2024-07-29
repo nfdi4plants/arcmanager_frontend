@@ -247,14 +247,7 @@ var validate = ref(false);
 var slide = ref("structure");
 var validateData = {
   Assays: [] as Array<Object>,
-  Studies: [] as Array<{
-    Name: true;
-    identifier: {
-      identifier: false;
-      title: false;
-      description: false;
-    };
-  }>,
+  Studies: [] as Array<Object>,
   ARC_Structure: true as boolean | string,
   Investigation: {
     identifier: false,
@@ -869,6 +862,19 @@ async function getFile(id: number, path: string, branch: string) {
                 }
               }
               break;
+
+            // user orcid
+            case "Comment[ORCID]":
+              if (isaProperties.contacts.length > 0) {
+                let entry = data[i];
+                let cache: string[] = [];
+                entry.forEach((element: string | null) => {
+                  if (element) cache.push(element);
+                  else cache.push("");
+                });
+                isaProperties.contacts.push(cache);
+              }
+              break;
           }
           isaList.push(element);
         });
@@ -1058,9 +1064,16 @@ async function fileUpload(folder = false) {
             body: formData,
             credentials: "include",
           });
-          let data = await response.json();
+
           if (!response.ok) {
-            errors = response.statusText + ", " + data["detail"].slice(0, 200);
+            try {
+              let data = await response.json();
+              errors =
+                response.statusText + ", " + data["detail"].slice(0, 200);
+            } catch (error) {
+              errors =
+                response.statusText + ", Error while uploading your file(s)!";
+            }
             progress = 1;
             $q.loading.hide();
             uploading = false;
@@ -2273,47 +2286,16 @@ async function validateArc() {
               >No studies found!</span
             >
             <q-list>
-              <q-expansion-item
-                :default-opened="
-                  validateData.Studies.length == 1 ? true : false
-                "
-                v-for="item in validateData.Studies"
-                :label="Object.keys(item)[0]"
-                header-class="text-orange">
-                <!-- Identifier-->
-                <q-item>
-                  <q-item-section>Identifier</q-item-section>
-                  <q-item-section avatar>
-                    <q-icon
-                      v-if="item.identifier.identifier"
-                      name="done"
-                      :color="validateData.ARC ? 'gold' : 'green'" />
-                    <q-icon v-else name="clear" color="red"
-                  /></q-item-section>
-                </q-item>
-                <!-- Title -->
-                <q-item>
-                  <q-item-section>Title</q-item-section>
-                  <q-item-section avatar>
-                    <q-icon
-                      v-if="item.identifier.title"
-                      name="done"
-                      :color="validateData.ARC ? 'gold' : 'green'" />
-                    <q-icon v-else name="clear" color="red"
-                  /></q-item-section>
-                </q-item>
-                <!-- Description -->
-                <q-item>
-                  <q-item-section>Description</q-item-section>
-                  <q-item-section avatar>
-                    <q-icon
-                      v-if="item.identifier.description"
-                      name="done"
-                      :color="validateData.ARC ? 'gold' : 'green'" />
-                    <q-icon v-else name="clear" color="red"
-                  /></q-item-section>
-                </q-item>
-              </q-expansion-item>
+              <q-item v-for="item in validateData.Studies">
+                <q-item-section>{{ Object.keys(item)[0] }}</q-item-section>
+                <q-item-section avatar>
+                  <q-icon
+                    v-if="Boolean(Object.values(item)[0])"
+                    name="done"
+                    :color="validateData.ARC ? 'gold' : 'green'" />
+                  <q-icon v-else name="clear" color="red"
+                /></q-item-section>
+              </q-item>
             </q-list>
           </div>
         </q-carousel-slide>

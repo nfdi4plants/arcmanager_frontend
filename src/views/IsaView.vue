@@ -464,6 +464,7 @@ function setBB(term: Term) {
  */
 function setUnit(term: Term) {
   errors = "";
+  keyNumber.value += 1;
   // if the building block has no unit so far, you can add one
   try {
     if (
@@ -495,6 +496,7 @@ function setUnit(term: Term) {
         refCells,
         accNumberCells
       );
+      appProperties.showIsaView = false;
       // if there is already a unit column, throw an error
     } else {
       errors = "ERROR: Building block already has a Unit!";
@@ -993,6 +995,7 @@ function setIds() {
         ></template>
       </q-tabs>
     </div>
+    <!-- Publication -->
     <q-tab-panels
       v-model="isaProperties.publication"
       animated
@@ -1036,6 +1039,7 @@ function setIds() {
         ></template>
       </q-tabs>
     </div>
+    <!-- Contacts-->
     <q-tab-panels v-model="isaProperties.contact" animated>
       <template v-for="j in isaProperties.contacts[0].length - 1">
         <q-tab-panel :name="'contact ' + j">

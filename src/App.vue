@@ -260,12 +260,12 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
         clearInterval(interval);
       }
 
-      // refresh time left to accommodate to rounding errors after one hour
-      if (timeLeft == 3600)
+      // refresh time left to accommodate to rounding errors after one hour or 5 minutes left
+      if (timeLeft == 3600 || timeLeft == 300)
         timeLeft = time - Math.floor(new Date().getTime() / 1000);
 
       timer.value += 1;
-    }, 1000);
+    }, 970);
   } else {
     countDown.hour = 0;
   }

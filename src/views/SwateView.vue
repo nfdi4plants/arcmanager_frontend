@@ -27,8 +27,7 @@ const parameterOptions: ReadonlyArray<string> = [
   "Factor",
   "Characteristic",
   "Component",
-  "Date",
-  "Performer",
+  "Comment",
   "Protocol",
 ];
 
@@ -66,7 +65,13 @@ var customColumnUnit = ref(false);
 var bbUnit = ref(false);
 
 // different type of columns for protocol
-var protocolColumns = ref({ version: false, description: false, uri: false });
+var protocolColumns = ref({
+  ref: true,
+  type: true,
+  version: false,
+  description: false,
+  uri: false,
+});
 
 // the type of unit for the building block
 var unitSearch = ref("");
@@ -320,7 +325,7 @@ async function getUnitSuggestions() {
   termProperties.buildingBlocks = [];
 
   const terms = await fetch(
-    `${backend}getTerms?input=${search.value}&advanced=true`
+    `${backend}getTerms?input=${unitSearch.value}&advanced=true`
   );
   let data = await terms.json();
   if (!terms.ok) {
@@ -547,10 +552,12 @@ function addColumn() {
  */
 function addProtocols() {
   appProperties.showIsaView = false;
-  let protocolTypes = ["Protocol REF", "Protocol Type"];
+  let protocolTypes = [] as Array<string>;
   let counter = 0;
 
-  // add protocol version
+  // add protocol columns
+  if (protocolColumns.value.type) protocolTypes.push("Protocol Type");
+  if (protocolColumns.value.ref) protocolTypes.push("Protocol REF");
   if (protocolColumns.value.version) protocolTypes.push("Protocol Version");
   if (protocolColumns.value.description)
     protocolTypes.push("Protocol Description");
@@ -593,6 +600,71 @@ function addProtocols() {
       element
     );
   });
+}
+
+/** shifts the referenced column either to the left or right
+ *
+ * @param direction - the direction ('left' or 'right')
+ * @param index - the index of the column that gets shifted
+ */
+function shift(direction: string, index: number) {
+  errors = "";
+  keyNumber.value += 1;
+  let columns = [templateProperties.template[index]];
+  let content = [templateProperties.content[index]];
+
+  let counter = 1;
+  while (
+    templateProperties.template[index + counter].Type.startsWith("Unit") ||
+    templateProperties.template[index + counter].Type.startsWith("Term")
+  ) {
+    columns.push(templateProperties.template[index + counter]);
+    content.push(templateProperties.content[index + counter]);
+    counter += 1;
+  }
+  templateProperties.template.splice(index, counter);
+  templateProperties.content.splice(index, counter);
+
+  switch (direction) {
+    case "left":
+      let shiftCount = 1;
+      while (
+        templateProperties.template[index - shiftCount].Type.startsWith(
+          "Unit"
+        ) ||
+        templateProperties.template[index - shiftCount].Type.startsWith("Term")
+      ) {
+        shiftCount += 1;
+      }
+      columns.forEach((element, i) => {
+        templateProperties.template.splice(index - shiftCount, 0, element);
+        templateProperties.content.splice(index - shiftCount, 0, content[i]);
+        shiftCount -= 1;
+      });
+      break;
+
+    case "right":
+      let shiftRight = 1;
+      while (
+        templateProperties.template[index + shiftRight].Type.startsWith(
+          "Unit"
+        ) ||
+        templateProperties.template[index + shiftRight].Type.startsWith("Term")
+      ) {
+        shiftRight += 1;
+      }
+      columns.forEach((element, i) => {
+        templateProperties.template.splice(index + shiftRight, 0, element);
+        templateProperties.content.splice(index + shiftRight, 0, content[i]);
+        shiftRight += 1;
+      });
+      break;
+
+    default:
+      errors = "Error while shifting! Direction not clear stated!";
+      keyNumber.value += 1;
+      break;
+  }
 }
 </script>
 
@@ -667,6 +739,14 @@ function addProtocols() {
           ></template
         >
         <template v-else
+          ><q-checkbox v-model="protocolColumns.type"
+            >Protocol Type<q-tooltip
+              >Add a type to the protocol</q-tooltip
+            ></q-checkbox
+          ><q-checkbox v-model="protocolColumns.ref"
+            >Protocol REF<q-tooltip
+              >Add a REF to the protocol</q-tooltip
+            ></q-checkbox
           ><q-checkbox v-model="protocolColumns.version"
             >Protocol Version<q-tooltip
               >Add a version to the protocol</q-tooltip
@@ -689,6 +769,7 @@ function addProtocols() {
           ></template
         >
       </template>
+      <!-- Custom Column-->
       <template v-else-if="showCustomColumn">
         <div class="row">
           <div>
@@ -871,7 +952,7 @@ function addProtocols() {
                   style="width: 80%; height: unset; border: 0px"
                   v-model="column.Type" />
                 <template v-else>
-                  {{ column.Type.split("[")[0] }}<br /></template
+                  {{ column.Type.split("[")[0] }}<br /> </template
                 ><template
                   v-if="
                     column.Type.startsWith('Term') && column.Type.includes('[')
@@ -897,8 +978,9 @@ function addProtocols() {
 
               <!-- if the type is neither a term accession or a unit, insert a search button -->
               <!-- also the parameter should not be of type "unit" -->
-              <template v-if="checkName(column.Type) && !column.Custom"
+              <template v-if="checkName(column.Type)"
                 ><q-btn
+                  v-if="!column.Custom"
                   icon="search"
                   round
                   @click="
@@ -913,8 +995,28 @@ function addProtocols() {
                   "
                   size="xs"
                   ><q-tooltip>Search for terms</q-tooltip></q-btn
-                ></template
-              >
+                >
+                <br /><q-btn
+                  size="xs"
+                  round
+                  dense
+                  unelevated
+                  icon="chevron_left"
+                  v-if="i > 1"
+                  @click="shift('left', i)" />
+                <q-btn
+                  size="xs"
+                  round
+                  dense
+                  unelevated
+                  icon="chevron_right"
+                  @click="shift('right', i)"
+                  v-if="
+                    (i < templateProperties.template.length - 4 &&
+                      i != templateProperties.template.length - 5) ||
+                    checkName(templateProperties.template[i + 1].Type)
+                  " />
+              </template>
             </th>
           </tr>
         </thead>
