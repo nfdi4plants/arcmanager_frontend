@@ -1127,6 +1127,8 @@ async function getTemplates() {
   appProperties.showIsaView = false;
   assaySync = studySync = false;
   templateProperties.rowId = 1;
+  templateProperties.templateName = "";
+  templateProperties.templateVersion = "";
   user = -1;
   forcereload();
 
@@ -1847,7 +1849,7 @@ async function inspectTreeCrumb(index: number) {
   forcereload();
 }
 
-/** create a isa.datamap for the study
+/** create a isa.datamap for the assay/study
  *
  */
 async function addDatamap() {
@@ -2131,7 +2133,6 @@ async function validateArc() {
       v-show="loading"
       :key="refresher + 4"></q-spinner>
   </div>
-  <!-- ARC VALIDATION -->
   <div class="q-pa-xs row q-gutter-sm" v-if="arcList.length != 0">
     <q-btn-group style="max-height: 3em">
       <q-btn class="send" icon="checklist" @click="validateArc()"
@@ -2229,7 +2230,9 @@ async function validateArc() {
           </q-list> </q-menu
         ><q-tooltip>Add, edit or remove members of your arc</q-tooltip></q-btn
       ></q-btn-group
-    ><q-dialog v-model="validate">
+    >
+    <!-- VALIDATION -->
+    <q-dialog v-model="validate">
       <q-carousel
         style="width: 80%"
         v-model="slide"
@@ -2647,7 +2650,7 @@ async function validateArc() {
               getFile(arcId, item.path, arcProperties.branch);
             }
           "
-          :disable="checkName(item.name)">
+          :disable="checkName(item.name) || item.type == 'commit'">
           <template v-if="item.type == 'tree'">
             <q-item-section avatar top
               ><q-avatar icon="folder"></q-avatar

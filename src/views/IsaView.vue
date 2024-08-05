@@ -1287,7 +1287,13 @@ function setIds() {
             >Updated last:
             {{ template.last_updated.slice(0, 10) }}</q-card-section
           ><q-card-section
-            ><q-btn class="alt" @click="setTemplate(template.table)"
+            ><q-btn
+              class="alt"
+              @click="
+                setTemplate(template.table);
+                templateProperties.templateName = template.name;
+                templateProperties.templateVersion = template.version;
+              "
               >Import<q-tooltip
                 >Import the template and create a new sheet</q-tooltip
               ></q-btn

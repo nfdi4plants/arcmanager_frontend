@@ -411,10 +411,17 @@ function deleteRow(rowIndex: number) {
  *
  */
 function addColumn() {
+  errors = "";
+  let columnExists = templateProperties.template.some(
+    (element) =>
+      element.Type ==
+      termProperties.parameterType + " [" + customColumnName.value + "]"
+  );
   if (
     customColumnName.value != "" &&
     customColumnNumber.value > 0 &&
-    customColumnNumber.value <= sheetProperties.columnIds
+    customColumnNumber.value <= sheetProperties.columnIds &&
+    !columnExists
   ) {
     let counter = 0;
     templateProperties.template.forEach((entry, i) => {
@@ -544,7 +551,11 @@ function addColumn() {
     sheetProperties.columnIds += 1;
     customColumnName.value = "";
     showCustomColumn = false;
+  } else {
+    if (columnExists) errors = "ERROR: Column already exists!";
+    else errors = "Couldn't add column! Please check your input again!";
   }
+  keyNumber.value += 1;
 }
 
 /** adds protocol columns to the end
@@ -820,13 +831,22 @@ function shift(direction: string, index: number) {
       </template>
       <q-separator></q-separator>
       <!-- Area for sheet naming and other options-->
-      <q-input
-        type="text"
-        style="width: 10%"
-        label="Sheet name"
-        v-model="sheetProperties.name"
-        placeholder="Name your sheet"
-        :rules="[(val) => !val.includes(' ') || 'No whitespace allowed!']" />
+      <div class="row items-center">
+        <q-input
+          type="text"
+          style="width: 10%"
+          label="Sheet name"
+          v-model="sheetProperties.name"
+          placeholder="Name your sheet"
+          :rules="[(val) => !val.includes(' ') || 'No whitespace allowed!']" />
+        <span
+          style="padding-left: 2em"
+          v-if="templateProperties.templateName != ''"
+          >Template: {{ templateProperties.templateName }} ({{
+            templateProperties.templateVersion
+          }})</span
+        >
+      </div>
       <q-btn
         class="sheet"
         @click="saveSheet()"

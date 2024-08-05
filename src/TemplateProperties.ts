@@ -112,6 +112,10 @@ const templateProperties = reactive({
 
   // id of the row to overwrite
   rowId: 1,
+
+  // save and display name and version of selected template
+  templateName: "",
+  templateVersion: "",
 });
 
 export { templateProperties, Template, Table, Tag };
