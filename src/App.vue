@@ -94,6 +94,11 @@ const loginOptions = [
     value: "dev",
     description: "Development server for testing purposes",
   },
+  {
+    label: "DataHUB (federated) test environment",
+    value: "tuebingen_testenv",
+    description: "Development server for federated DataHUB",
+  },
 ];
 
 // here we trick vue js to reload the component
