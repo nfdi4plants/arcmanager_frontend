@@ -4,21 +4,82 @@ import { ref } from "vue";
 import { useQuasar } from "quasar";
 import appProperties from "@/AppProperties";
 
+import { Template, Table, Tag } from "@/TemplateProperties";
+
+import { Term } from "@/TermProperties";
+
 import draggable from "vuedraggable";
 
 var backend = appProperties.backend + "tnt/";
 var loading = false;
 
+class Unit {
+  name: string;
+  termSource: string;
+  termAccession: string;
+
+  constructor(name: string, termSource: string, termAccession: string) {
+    this.name = name;
+    this.termAccession = termAccession;
+    this.termSource = termSource;
+  }
+}
+
+class Column {
+  name: string;
+  annotationValue: string;
+  termAccession: string;
+  termSource: string;
+  unit: boolean | Unit;
+
+  constructor(
+    name: string,
+    annotationValue: string,
+    termAccession: string,
+    termSource: string,
+    unit: boolean | Unit
+  ) {
+    this.name = name;
+    this.annotationValue = annotationValue;
+    this.termAccession = termAccession;
+    this.termSource = termSource;
+    this.unit = unit;
+  }
+}
+
+const emptyTemplate = new Template(
+  "Empty",
+  [{ firstName: "", lastName: "", email: "" }],
+  "Start with a empty Template",
+  [],
+  "-",
+  "Empty Template",
+  "Custom",
+  new Table(
+    "",
+    [
+      { headertype: "Input", values: ["Source Name"] },
+      { headertype: "Output", values: ["Sample Name"] },
+    ],
+    [
+      [[0, 0], { celltype: "FreeText", values: [""] }],
+      [[1, 0], { celltype: "FreeText", values: [""] }],
+    ]
+  ),
+  [],
+  "1.0.0"
+);
+
 // list containing all the templates
-var templateList = [];
+var templateList: Template[] = [];
 // list containing all the templates after filtering through the search bar
-var templatesFiltered = [];
+var templatesFiltered: Template[] = [];
 
 // list of columns stored in the template (they are stored like [[column 1, column 2....][column 6, column 7...]...], basically nested lists)
-var template = [];
+var template: Array<Array<Column>> = [];
 
 // list containing the input and output columns
-var inputOutput = [];
+var inputOutput: Array<Column> = [];
 
 // the specific template to search for (name, author, ...)
 var templateSearch = ref("");
@@ -47,7 +108,7 @@ var errors = "";
 var unitNames = ref(false);
 
 // all the parameter options for a new building block
-const parameterOptions = [
+const parameterOptions: ReadonlyArray<string> = [
   "Parameter",
   "Factor",
   "Characteristic",
@@ -61,13 +122,13 @@ const parameterOptions = [
 var parameter = ref("Parameter");
 
 // list of suggestions for parameters
-var parameterList = [];
+var parameterList: Term[] = [];
 
 // list of suggestions for unit values (if the parameter is a unit)
-var unitList = [];
+var unitList: Term[] = [];
 
 // different options of organisations for the template
-const organisations = [
+const organisations: ReadonlyArray<string> = [
   "DataPLANT",
   "TRR341",
   "RPTU - MBS",
@@ -98,10 +159,10 @@ var unitSearch = ref("");
 var tagSearch = ref("");
 
 // list of terms used for tags
-var tagList = [];
+var tagList: Term[] = [];
 
 // the list of tags of the template
-var templateTags = [];
+var templateTags: Tag[] = [];
 
 const forcereload = () => {
   // when the key value is changed, vue is automatically reloading the components with a key value
@@ -190,7 +251,7 @@ async function getSuggestions(tag = false) {
     } else {
       // if the list of tags is empty
       if (data["terms"].length == 0) {
-        tagList = [{ Name: "No Term was found!" }];
+        tagList = [new Term("", "No Term was found!", "", false, "")];
       }
       // save the list of tags
       else {
@@ -209,7 +270,7 @@ async function getSuggestions(tag = false) {
     } else {
       // if the list of terms is empty
       if (data["terms"].length == 0) {
-        parameterList = [{ Name: "No Term was found!" }];
+        parameterList = [new Term("", "No Term was found!", "", false, "")];
       }
       // save the list of terms
       else {
@@ -243,7 +304,7 @@ async function getUnitSuggestions() {
   } else {
     // if the list of terms is empty
     if (data["terms"].length == 0) {
-      unitList = [{ Name: "No Term was found!" }];
+      unitList = [new Term("", "No Term was found!", "", false, "")];
     }
     // save the list of terms
     else {
@@ -258,7 +319,7 @@ async function getUnitSuggestions() {
  *
  * @param column - the column
  */
-function deleteColumn(column) {
+function deleteColumn(column: Column) {
   // ask the user for confirmation
   $q.dialog({
     dark: appProperties.dark,
@@ -289,7 +350,7 @@ function deleteColumn(column) {
  *
  * @param tag - the tag to be deleted
  */
-function deleteTag(tag) {
+function deleteTag(tag: Tag) {
   // ask user for confirmation
   $q.dialog({
     dark: appProperties.dark,
@@ -331,102 +392,13 @@ async function getTemplates() {
   // if there was an error, fill the templates with an empty template
   if (!response.ok) {
     errors = "ERROR: No templates found!";
-    templateList = [
-      {
-        id: "Empty",
-        name: "Empty Template",
-        description: "Start with a empty Template",
-        organisation: "Custom",
-        version: "1.0.0",
-        last_updated: "-",
-        authors: [{ firstName: "", lastName: "" }],
-        table: {
-          name: "",
-          header: [
-            { headertype: "Input", values: ["Source Name"] },
-            { headertype: "Output", values: ["Sample Name"] },
-          ],
-          values: [
-            [[0, 0], { celltype: "FreeText", values: [""] }],
-            [[1, 0], { celltype: "FreeText", values: [""] }],
-          ],
-        },
-        tags: [],
-      },
-      ,
-    ];
-    templatesFiltered = [
-      {
-        id: "Empty",
-        name: "Empty Template",
-        description: "Start with a empty Template",
-        organisation: "Custom",
-        version: "1.0.0",
-        last_updated: "-",
-        authors: [{ firstName: "", lastName: "" }],
-        table: {
-          name: "",
-          header: [
-            { headertype: "Input", values: ["Source Name"] },
-            { headertype: "Output", values: ["Sample Name"] },
-          ],
-          values: [
-            [[0, 0], { celltype: "FreeText", values: [""] }],
-            [[1, 0], { celltype: "FreeText", values: [""] }],
-          ],
-        },
-        tags: [],
-      },
-    ];
+    templateList = [emptyTemplate];
+    templatesFiltered = [emptyTemplate];
     forcereload();
   } else {
     // save the templates, starting with an empty template
-    templateList = [
-      {
-        id: "Empty",
-        name: "Empty Template",
-        description: "Start with a empty Template",
-        organisation: "Custom",
-        version: "1.0.0",
-        last_updated: "-",
-        authors: [{ firstName: "", lastName: "" }],
-        table: {
-          name: "",
-          header: [
-            { headertype: "Input", values: ["Source Name"] },
-            { headertype: "Output", values: ["Sample Name"] },
-          ],
-          values: [
-            [[0, 0], { celltype: "FreeText", values: [""] }],
-            [[1, 0], { celltype: "FreeText", values: [""] }],
-          ],
-        },
-        tags: [],
-      },
-    ];
-    templatesFiltered = [
-      {
-        id: "Empty",
-        name: "Empty Template",
-        description: "Start with a empty Template",
-        organisation: "Custom",
-        version: "1.0.0",
-        last_updated: "-",
-        authors: [{ firstName: "", lastName: "" }],
-        table: {
-          name: "",
-          header: [
-            { headertype: "Input", values: ["Source Name"] },
-            { headertype: "Output", values: ["Sample Name"] },
-          ],
-          values: [
-            [[0, 0], { celltype: "FreeText", values: [""] }],
-            [[1, 0], { celltype: "FreeText", values: [""] }],
-          ],
-        },
-        tags: [],
-      },
-    ];
+    templateList = [emptyTemplate];
+    templatesFiltered = [emptyTemplate];
     // merge the templates from the get request with the current template list (also for the filtered list)
     templateList = templateList.concat(templates.templates);
     templatesFiltered = templatesFiltered.concat(templates.templates);
@@ -441,16 +413,16 @@ async function getTemplates() {
  */
 function sortTemplates(searchTerm: string) {
   templatesFiltered = [];
-  templateList.forEach((element: any) => {
+  templateList.forEach((element) => {
     // craft the string to search in including the name of the template, the organisation, description and name of the first author
     let searchString =
-      element["name"].toLowerCase() +
+      element.name.toLowerCase() +
       " " +
-      element["organisation"].toLowerCase() +
+      element.organisation.toLowerCase() +
       " " +
-      element["description"].toString().toLowerCase() +
-      element["authors"][0]["firstName"].toLowerCase() +
-      element["authors"][0]["lastName"].toLowerCase();
+      element.description.toString().toLowerCase() +
+      element.authors[0].firstName.toLowerCase() +
+      element.authors[0].lastName.toLowerCase();
     if (searchString.includes(searchTerm.toLowerCase())) {
       templatesFiltered.push(element);
     }
@@ -461,7 +433,7 @@ function sortTemplates(searchTerm: string) {
  *
  * @param table - the table section of a template
  */
-function setTemplate(table: Object) {
+function setTemplate(table: Table) {
   errors = "";
   loading = true;
 
@@ -485,9 +457,9 @@ function setTemplate(table: Object) {
   let listIndex = 0;
 
   // list of columns, that are unit columns
-  let unitColumns = [];
+  let unitColumns: Array<{ columnId: number; unit: Unit }> = [];
   // here are just the numbers stored (for later ease to use)
-  let unitNumbers = [];
+  let unitNumbers: Array<number> = [];
 
   // if there is a table, start filling in the values
   if (table != null) {
@@ -495,17 +467,18 @@ function setTemplate(table: Object) {
     for (let i = 0; i < table.values.length; i++) {
       if (table.values[i][0][1] == 0) {
         // every unit should have the "unitized" cell type and an annotation value
-        if (
-          table.values[i][1].celltype == "Unitized" &&
-          table.values[i][1].values[1].annotationValue != ""
-        ) {
-          unitColumns.push({
-            columnId: table.values[i][0][0],
-            unitName: table.values[i][1].values[1].annotationValue,
-            unitSource: table.values[i][1].values[1].termSource,
-            unitAccession: table.values[i][1].values[1].termAccession,
-          });
-          unitNumbers.push(table.values[i][0][0]);
+        if (table.values[i][1].celltype == "Unitized") {
+          if ((table.values[i][1].values[1] as Tag).annotationValue != "") {
+            unitColumns.push({
+              columnId: table.values[i][0][0],
+              unit: new Unit(
+                (table.values[i][1].values[1] as Tag).annotationValue,
+                (table.values[i][1].values[1] as Tag).termSource,
+                (table.values[i][1].values[1] as Tag).termAccession
+              ),
+            });
+            unitNumbers.push(table.values[i][0][0]);
+          }
         }
       }
     }
@@ -513,7 +486,7 @@ function setTemplate(table: Object) {
     // set the sheet name to the name set by the template
     if (table.name != "") templateIdentifier.value = table.name;
 
-    table.header.forEach((element, index) => {
+    table.header.forEach((element, index: number) => {
       // increase the index every 5 columns
       listIndex = Math.floor(index / 5);
       // if its not an input/output column
@@ -523,48 +496,62 @@ function setTemplate(table: Object) {
           let unitColumn = unitColumns.find(
             (element) => element.columnId == index
           );
-          // fill in the column including the unit data
-          template[listIndex].push({
-            name: element.headertype,
-            annotationValue: element.values[0].annotationValue,
-            termAccession: element.values[0].termAccession,
-            termSource: element.values[0].termSource,
-            unit: {
-              name: unitColumn?.unitName,
-              termSource: unitColumn?.unitSource,
-              termAccession: unitColumn?.unitAccession,
-            },
-          });
+          if (unitColumn) {
+            // fill in the column including the unit data
+            template[listIndex].push(
+              new Column(
+                element.headertype,
+                (element.values[0] as Tag).annotationValue,
+                (element.values[0] as Tag).termAccession,
+                (element.values[0] as Tag).termSource,
+                new Unit(
+                  unitColumn.unit.name,
+                  unitColumn.unit.termSource,
+                  unitColumn.unit.termAccession
+                )
+              )
+            );
+          } else {
+            template[listIndex].push(
+              new Column(
+                element.headertype,
+                (element.values[0] as Tag).annotationValue,
+                (element.values[0] as Tag).termAccession,
+                (element.values[0] as Tag).termSource,
+                new Unit("", "", "")
+              )
+            );
+          }
           // if its not a unit, set "unit" to false
         } else {
           try {
-            template[listIndex].push({
-              name: element.headertype,
-              annotationValue: element.values[0].annotationValue,
-              termAccession: element.values[0].termAccession,
-              termSource: element.values[0].termSource,
-              unit: false,
-            });
+            template[listIndex].push(
+              new Column(
+                element.headertype,
+                (element.values[0] as Tag).annotationValue,
+                (element.values[0] as Tag).termAccession,
+                (element.values[0] as Tag).termSource,
+                false
+              )
+            );
             // if there is an error, it is most likely due to missing term values; therefore set them to an empty string
           } catch (error) {
-            template[listIndex].push({
-              name: element.headertype,
-              annotationValue: "",
-              termAccession: "",
-              termSource: "",
-              unit: false,
-            });
+            template[listIndex].push(
+              new Column(element.headertype, "", "", "", false)
+            );
           }
         }
       } else {
         // an input/output column only has a name and annotation value
-        inputOutput.push({
-          name: element.headertype,
-          annotationValue: element.values[0],
-          termAccession: false,
-          termSource: false,
-          unit: false,
-        });
+        inputOutput.push(
+          new Column(
+            element.headertype,
+            element.values[0] as string,
+            "",
+            "",
+            false
+          )
+        );
       }
     });
   }
@@ -604,13 +591,7 @@ function setBB(name: string, accession: string, source: string) {
     template[template.length - 1].splice(
       template[template.length - 1].length,
       0,
-      {
-        name: parameter.value,
-        annotationValue: name,
-        termAccession: accession,
-        termSource: source,
-        unit: false,
-      }
+      new Column(parameter.value, name, accession, source, false)
     );
     parameterList = [];
     forcereload();
@@ -631,15 +612,11 @@ function setUnit(name: string, accession: string, ontology: string) {
     if (
       typeof template[template.length - 1][
         template[template.length - 1].length - 1
-      ].unit != typeof {}
+      ].unit != typeof Unit
     ) {
       template[template.length - 1][
         template[template.length - 1].length - 1
-      ].unit = {
-        name: name,
-        termSource: ontology,
-        termAccession: accession,
-      };
+      ].unit = new Unit(name, ontology, accession);
 
       // if there is already a unit column, throw an error
     } else {
@@ -715,7 +692,7 @@ if (templateList.length == 0) getTemplates();
                       templateDesc = template.description;
                       templateOrg = template.organisation;
                       templateVersion = template.version;
-                      templateTags = template.tags;
+                      if (template.tags) templateTags = template.tags;
                       if (template.authors.length > 0)
                         templateAuthor = template.authors[0];
                     "
@@ -746,16 +723,16 @@ if (templateList.length == 0) getTemplates();
                 <q-expansion-item>
                   <template #header>
                     <span style="font-size: medium"
-                      >{{ term["Name"] }}
+                      >{{ term.Name }}
                       <a
                         :href="
-                          'http://purl.obolibrary.org/obo/' + term['Accession']
+                          'http://purl.obolibrary.org/obo/' + term.Accession
                         "
                         target="_blank"
                         style="font-size: medium"
-                        >({{ term["Accession"] }})</a
+                        >({{ term.Accession }})</a
                       >
-                      <template v-if="term['IsObsolete']">
+                      <template v-if="term.IsObsolete">
                         <span style="color: red; margin-left: 1mm"
                           >Obsolete</span
                         ></template
@@ -763,18 +740,14 @@ if (templateList.length == 0) getTemplates();
                     >
                   </template>
                   <q-card
-                    ><q-card-section>{{ term["Description"] }}</q-card-section>
+                    ><q-card-section>{{ term.Description }}</q-card-section>
                     <q-card-section
                       ><q-btn
                         class="bb"
                         @click="
-                          setUnit(
-                            term['Name'],
-                            term['Accession'],
-                            term['FK_Ontology']
-                          )
+                          setUnit(term.Name, term.Accession, term.FK_Ontology)
                         "
-                        :disable="term['Name'] == 'No Term was found!'"
+                        :disable="term.Name == 'No Term was found!'"
                         >Select</q-btn
                       ></q-card-section
                     >
@@ -790,16 +763,16 @@ if (templateList.length == 0) getTemplates();
                 <q-expansion-item>
                   <template #header>
                     <span style="font-size: medium"
-                      >{{ term["Name"] }}
+                      >{{ term.Name }}
                       <a
                         :href="
-                          'http://purl.obolibrary.org/obo/' + term['Accession']
+                          'http://purl.obolibrary.org/obo/' + term.Accession
                         "
                         target="_blank"
                         style="font-size: medium"
-                        >({{ term["Accession"] }})</a
+                        >({{ term.Accession }})</a
                       >
-                      <template v-if="term['IsObsolete']">
+                      <template v-if="term.IsObsolete">
                         <span style="color: red; margin-left: 1mm"
                           >Obsolete</span
                         ></template
@@ -807,18 +780,14 @@ if (templateList.length == 0) getTemplates();
                     >
                   </template>
                   <q-card
-                    ><q-card-section>{{ term["Description"] }}</q-card-section>
+                    ><q-card-section>{{ term.Description }}</q-card-section>
                     <q-card-section
                       ><q-btn
                         class="bb"
                         @click="
-                          setBB(
-                            term['Name'],
-                            term['Accession'],
-                            term['FK_Ontology']
-                          )
+                          setBB(term.Name, term.Accession, term.FK_Ontology)
                         "
-                        :disable="term['Name'] == 'No Term was found!'"
+                        :disable="term.Name == 'No Term was found!'"
                         >Select</q-btn
                       ></q-card-section
                     >
@@ -834,14 +803,14 @@ if (templateList.length == 0) getTemplates();
                 ><q-expansion-item>
                   <template #header>
                     <span style="font-size: medium"
-                      >{{ term["Name"] }}
+                      >{{ term.Name }}
                       <a
                         :href="
-                          'http://purl.obolibrary.org/obo/' + term['Accession']
+                          'http://purl.obolibrary.org/obo/' + term.Accession
                         "
                         target="_blank"
                         style="font-size: medium"
-                        >({{ term["Accession"] }})</a
+                        >({{ term.Accession }})</a
                       >
                       <template v-if="term['IsObsolete']">
                         <span style="color: red; margin-left: 1mm"
@@ -851,20 +820,20 @@ if (templateList.length == 0) getTemplates();
                     >
                   </template>
                   <q-card
-                    ><q-card-section>{{ term["Description"] }}</q-card-section>
+                    ><q-card-section>{{ term.Description }}</q-card-section>
                     <q-card-section
                       ><q-btn
                         class="bb"
                         @click="
                           templateTags.push({
-                            annotationValue: term['Name'],
-                            termSource: term['FK_Ontology'],
-                            termAccession: term['Accession'],
+                            annotationValue: term.Name,
+                            termSource: term.FK_Ontology,
+                            termAccession: term.Accession,
                           });
                           tagList = [];
                           forcereload();
                         "
-                        :disable="term['Name'] == 'No Term was found!'"
+                        :disable="term.Name == 'No Term was found!'"
                         >Select</q-btn
                       ></q-card-section
                     >
@@ -998,6 +967,9 @@ if (templateList.length == 0) getTemplates();
                 type="text"
                 label="Identifier"
                 v-model="templateIdentifier"
+                :rules="[
+                  (val) => !val.includes(' ') || 'No whitespace allowed!',
+                ]"
                 placeholder="Give your template an Identifier (e.g. AlgaeGrowth)" />
               <q-input
                 type="text"

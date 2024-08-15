@@ -16,12 +16,13 @@ import TemplateEditView from "./views/TemplateEditView.vue";
 
 import logoURL from "./assets/dpLogo2_w.png";
 import IsaEditView from "./views/IsaEditView.vue";
-import templateProperties from "./TemplateProperties";
+import { templateProperties } from "./TemplateProperties";
 import appProperties from "./AppProperties";
 import arcProperties from "./ArcProperties";
 import fileProperties from "./FileProperties";
 import sheetProperties from "./SheetProperties";
-import termProperties from "./TermProperties";
+import { termProperties } from "./TermProperties";
+import ArcSearchView from "./views/ArcSearchView.vue";
 
 const $q = useQuasar();
 
@@ -34,11 +35,15 @@ $q.dark.set(appProperties.dark);
 var backend = appProperties.backend + "projects/";
 
 var target = ref("");
-// displays arc creation field
-var showInput = false;
 
-// opens up the template editor
-var templateEdit = false;
+var groups: Array<{ name: string; id: number }> = [];
+
+var group = ref({ name: "", id: 0 });
+
+var groupEnable = ref(false);
+
+// -1 - normal mode; 0 - arc creation; 1 - template editing; 2 - Arc search
+var mode: -1 | 0 | 1 | 2 = -1;
 
 // Name of the new arc
 var arcName = ref("");
@@ -49,11 +54,16 @@ var invId = ref("");
 
 var loading = false;
 
+// countdown to show time left for the current session
+var countDown = { hour: 2, minute: 0, second: 0 };
+// key number for countdown
+var timer = ref(10);
+
 // when there is something to announce, it will be displayed in the header area
 var announcement = "";
 
-// list with errors
-var errors: any;
+// string containing info about a current error
+var errors: string;
 
 var drawerWidth = ref(1000);
 
@@ -71,7 +81,11 @@ function checkMini(width: number) {
 checkMini(windowWidth);
 
 // the different login options with name and description
-const loginOptions = [
+const loginOptions: ReadonlyArray<{
+  label: string;
+  value: string;
+  description: string;
+}> = [
   {
     label: "DataHUB (federated)",
     value: "tuebingen",
@@ -101,6 +115,23 @@ const loginOptions = [
   },
 ];
 
+if ($q.cookies.get("logged_in") != null) {
+  appProperties.loggedIn = true;
+
+  let userName = $q.cookies.get("username");
+  if (userName == null) userName = "User";
+
+  // set username
+  try {
+    window.sessionStorage.setItem("username", decodeURI(userName));
+  } catch (error) {
+    window.sessionStorage.setItem(
+      "username",
+      decodeURI(userName.split('"')[0])
+    );
+  }
+}
+
 // here we trick vue js to reload the component
 const refresher = ref(0);
 const forcereload = () => {
@@ -115,19 +146,29 @@ const forcereload = () => {
 async function createArc() {
   loading = true;
   forcereload();
+
+  let payload: {
+    name: string;
+    description: string;
+    investIdentifier: string;
+    groupId?: number;
+  } = {
+    name: arcName.value,
+    description: arcDesc.value,
+    investIdentifier: invId.value,
+  };
+
+  if (group.value && group.value.id > 0) payload.groupId = group.value.id;
+
   const response = await fetch(backend + "createArc", {
     credentials: "include",
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: arcName.value,
-      description: arcDesc.value,
-      investIdentifier: invId.value,
-    }),
+    body: JSON.stringify(payload),
   });
   let data = await response.json();
   if (!response.ok) {
-    errors = "ERROR: " + data["detail"];
+    $q.notify("ERROR: " + data["detail"]);
     forcereload();
   } else {
     console.log(data);
@@ -144,11 +185,13 @@ async function createArc() {
  */
 function cleanIsaView() {
   // reset the templates, terms, isa, file and sheet properties to cleanup "IsaView"
-  templateProperties.templates = templateProperties.template = [];
+  templateProperties.templates = [];
+  templateProperties.template = [];
   termProperties.terms = [];
   isaProperties.entries = [];
   isaProperties.entry = [];
   fileProperties.content = "";
+  fileProperties.pdfContent = "";
   sheetProperties.names = sheetProperties.sheets = [];
   sheetProperties.name = "";
   arcProperties.changes = "";
@@ -162,6 +205,75 @@ if (document.cookie.includes("error")) {
 
 function openArcSearch() {
   window.open("https://arcregistry.nfdi4plants.org/isasearch");
+}
+
+/** get the list of branches
+ *
+ * @param id - the id of the arc
+ */
+async function getGroups() {
+  groups = [];
+  group.value = { name: "", id: 0 };
+  try {
+    let request = await fetch(appProperties.backend + "user/getGroups", {
+      credentials: "include",
+    });
+    if (request.ok) {
+      let groupsJson = await request.json();
+
+      groupsJson.forEach((element: { name: string; id: number }) => {
+        groups.push({
+          name: element.name,
+          id: element.id,
+        });
+      });
+    } else {
+      errors = "Error retrieving your groups! Try to login again!";
+    }
+  } catch (error: any) {
+    errors = error.toString();
+  }
+  forcereload();
+}
+
+if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
+  let time = Number($q.cookies.get("timer")) + 7200;
+  let timeLeft = time - Math.floor(new Date().getTime() / 1000);
+
+  if (timeLeft > 0) {
+    countDown.hour = Math.floor(timeLeft / 3600);
+    countDown.minute = Math.floor(timeLeft / 60) % 60;
+    countDown.second = Math.floor(timeLeft % 60);
+
+    let interval = setInterval(() => {
+      if (countDown.minute == 0) {
+        countDown.hour -= 1;
+        countDown.minute = 59;
+        countDown.second = 59;
+      }
+      if (countDown.second == 0) {
+        countDown.minute -= 1;
+        countDown.second = 59;
+      } else {
+        countDown.second -= 1;
+      }
+      // reset counter
+      if (countDown.hour < 0) {
+        countDown.hour = 0;
+        countDown.minute = 0;
+        countDown.second = 0;
+        clearInterval(interval);
+      }
+
+      // refresh time left to accommodate to rounding errors after one hour or 5 minutes left
+      if (timeLeft == 3600 || timeLeft == 300)
+        timeLeft = time - Math.floor(new Date().getTime() / 1000);
+
+      timer.value += 1;
+    }, 970);
+  } else {
+    countDown.hour = 0;
+  }
 }
 </script>
 
@@ -185,8 +297,7 @@ function openArcSearch() {
             clickable
             class="bg-primary text-white"
             @click="
-              showInput = false;
-              templateEdit = false;
+              mode = -1;
               errors = '';
               forcereload();
             "
@@ -197,8 +308,7 @@ function openArcSearch() {
                 style="margin: 0 -0.2em"
                 :name="'img:' + logoURL"
                 @click="
-                  showInput = false;
-                  templateEdit = false;
+                  mode = -1;
                   errors = '';
                   forcereload();
                 "
@@ -240,9 +350,10 @@ function openArcSearch() {
             v-ripple
             clickable
             v-on:click="
-              showInput = true;
-              templateEdit = false;
+              mode = 0;
+              appProperties.showIsaView = false;
               errors = '';
+              getGroups();
               cleanIsaView();
               forcereload();
             "
@@ -250,18 +361,17 @@ function openArcSearch() {
             <q-item-section avatar>
               <q-icon color="grey-7" name="add_circle"></q-icon>
             </q-item-section>
-            <q-item-section style="margin-left: -1.2em"
-              >New ARC</q-item-section
-            > </q-item
+            <q-item-section style="margin-left: -1.2em">New ARC</q-item-section
+            ><q-tooltip>Create a new Arc</q-tooltip> </q-item
           ><q-separator />
-          <!-- ARC SEARCH-->
+          <!-- ARC REGISTRY-->
           <q-item v-ripple clickable v-on:click="openArcSearch()">
             <q-item-section avatar>
               <q-icon color="grey-7" name="open_in_new"></q-icon>
             </q-item-section>
             <q-item-section style="margin-left: -1.2em"
-              >ARC Search</q-item-section
-            >
+              >ARC Registry</q-item-section
+            ><q-tooltip>Open the Arc registry in a new tab</q-tooltip>
           </q-item>
           <!-- TEMPLATE EDITOR-->
           <q-item
@@ -270,10 +380,9 @@ function openArcSearch() {
             clickable
             v-on:click="
               errors = '';
-              templateEdit = true;
+              mode = 1;
               appProperties.showIsaView = false;
               appProperties.arcList = false;
-              showInput = false;
               cleanIsaView();
               forcereload();
             ">
@@ -282,8 +391,30 @@ function openArcSearch() {
             </q-item-section>
             <q-item-section style="margin-left: -1.2em"
               >Template Editor</q-item-section
-            >
+            ><q-tooltip>Open the template editor</q-tooltip>
           </q-item>
+          <!-- ARC SEARCH -->
+          <q-separator v-if="appProperties.experimental"></q-separator>
+          <q-item
+            v-if="appProperties.experimental"
+            v-ripple
+            clickable
+            v-on:click="
+              errors = '';
+              mode = 2;
+              appProperties.showIsaView = false;
+              appProperties.arcList = false;
+              cleanIsaView();
+              forcereload();
+            ">
+            <q-item-section avatar>
+              <q-icon color="grey-7" name="search"></q-icon>
+            </q-item-section>
+            <q-item-section style="margin-left: -1.2em"
+              >ARC Search</q-item-section
+            ><q-tooltip>Open the search area for public arcs</q-tooltip>
+          </q-item>
+          <!-- DARK MODE-->
           <q-item v-if="!appProperties.dark">
             <q-btn
               @click="
@@ -292,8 +423,10 @@ function openArcSearch() {
               "
               round
               outline
-              icon="dark_mode"></q-btn
-          ></q-item>
+              icon="dark_mode"
+              ><q-tooltip>Switch to dark mode</q-tooltip></q-btn
+            ></q-item
+          >
           <q-item v-else>
             <q-btn
               @click="
@@ -303,14 +436,32 @@ function openArcSearch() {
               round
               outline
               color="yellow"
-              icon="light_mode"></q-btn>
+              icon="light_mode"
+              ><q-tooltip>Switch to light mode</q-tooltip></q-btn
+            >
           </q-item>
         </q-list>
+        <!-- LOADING SPINNER-->
         <q-spinner-gears
           size="5em"
           style="margin-left: 1cm"
           v-show="loading"
           :key="refresher + 2"></q-spinner-gears>
+        <q-separator inset style="margin-top: 1em; margin-bottom: 1em" />
+        <p class="text-center" v-if="appProperties.arcList">
+          Session time left:
+        </p>
+
+        <span
+          style="margin-left: 25%"
+          :key="timer"
+          v-show="appProperties.arcList"
+          >{{ countDown.hour }} :
+          <template v-if="countDown.minute < 10">0</template
+          >{{ countDown.minute }} :
+          <template v-if="countDown.second < 10">0</template
+          >{{ countDown.second }}</span
+        >
       </q-scroll-area>
     </q-drawer>
 
@@ -334,27 +485,43 @@ function openArcSearch() {
     <!-- MAIN PART -->
     <q-page-container>
       <!-- FOOTER -->
-      <q-footer bordered class="footer">
+      <q-footer bordered class="footer row">
         <a
           class="footer"
           href="https://www.nfdi4plants.de/nfdi4plants.knowledgebase/docs/ARCmanager-manual/index.html"
           target="_blank"
           style="margin-left: 45%"
           >Manual</a
-        ><!--<a style="margin-left: 10%;" href="mailto:arcmanager.support@nfdi4plants.de" class="footer">Support&#128231;</a>-->
+        >
+        <q-separator vertical style="margin-left: 1%" size="2px"></q-separator>
+        <a
+          class="footer"
+          href="https://helpdesk.nfdi4plants.org/"
+          target="_blank"
+          style="margin-left: 1%"
+          >Helpdesk</a
+        >
+        <!--<a style="margin-left: 10%;" href="mailto:arcmanager.support@nfdi4plants.de" class="footer">Support&#128231;</a>-->
       </q-footer>
       <!-- HEADER -->
-      <q-header bordered class="footer" v-if="announcement != ''">
-        <span style="margin-left: 30%">{{ announcement }}</span>
+      <q-header
+        bordered
+        class="footer"
+        v-if="announcement != ''"
+        :key="refresher + 7">
+        <span style="margin-left: 40%">{{ announcement }}</span>
       </q-header>
       <q-page padding>
-        <q-item-section v-if="errors != null">{{ errors }}</q-item-section>
-        <template v-if="showInput"
+        <q-item-section v-if="errors != ''">{{ errors }}</q-item-section>
+        <!-- MODE 0: ARC CREATION-->
+        <template v-if="mode == 0"
           ><q-btn
             class="return"
             icon="arrow_back"
             @click="
-              showInput = false;
+              mode = -1;
+              groupEnable = false;
+              appProperties.arcList = true;
               forcereload();
             "
             :key="refresher + 3"></q-btn>
@@ -368,6 +535,22 @@ function openArcSearch() {
             :rules="[
               (val) => !val.includes(' ') || 'No whitespace allowed!',
             ]" />
+          <div v-show="groups.length > 0">
+            <q-checkbox v-model="groupEnable"
+              >Group?<q-tooltip
+                >Create a new Arc for a Group</q-tooltip
+              ></q-checkbox
+            >
+            <q-select
+              v-if="groupEnable"
+              clearable
+              :options="groups"
+              option-label="name"
+              label="Group"
+              v-model="group"
+              :key="refresher + 6"
+              style="width: 200px"></q-select>
+          </div>
           <q-separator
             style="margin-top: 1em; margin-bottom: 1em"></q-separator>
 
@@ -376,7 +559,7 @@ function openArcSearch() {
             icon="send"
             @click="
               createArc();
-              showInput = false;
+              mode = -1;
               arcDesc = arcName = invId = '';
               forcereload();
             "
@@ -392,18 +575,33 @@ function openArcSearch() {
             >Please provide an identifier for the ARC!</span
           >
         </template>
-        <template v-else-if="templateEdit"
+        <!-- MODE 1: TEMPLATE EDITOR-->
+        <template v-else-if="mode == 1"
           ><q-btn
             class="return"
             icon="arrow_back"
             @click="
-              templateEdit = false;
+              mode = -1;
               appProperties.arcList = true;
               forcereload();
             "
             :key="refresher + 4"></q-btn>
           <TemplateEditView></TemplateEditView>
         </template>
+        <!-- MODE 2: ARC SEARCH-->
+        <template v-else-if="mode == 2">
+          <q-btn
+            class="return"
+            icon="arrow_back"
+            @click="
+              mode = -1;
+              appProperties.arcList = true;
+              forcereload();
+            "
+            :key="refresher + 4"></q-btn>
+          <ArcSearchView></ArcSearchView>
+        </template>
+        <!-- MODE -1: NORMAL MODE-->
         <template v-else>
           <q-btn
             flat
@@ -425,6 +623,10 @@ function openArcSearch() {
 <style>
 * {
   font-size: large;
+}
+
+.text-gold {
+  color: #ffd700 !important;
 }
 
 .body--light .return {

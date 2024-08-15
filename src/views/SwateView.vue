@@ -2,11 +2,12 @@
 import { ref } from "vue";
 
 import { useQuasar } from "quasar";
-import templateProperties from "@/TemplateProperties";
-import termProperties from "@/TermProperties";
+import { templateProperties } from "@/TemplateProperties";
+import { Term, termProperties } from "@/TermProperties";
 import isaProperties from "@/IsaProperties";
 import sheetProperties from "@/SheetProperties";
 import appProperties from "@/AppProperties";
+import arcProperties from "@/ArcProperties";
 
 var backend = appProperties.backend + "tnt/";
 var loading = false;
@@ -16,18 +17,17 @@ const $q = useQuasar();
 var errors = "";
 
 // if the search for terms should be extended or not
-var advanced = ref(false);
+var advanced = ref(true);
 
 // hide term columns
 var hidden = ref(true);
 
-const parameterOptions = [
+const parameterOptions: ReadonlyArray<string> = [
   "Parameter",
   "Factor",
   "Characteristic",
   "Component",
-  "Date",
-  "Performer",
+  "Comment",
   "Protocol",
 ];
 
@@ -42,8 +42,36 @@ var showSearch = false;
 // show the building block area
 var showBuildingBlock = false;
 
+///// CUSTOM COLUMN
+
+// show the custom column creation area
+var showCustomColumn = false;
+
+// the index where the column should be inserted to
+var customColumnNumber = ref(0);
+
+// the name of the new column
+var customColumnName = ref("");
+
+// whether or not the new column should have the two term columns as well
+var customColumnTerms = ref(false);
+
+// whether or not the new column should also have a unit column
+var customColumnUnit = ref(false);
+
+////////
+
 // set to true if the building block has a unit
 var bbUnit = ref(false);
+
+// different type of columns for protocol
+var protocolColumns = ref({
+  ref: true,
+  type: true,
+  version: false,
+  description: false,
+  uri: false,
+});
 
 // the type of unit for the building block
 var unitSearch = ref("");
@@ -77,11 +105,14 @@ async function getTerms(input: string) {
   } else {
     // if the list of terms is empty
     if (data["terms"].length == 0) {
-      termProperties.terms = [{ Name: "No Term was found!" }];
+      termProperties.terms = [
+        new Term("", "No Term was found!", "", false, ""),
+      ];
     }
     // save the list of terms
     else {
       termProperties.terms = data["terms"];
+      templateProperties.rowId = sheetProperties.rowIds.length;
     }
   }
   loading = false;
@@ -106,20 +137,27 @@ async function saveSheet() {
       id: isaProperties.repoId,
       // replace whitespace with underscores
       name: sheetProperties.name.replace(" ", "_"),
+      branch: arcProperties.branch,
     }),
     credentials: "include",
   });
   if (!response.ok) {
-    errors = "ERROR: Couldn't save Table!";
-    loading = false;
+    try {
+      let errorJson = await response.json();
+      errors = "ERROR: " + response.statusText + "; " + errorJson["detail"];
+    } catch (error) {
+      errors = "ERROR: Couldn't save Table!";
+    }
+  } else {
+    // cleanup view
+    templateProperties.template = [];
+    templateProperties.templates = [];
+    templateProperties.content = [[]];
+    termProperties.terms = [];
+    appProperties.arcList = true;
+    appProperties.showIsaView = false;
   }
-  // cleanup view
-  templateProperties.template = templateProperties.templates = [];
-  templateProperties.content = [[]];
-  termProperties.terms = [];
   loading = false;
-  appProperties.arcList = true;
-  appProperties.showIsaView = false;
   keyNumber.value += 1;
 }
 
@@ -162,20 +200,16 @@ function extendTemplate() {
   // extend each column by a new cell
   templateProperties.template.forEach((element, i) => {
     // if the column is a unit, fill the new cell with the name of the unit
-    if (templateProperties.template[i].Type.toString().startsWith("Unit")) {
+    if (templateProperties.template[i].Type.startsWith("Unit")) {
       templateProperties.content[i].push(templateProperties.content[i][0]);
-      if (
-        templateProperties.template[i - 1].Type.toString().startsWith("Term")
-      ) {
+      if (templateProperties.template[i - 1].Type.startsWith("Term")) {
         templateProperties.content[i - 1].pop();
         templateProperties.content[i - 1].push(
           templateProperties.content[i - 1][0]
         );
       }
       // add the term values for the two (or more) term columns after
-      while (
-        templateProperties.template[i + 1].Type.toString().startsWith("Term")
-      ) {
+      while (templateProperties.template[i + 1].Type.startsWith("Term")) {
         templateProperties.content[i + 1].push(
           templateProperties.content[i + 1][0]
         );
@@ -184,18 +218,17 @@ function extendTemplate() {
     } else {
       // skip adding an empty field if its a term column related to a unit
       if (
-        !templateProperties.template[i].Type.toString().startsWith("Term") ||
+        !templateProperties.template[i].Type.startsWith("Term") ||
         !(
-          templateProperties.template[i - 1].Type.toString().startsWith(
-            "Unit"
-          ) ||
-          templateProperties.template[i - 2].Type.toString().startsWith("Unit")
+          templateProperties.template[i - 1].Type.startsWith("Unit") ||
+          templateProperties.template[i - 2].Type.startsWith("Unit")
         )
       )
-        templateProperties.content[i].push(null);
+        templateProperties.content[i].push("");
     }
   });
   sheetProperties.rowIds.push(sheetProperties.rowIds.length);
+  templateProperties.rowId = sheetProperties.rowIds.length;
   keyNumber.value += 1;
 }
 
@@ -209,10 +242,9 @@ async function getSuggestionsByParent() {
 
   // reset terms and templates to clear up IsaView
   templateProperties.templates = [];
-  termProperties.terms =
-    termProperties.buildingBlocks =
-    termProperties.unitTerms =
-      [];
+  termProperties.terms = [];
+  termProperties.buildingBlocks = [];
+  termProperties.unitTerms = [];
   sheetProperties.sheets = sheetProperties.names = [];
 
   // get the list of terms
@@ -226,11 +258,14 @@ async function getSuggestionsByParent() {
     appProperties.showIsaView = true;
     // if the list of terms is empty
     if (data["terms"].length == 0) {
-      termProperties.terms = [{ Name: "No Term was found!" }];
+      termProperties.terms = [
+        new Term("", "No Term was found!", "", false, ""),
+      ];
     }
     // save the list of terms
     else {
       termProperties.terms = data["terms"];
+      templateProperties.rowId = sheetProperties.rowIds.length;
     }
   }
   loading = false;
@@ -252,7 +287,7 @@ async function getSuggestions() {
   termProperties.unitTerms = [];
 
   const terms = await fetch(
-    backend + "getTermSuggestions?input=" + search.value
+    `${backend}getTerms?input=${search.value}&advanced=true`
   );
 
   let data = await terms.json();
@@ -262,7 +297,9 @@ async function getSuggestions() {
     appProperties.showIsaView = true;
     // if the list of terms is empty
     if (data["terms"].length == 0) {
-      termProperties.buildingBlocks = [{ Name: "No Term was found!" }];
+      termProperties.buildingBlocks = [
+        new Term("", "No Term was found!", "", false, ""),
+      ];
     }
     // save the list of terms
     else {
@@ -288,7 +325,7 @@ async function getUnitSuggestions() {
   termProperties.buildingBlocks = [];
 
   const terms = await fetch(
-    backend + "getTermSuggestions?input=" + unitSearch.value
+    `${backend}getTerms?input=${unitSearch.value}&advanced=true`
   );
   let data = await terms.json();
   if (!terms.ok) {
@@ -297,7 +334,9 @@ async function getUnitSuggestions() {
     appProperties.showIsaView = true;
     // if the list of terms is empty
     if (data["terms"].length == 0) {
-      termProperties.unitTerms = [{ Name: "No Term was found!" }];
+      termProperties.unitTerms = [
+        new Term("", "No Term was found!", "", false, ""),
+      ];
     }
     // save the list of terms
     else {
@@ -321,7 +360,6 @@ function deleteColumn(columnType: string) {
   }).onOk(() => {
     // user confirmed the deletion
     console.log("Deleting " + columnType + "...");
-    console.log(templateProperties.template);
 
     let columnIndex = templateProperties.template.findIndex(
       (element) => element.Type == columnType
@@ -339,6 +377,7 @@ function deleteColumn(columnType: string) {
       templateProperties.content.splice(columnIndex, 1);
       counter++;
     }
+    sheetProperties.columnIds -= 1;
     $q.notify("Successfully deleted the column " + columnType + " !");
     keyNumber.value += 1;
   });
@@ -367,6 +406,277 @@ function deleteRow(rowIndex: number) {
     keyNumber.value += 1;
   });
 }
+
+/** adds a customizable column at the desired index
+ *
+ */
+function addColumn() {
+  errors = "";
+  let columnExists = templateProperties.template.some(
+    (element) =>
+      element.Type ==
+      termProperties.parameterType + " [" + customColumnName.value + "]"
+  );
+  if (
+    customColumnName.value != "" &&
+    customColumnNumber.value > 0 &&
+    customColumnNumber.value <= sheetProperties.columnIds &&
+    !columnExists
+  ) {
+    let counter = 0;
+    templateProperties.template.forEach((entry, i) => {
+      if (
+        !entry.Type.startsWith("Input ") &&
+        !entry.Type.startsWith("Output ") &&
+        !entry.Type.startsWith("Term ") &&
+        !entry.Type.startsWith("Unit ")
+      ) {
+        counter += 1;
+        if (counter == customColumnNumber.value) {
+          templateProperties.template.splice(i, 0, {
+            Type:
+              termProperties.parameterType +
+              " [" +
+              customColumnName.value +
+              "]",
+            Custom: true,
+          });
+          let emptyArray = Array.from(
+            { length: templateProperties.content[0].length },
+            (_) => ""
+          );
+          templateProperties.content.splice(i, 0, emptyArray);
+
+          // adds two term columns
+          if (customColumnTerms.value) {
+            templateProperties.template.splice(i + 1, 0, {
+              Type: "Term Source REF [" + customColumnName.value + "]",
+              Custom: true,
+            });
+            templateProperties.template.splice(i + 2, 0, {
+              Type: "Term Accession Number [" + customColumnName.value + "]",
+              Custom: true,
+            });
+            let emptyArray2 = Array.from(
+              { length: templateProperties.content[0].length },
+              (_) => ""
+            );
+            let emptyArray3 = Array.from(
+              { length: templateProperties.content[0].length },
+              (_) => ""
+            );
+            templateProperties.content.splice(i + 1, 0, emptyArray2);
+            templateProperties.content.splice(i + 2, 0, emptyArray3);
+          }
+
+          // adds a unit column
+          if (customColumnUnit.value) {
+            let emptyArray4 = Array.from(
+              { length: templateProperties.content[0].length },
+              (_) => ""
+            );
+            templateProperties.template.splice(i + 1, 0, {
+              Type: "Unit [" + customColumnName.value + "]",
+              Custom: true,
+            });
+            templateProperties.content.splice(i + 1, 0, emptyArray4);
+          }
+        }
+      }
+      if (
+        i == templateProperties.template.length - 1 &&
+        customColumnNumber.value == sheetProperties.columnIds
+      ) {
+        templateProperties.template.splice(
+          templateProperties.template.length - 1,
+          0,
+          {
+            Type:
+              termProperties.parameterType +
+              " [" +
+              customColumnName.value +
+              "]",
+            Custom: true,
+          }
+        );
+        let emptyArray = Array.from(
+          { length: templateProperties.content[0].length },
+          (_) => ""
+        );
+        templateProperties.content.splice(
+          templateProperties.template.length - 1,
+          0,
+          emptyArray
+        );
+
+        // adds two term columns
+        if (customColumnTerms.value) {
+          templateProperties.template.splice(i + 1, 0, {
+            Type: "Term Source REF [" + customColumnName.value + "]",
+            Custom: true,
+          });
+          templateProperties.template.splice(i + 2, 0, {
+            Type: "Term Accession Number [" + customColumnName.value + "]",
+            Custom: true,
+          });
+          let emptyArray2 = Array.from(
+            { length: templateProperties.content[0].length },
+            (_) => ""
+          );
+          let emptyArray3 = Array.from(
+            { length: templateProperties.content[0].length },
+            (_) => ""
+          );
+          templateProperties.content.splice(i + 1, 0, emptyArray2);
+          templateProperties.content.splice(i + 2, 0, emptyArray3);
+        }
+
+        // adds a unit column
+        if (customColumnUnit.value) {
+          let emptyArray4 = Array.from(
+            { length: templateProperties.content[0].length },
+            (_) => ""
+          );
+          templateProperties.template.splice(i + 1, 0, {
+            Type: "Unit [" + customColumnName.value + "]",
+            Custom: true,
+          });
+          templateProperties.content.splice(i + 1, 0, emptyArray4);
+        }
+      }
+    });
+    customColumnTerms.value = false;
+    customColumnUnit.value = false;
+    customColumnNumber.value = 0;
+    sheetProperties.columnIds += 1;
+    customColumnName.value = "";
+    showCustomColumn = false;
+  } else {
+    if (columnExists) errors = "ERROR: Column already exists!";
+    else errors = "Couldn't add column! Please check your input again!";
+  }
+  keyNumber.value += 1;
+}
+
+/** adds protocol columns to the end
+ *
+ */
+function addProtocols() {
+  appProperties.showIsaView = false;
+  let protocolTypes = [] as Array<string>;
+  let counter = 0;
+
+  // add protocol columns
+  if (protocolColumns.value.type) protocolTypes.push("Protocol Type");
+  if (protocolColumns.value.ref) protocolTypes.push("Protocol REF");
+  if (protocolColumns.value.version) protocolTypes.push("Protocol Version");
+  if (protocolColumns.value.description)
+    protocolTypes.push("Protocol Description");
+  if (protocolColumns.value.uri) protocolTypes.push("Protocol Uri");
+
+  protocolTypes.forEach((protocol) => {
+    // if protocol column already exists, throw an error
+    if (
+      !templateProperties.template.some((element) => element.Type == protocol)
+    ) {
+      // the new block will be inserted right before the output column
+      templateProperties.template.splice(
+        templateProperties.template.length - 1,
+        0,
+        {
+          Type: protocol,
+        }
+      );
+      counter++;
+    }
+  });
+  // fill the new columns with empty field with the same amount of rows the table already has
+  let emptyCells = [] as Array<Array<string>>;
+
+  // add as many empty arrays, as there are protocol columns added
+  for (let i = 0; i < counter; i++) {
+    emptyCells.push([]);
+  }
+  // fill columns with as many empty strings, as there are rows
+  templateProperties.content[0].forEach(() => {
+    emptyCells.forEach((element) => {
+      element.push("");
+    });
+  });
+  // add new empty cells to the new protocol columns
+  emptyCells.forEach((element) => {
+    templateProperties.content.splice(
+      templateProperties.content.length - 1,
+      0,
+      element
+    );
+  });
+}
+
+/** shifts the referenced column either to the left or right
+ *
+ * @param direction - the direction ('left' or 'right')
+ * @param index - the index of the column that gets shifted
+ */
+function shift(direction: string, index: number) {
+  errors = "";
+  keyNumber.value += 1;
+  let columns = [templateProperties.template[index]];
+  let content = [templateProperties.content[index]];
+
+  let counter = 1;
+  while (
+    templateProperties.template[index + counter].Type.startsWith("Unit") ||
+    templateProperties.template[index + counter].Type.startsWith("Term")
+  ) {
+    columns.push(templateProperties.template[index + counter]);
+    content.push(templateProperties.content[index + counter]);
+    counter += 1;
+  }
+  templateProperties.template.splice(index, counter);
+  templateProperties.content.splice(index, counter);
+
+  switch (direction) {
+    case "left":
+      let shiftCount = 1;
+      while (
+        templateProperties.template[index - shiftCount].Type.startsWith(
+          "Unit"
+        ) ||
+        templateProperties.template[index - shiftCount].Type.startsWith("Term")
+      ) {
+        shiftCount += 1;
+      }
+      columns.forEach((element, i) => {
+        templateProperties.template.splice(index - shiftCount, 0, element);
+        templateProperties.content.splice(index - shiftCount, 0, content[i]);
+        shiftCount -= 1;
+      });
+      break;
+
+    case "right":
+      let shiftRight = 1;
+      while (
+        templateProperties.template[index + shiftRight].Type.startsWith(
+          "Unit"
+        ) ||
+        templateProperties.template[index + shiftRight].Type.startsWith("Term")
+      ) {
+        shiftRight += 1;
+      }
+      columns.forEach((element, i) => {
+        templateProperties.template.splice(index + shiftRight, 0, element);
+        templateProperties.content.splice(index + shiftRight, 0, content[i]);
+        shiftRight += 1;
+      });
+      break;
+
+    default:
+      errors = "Error while shifting! Direction not clear stated!";
+      keyNumber.value += 1;
+      break;
+  }
+}
 </script>
 
 <template>
@@ -389,15 +699,27 @@ function deleteRow(rowIndex: number) {
         ><q-btn @click="getTerms(search)" :disable="search.length == 0"
           >Search</q-btn
         >
-        <q-checkbox v-model="advanced">Extended search</q-checkbox>
+        <q-checkbox v-model="advanced"
+          >Extended search<q-tooltip
+            >Search for any term containing the name</q-tooltip
+          ></q-checkbox
+        >
         <q-btn id="suggestion" @click="getSuggestionsByParent()"
-          >Get suggestions</q-btn
+          >Get suggestions<q-tooltip
+            >Get fitting suggestions for the parent term</q-tooltip
+          ></q-btn
         >
       </template>
       <!-- show search area for inserting a new building block-->
       <template v-else-if="showBuildingBlock">
-        <span>Add building block:</span
-        ><q-checkbox v-model="bbUnit">Unit?</q-checkbox>
+        <span>Add building block:</span>
+        <template v-if="termProperties.parameterType != 'Protocol'">
+          <q-checkbox v-model="bbUnit"
+            >Unit?<q-tooltip
+              >Add a unit to the building block</q-tooltip
+            ></q-checkbox
+          ></template
+        >
         <div class="q-gutter-md row">
           <q-select
             style="width: 10%"
@@ -406,39 +728,130 @@ function deleteRow(rowIndex: number) {
             :options="parameterOptions"
             label="Parameter Type" />
         </div>
-        <q-input
-          v-model="search"
-          label="Search building blocks"
-          style="width: 10%"></q-input
-        ><q-btn @click="getSuggestions()" :disable="search.length == 0"
-          >Search</q-btn
-        >
+        <template v-if="termProperties.parameterType != 'Protocol'">
+          <q-input
+            v-model="search"
+            label="Search building blocks"
+            style="width: 10%"></q-input
+          ><q-btn @click="getSuggestions()" :disable="search.length == 0"
+            >Search</q-btn
+          >
 
-        <q-input
-          v-show="bbUnit"
-          style="width: 10%"
-          v-model="unitSearch"
-          label="Search building block unit"></q-input
-        ><q-btn
-          v-show="bbUnit"
-          @click="getUnitSuggestions()"
-          :disable="unitSearch.length == 0"
-          >Search unit</q-btn
+          <q-input
+            v-show="bbUnit"
+            style="width: 10%"
+            v-model="unitSearch"
+            label="Search building block unit"></q-input
+          ><q-btn
+            v-show="bbUnit"
+            @click="getUnitSuggestions()"
+            :disable="unitSearch.length == 0"
+            >Search unit</q-btn
+          ></template
+        >
+        <template v-else
+          ><q-checkbox v-model="protocolColumns.type"
+            >Protocol Type<q-tooltip
+              >Add a type to the protocol</q-tooltip
+            ></q-checkbox
+          ><q-checkbox v-model="protocolColumns.ref"
+            >Protocol REF<q-tooltip
+              >Add a REF to the protocol</q-tooltip
+            ></q-checkbox
+          ><q-checkbox v-model="protocolColumns.version"
+            >Protocol Version<q-tooltip
+              >Add a version to the protocol</q-tooltip
+            ></q-checkbox
+          ><q-checkbox v-model="protocolColumns.description"
+            >Protocol Description<q-tooltip
+              >Add a description to the protocol</q-tooltip
+            ></q-checkbox
+          ><q-checkbox v-model="protocolColumns.uri"
+            >Protocol Uri<q-tooltip
+              >Add a URI or a file path to the protocol file location</q-tooltip
+            ></q-checkbox
+          ><br /><q-btn
+            @click="
+              addProtocols();
+              showBuildingBlock = false;
+              keyNumber += 1;
+            "
+            >Select</q-btn
+          ></template
+        >
+      </template>
+      <!-- Custom Column-->
+      <template v-else-if="showCustomColumn">
+        <div class="row">
+          <div>
+            <span>Select where you want to add the column:</span>
+            <q-input
+              style="width: 150px"
+              type="number"
+              v-model.number="customColumnNumber"
+              :max="sheetProperties.columnIds"
+              min="1"></q-input>
+          </div>
+          <div style="margin-left: 3em">
+            Name:
+            <q-input outlined v-model="customColumnName" style="width: 200px" />
+          </div>
+          <div style="margin-left: 3em">
+            Parameter type:
+            <q-select
+              style="width: 200px"
+              outlined
+              v-model="termProperties.parameterType"
+              :options="parameterOptions"
+              label="Parameter Type" />
+          </div>
+          <div style="margin-left: 3em">
+            <q-checkbox v-model="customColumnTerms"
+              >Term Columns?<q-tooltip
+                >Adds two term columns to the new custom column</q-tooltip
+              ></q-checkbox
+            >
+            <q-checkbox v-model="customColumnUnit"
+              >Unit Column?<q-tooltip
+                >Adds a unit column to the custom column</q-tooltip
+              ></q-checkbox
+            >
+          </div>
+        </div>
+        <q-btn
+          class="active"
+          @click="addColumn"
+          :disable="
+            customColumnName == '' ||
+            customColumnNumber < 1 ||
+            customColumnNumber > sheetProperties.columnIds
+          "
+          >Add</q-btn
         >
       </template>
       <q-separator></q-separator>
       <!-- Area for sheet naming and other options-->
-      <q-input
-        type="text"
-        style="width: 10%"
-        label="Sheet name"
-        v-model="sheetProperties.name"
-        placeholder="Name your sheet" />
+      <div class="row items-center">
+        <q-input
+          type="text"
+          style="width: 10%"
+          label="Sheet name"
+          v-model="sheetProperties.name"
+          placeholder="Name your sheet"
+          :rules="[(val) => !val.includes(' ') || 'No whitespace allowed!']" />
+        <span
+          style="padding-left: 2em"
+          v-if="templateProperties.templateName != ''"
+          >Template: {{ templateProperties.templateName }} ({{
+            templateProperties.templateVersion
+          }})</span
+        >
+      </div>
       <q-btn
         class="sheet"
         @click="saveSheet()"
         :disable="sheetProperties.name.length == 0"
-        >Save</q-btn
+        >Save<q-tooltip>Save the sheet and go back to the arc</q-tooltip></q-btn
       ><span style="margin-left: 1em" v-if="sheetProperties.name.length == 0"
         >Please provide a name for the sheet!</span
       >
@@ -447,7 +860,9 @@ function deleteRow(rowIndex: number) {
         size="2em"
         v-show="loading"
         :key="keyNumber"></q-spinner>
-      <q-checkbox v-model="hidden">Hide Terms</q-checkbox>
+      <q-checkbox v-model="hidden"
+        >Hide Terms<q-tooltip>Hide the term columns</q-tooltip></q-checkbox
+      >
       <q-btn
         class="sheet"
         style="margin-left: 1em"
@@ -457,9 +872,23 @@ function deleteRow(rowIndex: number) {
           showBuildingBlock = !showBuildingBlock;
           search = '';
           showSearch = false;
+          showCustomColumn = false;
           keyNumber += 1;
         "
-        >building block</q-btn
+        >building block<q-tooltip>Create a new building block</q-tooltip></q-btn
+      ><q-btn
+        class="send"
+        icon="add"
+        dense
+        style="margin-left: 1em"
+        @click="
+          showCustomColumn = !showCustomColumn;
+          search = '';
+          showSearch = false;
+          showBuildingBlock = false;
+          keyNumber += 1;
+        "
+        >Add custom column</q-btn
       >
       <!-- The table to enter the values with swate is a default html table -->
       <q-markup-table
@@ -498,7 +927,9 @@ function deleteRow(rowIndex: number) {
                   round
                   dense
                   flat
-                  @click="deleteColumn(column.Type)"></q-btn>
+                  @click="deleteColumn(column.Type)"
+                  ><q-tooltip>Delete the column</q-tooltip></q-btn
+                >
                 {{ column.Type.split("(")[0] }}<br />
                 <template
                   v-if="
@@ -507,7 +938,7 @@ function deleteRow(rowIndex: number) {
                   ><a
                     :href="
                       'http://purl.obolibrary.org/obo/' +
-                      column.Type.split('(')[1].split(')')[0]
+                      column.Type.split('(')[1].split(')')[0].replace(':', '_')
                     "
                     style="font-size: small"
                     target="_blank"
@@ -533,23 +964,35 @@ function deleteRow(rowIndex: number) {
                   round
                   dense
                   flat
-                  @click="deleteColumn(column.Type)"></q-btn>
-                {{ column.Type.split("[")[0] }}<br /><template
+                  @click="deleteColumn(column.Type)"
+                  ><q-tooltip>Delete the column</q-tooltip></q-btn
+                ><input
+                  v-if="column.Custom"
+                  type="text"
+                  style="width: 80%; height: unset; border: 0px"
+                  v-model="column.Type" />
+                <template v-else>
+                  {{ column.Type.split("[")[0] }}<br /> </template
+                ><template
                   v-if="
                     column.Type.startsWith('Term') && column.Type.includes('[')
                   ">
                   <a
                     :href="
                       'http://purl.obolibrary.org/obo/' +
-                      column.Type.split('[')[1].split(']')[0]
+                      column.Type.split('[')[1].split(']')[0].replace(':', '_')
                     "
                     style="font-size: small"
                     target="_blank"
-                    >[{{ column.Type.split("[")[1] }}</a
+                    ><template v-if="!column.Custom"
+                      >[{{ column.Type.split("[")[1] }}</template
+                    ></a
                   ></template
                 ><template v-else>
-                  <template v-if="column.Type.includes(']')">[</template>
-                  {{ column.Type.split("[")[1] }}</template
+                  <template v-if="!column.Custom">
+                    <template v-if="column.Type.includes(']')">[</template>
+                    {{ column.Type.split("[")[1] }}</template
+                  ></template
                 >
               </template>
 
@@ -557,19 +1000,43 @@ function deleteRow(rowIndex: number) {
               <!-- also the parameter should not be of type "unit" -->
               <template v-if="checkName(column.Type)"
                 ><q-btn
+                  v-if="!column.Custom"
                   icon="search"
                   round
                   @click="
                     showSearch = true;
                     showBuildingBlock = false;
+                    showCustomColumn = false;
                     search = '';
                     searchType = searchName(column.Type);
-                    searchAccession = column.Accession;
+                    if (column.Accession) searchAccession = column.Accession;
                     templateProperties.id = i;
                     keyNumber += 1;
                   "
-                  size="xs"></q-btn
-              ></template>
+                  size="xs"
+                  ><q-tooltip>Search for terms</q-tooltip></q-btn
+                >
+                <br /><q-btn
+                  size="xs"
+                  round
+                  dense
+                  unelevated
+                  icon="chevron_left"
+                  v-if="i > 1"
+                  @click="shift('left', i)" />
+                <q-btn
+                  size="xs"
+                  round
+                  dense
+                  unelevated
+                  icon="chevron_right"
+                  @click="shift('right', i)"
+                  v-if="
+                    (i < templateProperties.template.length - 4 &&
+                      i != templateProperties.template.length - 5) ||
+                    checkName(templateProperties.template[i + 1].Type)
+                  " />
+              </template>
             </th>
           </tr>
         </thead>
@@ -584,7 +1051,8 @@ function deleteRow(rowIndex: number) {
                 round
                 dense
                 flat
-                @click="deleteRow(j)"></q-btn
+                @click="deleteRow(j)"
+                ><q-tooltip>Delete the row</q-tooltip></q-btn
               >{{ j + 1 }}
             </td>
             <td
@@ -613,7 +1081,9 @@ function deleteRow(rowIndex: number) {
           </tr>
         </tbody>
       </q-markup-table>
-      <q-btn icon="add" @click="extendTemplate()">Extend</q-btn>
+      <q-btn icon="add" @click="extendTemplate()"
+        >Extend<q-tooltip>Add a new row</q-tooltip></q-btn
+      >
     </q-scroll-area>
   </div>
 </template>

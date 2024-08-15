@@ -4,8 +4,8 @@ import isaProperties from "../IsaProperties.ts";
 import fileProperties from "../FileProperties";
 import arcProperties from "@/ArcProperties";
 import appProperties from "@/AppProperties";
-import templateProperties from "@/TemplateProperties";
-import termProperties from "@/TermProperties";
+import { Table, Tag, templateProperties } from "@/TemplateProperties";
+import { Term, termProperties } from "@/TermProperties";
 import sheetProperties from "@/SheetProperties";
 import { useQuasar, setCssVar } from "quasar";
 import ApexCharts from "apexcharts";
@@ -19,14 +19,26 @@ isaProperties.entry = [];
 
 var loading = false;
 
-var backend = appProperties.backend + "projects/";
+var backend = appProperties.backend;
 
 var keyNumber = ref(0);
 
 var errors = "";
 
+class Unit {
+  name: string;
+  termSource: string;
+  termAccession: string;
+
+  constructor(name: string, termSource: string, termAccession: string) {
+    this.name = name;
+    this.termAccession = termAccession;
+    this.termSource = termSource;
+  }
+}
+
 // array containing all errors tracked by the backend metrics
-var chartErrors = [];
+var chartErrors: any[] = [];
 
 var alternative = ref(false);
 
@@ -54,7 +66,7 @@ const setEntry = (entry: string[], id: number) => {
  */
 async function buildChart(password: string) {
   errors = "";
-  let metrics = await fetch(`${backend}getMetrics?pwd=${password}`);
+  let metrics = await fetch(`${backend}projects/getMetrics?pwd=${password}`);
   let data = await metrics.json();
   if (!metrics.ok) {
     errors = "ERROR: " + data["detail"];
@@ -67,12 +79,12 @@ async function buildChart(password: string) {
     let endpoints = Object.keys(responseTimes);
     let status = Object.keys(statusCodes);
 
-    let times = [];
+    let times: String[] = [];
     let amount: number[] = [];
     let statusAmount = Object.values(statusCodes);
 
-    Object.values(responseTimes).forEach((element) => {
-      times.push(Number(element[0]).toFixed(4));
+    Object.values(responseTimes).forEach((element: any) => {
+      times.push(parseFloat(element[0]).toFixed(4));
       amount.push(element[1]);
     });
 
@@ -183,7 +195,7 @@ async function commitFile() {
   keyNumber.value += 1;
 
   const response = await fetch(
-    `${backend}commitFile?id=${fileProperties.id}&repoPath=${fileProperties.path}&branch=${arcProperties.branch}`,
+    `${backend}projects/commitFile?id=${fileProperties.id}&repoPath=${fileProperties.path}&branch=${arcProperties.branch}`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -212,13 +224,14 @@ async function commitFile() {
  *
  * @param table - the table section of a template
  */
-function setTemplate(table: Object) {
+function setTemplate(table: Table) {
   errors = "";
   loading = true;
   appProperties.showIsaView = false;
   appProperties.arcList = false;
   search.value = "";
   keyNumber.value += 1;
+  sheetProperties.columnIds = 1;
 
   if (table != null) {
     // set the sheet name to the name set by the template
@@ -229,34 +242,37 @@ function setTemplate(table: Object) {
     templateProperties.content = [];
 
     // list of columns, that are unit columns
-    let unitColumns = [];
+    let unitColumns: Array<{ columnId: number; unit: Unit }> = [];
     // here are just the numbers stored (for later ease to use)
-    let unitNumbers = [];
+    let unitNumbers: Array<number> = [];
 
     // if there are units, fill them into the unitColumns array
     for (let i = 0; i < table.values.length; i++) {
       if (table.values[i][0][1] == 0) {
-        if (
-          table.values[i][1].celltype == "Unitized" &&
-          table.values[i][1].values[1].annotationValue != ""
-        ) {
-          unitColumns.push({
-            columnId: table.values[i][0][0],
-            unitName: table.values[i][1].values[1].annotationValue,
-            unitSource: table.values[i][1].values[1].termSource,
-            unitAccession: table.values[i][1].values[1].termAccession,
-          });
-          unitNumbers.push(table.values[i][0][0]);
+        if (table.values[i][1].celltype == "Unitized") {
+          if ((table.values[i][1].values[1] as Tag).annotationValue != "") {
+            unitColumns.push({
+              columnId: table.values[i][0][0],
+              unit: new Unit(
+                (table.values[i][1].values[1] as Tag).annotationValue,
+                (table.values[i][1].values[1] as Tag).termSource,
+                (table.values[i][1].values[1] as Tag).termAccession
+              ),
+            });
+            unitNumbers.push(table.values[i][0][0]);
+          }
         }
       }
     }
 
-    table.header.forEach((entry, index) => {
+    table.header.forEach((entry, index: number) => {
       if (typeof entry.values[0] != typeof "") {
         try {
           templateProperties.template.push({
-            Type: `${entry.headertype} [${entry.values[0].annotationValue}]`,
-            Accession: entry.values[0].termAccession,
+            Type: `${entry.headertype} [${
+              (entry.values[0] as Tag).annotationValue
+            }]`,
+            Accession: (entry.values[0] as Tag).termAccession,
           });
           // if there are no values, just push the headertype
         } catch (error) {
@@ -268,24 +284,31 @@ function setTemplate(table: Object) {
         // check if column is a unit
         if (unitNumbers.includes(index)) {
           templateProperties.template.push({
-            Type: "Unit [" + entry.values[0].annotationValue + "]",
+            Type: "Unit [" + (entry.values[0] as Tag).annotationValue + "]",
           });
           let unitColumn = unitColumns.find(
             (element) => element.columnId == index
           );
-          templateProperties.content.push([unitColumn?.unitName]);
-          templateProperties.content.push([unitColumn?.unitSource]);
-          templateProperties.content.push([unitColumn?.unitAccession]);
+          if (unitColumn) {
+            templateProperties.content.push([unitColumn.unit.name]);
+            templateProperties.content.push([unitColumn.unit.termSource]);
+            templateProperties.content.push([unitColumn.unit.termAccession]);
+          } else {
+            templateProperties.content.push([""], [""], [""]);
+          }
         } else {
           templateProperties.content.push([""], [""]);
         }
         try {
           templateProperties.template.push({
-            Type: "Term Source REF (" + entry.values[0].termSource + ")",
+            Type:
+              "Term Source REF (" + (entry.values[0] as Tag).termSource + ")",
           });
           templateProperties.template.push({
             Type:
-              "Term Accession Number (" + entry.values[0].termAccession + ")",
+              "Term Accession Number (" +
+              (entry.values[0] as Tag).termAccession +
+              ")",
           });
         } catch (error) {
           // if there are no values, just push empty term properties
@@ -302,6 +325,9 @@ function setTemplate(table: Object) {
           Type: `${entry.headertype} [${entry.values[0]}]`,
         });
         templateProperties.content.push([""]);
+      }
+      if (entry.headertype != "Input" && entry.headertype != "Output") {
+        sheetProperties.columnIds += 1;
       }
     });
   } else {
@@ -320,26 +346,24 @@ function setTemplate(table: Object) {
 
 /** if a term is chosen the values of the columns header and the term accession will be set to the chosen values
  *
- * @param name - the name of the term
- * @param accession - the term accession
- * @param ontology - the term ontology reference
+ * @param term - the selected term
  */
-function setTerm(name: string, accession: string, ontology: string) {
+function setTerm(term: Term) {
   if (templateProperties.content[0].length < 1) extendTemplate();
   templateProperties.content[templateProperties.id].splice(
     templateProperties.rowId - 1,
     1,
-    name
+    term.Name
   );
   templateProperties.content[templateProperties.id + 1].splice(
     templateProperties.rowId - 1,
     1,
-    ontology
+    term.FK_Ontology
   );
   templateProperties.content[templateProperties.id + 2].splice(
     templateProperties.rowId - 1,
     1,
-    accession
+    term.Accession
   );
 }
 
@@ -350,20 +374,16 @@ function extendTemplate() {
   // extend each column by a new cell
   templateProperties.template.forEach((element, i) => {
     // if the column is a unit, fill the new cell with the name of the unit
-    if (templateProperties.template[i].Type.toString().startsWith("Unit")) {
+    if (templateProperties.template[i].Type.startsWith("Unit")) {
       templateProperties.content[i].push(templateProperties.content[i][0]);
-      if (
-        templateProperties.template[i - 1].Type.toString().startsWith("Term")
-      ) {
+      if (templateProperties.template[i - 1].Type.startsWith("Term")) {
         templateProperties.content[i - 1].pop();
         templateProperties.content[i - 1].push(
           templateProperties.content[i - 1][0]
         );
       }
       // add the term values for the two (or more) term columns after
-      while (
-        templateProperties.template[i + 1].Type.toString().startsWith("Term")
-      ) {
+      while (templateProperties.template[i + 1].Type.startsWith("Term")) {
         templateProperties.content[i + 1].push(
           templateProperties.content[i + 1][0]
         );
@@ -372,15 +392,13 @@ function extendTemplate() {
     } else {
       // skip adding an empty field if its a term column related to a unit
       if (
-        !templateProperties.template[i].Type.toString().startsWith("Term") ||
+        !templateProperties.template[i].Type.startsWith("Term") ||
         !(
-          templateProperties.template[i - 1].Type.toString().startsWith(
-            "Unit"
-          ) ||
-          templateProperties.template[i - 2].Type.toString().startsWith("Unit")
+          templateProperties.template[i - 1].Type.startsWith("Unit") ||
+          templateProperties.template[i - 2].Type.startsWith("Unit")
         )
       )
-        templateProperties.content[i].push(null);
+        templateProperties.content[i].push("");
     }
   });
   sheetProperties.rowIds.push(sheetProperties.rowIds.length);
@@ -389,20 +407,19 @@ function extendTemplate() {
 
 /** if a term is chosen the values of the columns header and the term accession will be set to the chosen values
  *
- * @param name - the name of the building block
- * @param accession - the accession value of the building block
+ * @param term - the term containing the bb values
  */
-function setBB(name: string, accession: string) {
+function setBB(term: Term) {
   errors = "";
 
   // if column already exists, throw an error
   if (
     templateProperties.template.some(
       (element) =>
-        element.Type == termProperties.parameterType + " [" + name + "]"
+        element.Type == termProperties.parameterType + " [" + term.Name + "]"
     )
   ) {
-    errors = "ERROR: Column '" + name + "' already exists!!";
+    errors = "ERROR: Column '" + term.Name + "' already exists!!";
     keyNumber.value += 1;
   } else {
     appProperties.showIsaView = false;
@@ -411,14 +428,14 @@ function setBB(name: string, accession: string) {
       templateProperties.template.length - 1,
       0,
       {
-        Type: termProperties.parameterType + " [" + name + "]",
-        Accession: accession,
+        Type: termProperties.parameterType + " [" + term.Name + "]",
+        Accession: term.Accession,
       },
       {
-        Type: "Term Source REF [" + accession + "]",
+        Type: "Term Source REF [" + term.Accession + "]",
       },
       {
-        Type: "Term Accession Number [" + accession + "]",
+        Type: "Term Accession Number [" + term.Accession + "]",
       }
     );
 
@@ -443,12 +460,11 @@ function setBB(name: string, accession: string) {
 
 /** sets a unit column to the building block
  *
- * @param name - the name of the unit
- * @param accession - the accession value of the unit
- * @param ontology - the ontology reference of the unit
+ * @param term - the term containing the unit values
  */
-function setUnit(name: string, accession: string, ontology: string) {
+function setUnit(term: Term) {
   errors = "";
+  keyNumber.value += 1;
   // if the building block has no unit so far, you can add one
   try {
     if (
@@ -460,7 +476,7 @@ function setUnit(name: string, accession: string, ontology: string) {
         templateProperties.template.length - 3,
         0,
         {
-          Type: "Unit [" + name + "]",
+          Type: "Unit [" + term.Name + "]",
         }
       );
 
@@ -469,9 +485,9 @@ function setUnit(name: string, accession: string, ontology: string) {
       let refCells: string[] = [];
       let accNumberCells: string[] = [];
       templateProperties.content[0].forEach(() => {
-        unitCells.push(name);
-        refCells.push(ontology);
-        accNumberCells.push(accession);
+        unitCells.push(term.Name);
+        refCells.push(term.FK_Ontology);
+        accNumberCells.push(term.Accession);
       });
       templateProperties.content.splice(
         templateProperties.content.length - 3,
@@ -480,6 +496,7 @@ function setUnit(name: string, accession: string, ontology: string) {
         refCells,
         accNumberCells
       );
+      appProperties.showIsaView = false;
       // if there is already a unit column, throw an error
     } else {
       errors = "ERROR: Building block already has a Unit!";
@@ -502,6 +519,7 @@ async function selectSheet(name: string, index: number) {
   templateProperties.content = [];
   templateProperties.rowId = 1;
   errors = "";
+  sheetProperties.columnIds = 1;
 
   if (sheetProperties.sheets[index].columns.length > 0)
     appProperties.showIsaView = false;
@@ -509,10 +527,14 @@ async function selectSheet(name: string, index: number) {
   for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
     let element = sheetProperties.sheets[index].columns[i];
     let words = element.split(" [");
+    // whether its a custom column
+    let custom = false;
     if (
-      words[0] != "Term Accession Number " &&
-      words[0] != "Unit " &&
-      words[0] != "Term Source REF "
+      !words[0].startsWith("Term Accession Number") &&
+      !words[0].startsWith("Unit") &&
+      !words[0].startsWith("Term Source REF") &&
+      words[0] != "Input" &&
+      words[0] != "Output"
     ) {
       let accession = "";
       try {
@@ -520,6 +542,11 @@ async function selectSheet(name: string, index: number) {
         accession = sheetProperties.sheets[index].columns[i + 1]
           .split("[")[1]
           .split("]")[0];
+
+        if (element.includes("[C]")) {
+          custom = true;
+          element = element.split("[C]")[0];
+        }
       } catch (error) {
         try {
           // retrieve the accession (get the word between the round brackets)
@@ -530,14 +557,31 @@ async function selectSheet(name: string, index: number) {
           accession = "";
         }
       }
-      templateProperties.template.push({
-        Type: element,
-        Accession: accession,
-      });
+      if (custom) {
+        templateProperties.template.push({
+          Type: element,
+          Accession: accession,
+          Custom: true,
+        });
+      } else {
+        templateProperties.template.push({
+          Type: element,
+          Accession: accession,
+        });
+      }
+
+      sheetProperties.columnIds += 1;
     } else {
-      templateProperties.template.push({
-        Type: element,
-      });
+      if (element.includes("[C]")) {
+        templateProperties.template.push({
+          Type: element.split("[C]")[0],
+          Custom: true,
+        });
+      } else {
+        templateProperties.template.push({
+          Type: element,
+        });
+      }
     }
     let cellContent: string[] = [];
 
@@ -562,7 +606,7 @@ async function selectSheet(name: string, index: number) {
   if (templateProperties.template.length == 0) {
     errors = "ERROR: Sheet is empty! Insert a Template!";
     // retrieve the templates
-    await fetch(backend + "getTemplates")
+    await fetch(backend + "tnt/getTemplates")
       .then((response) => response.json())
       .then((templates) => {
         if (templates.templates.length == 0) {
@@ -573,9 +617,10 @@ async function selectSheet(name: string, index: number) {
         templateProperties.templates = templates.templates;
         templateProperties.filtered = templates.templates;
       });
+  } else {
+    appProperties.arcList = false;
   }
   sheetProperties.sheets = sheetProperties.names = [];
-  appProperties.arcList = false;
   setIds();
 }
 
@@ -602,7 +647,7 @@ function checkEmptyIsaView() {
  * function to remove all unnecessary metadata from a copy pasted text to the q-editor
  */
 let _onPaste_StripFormatting_IEPaste = false;
-function onPaste(e) {
+function onPaste(e: any) {
   if (
     e.originalEvent &&
     e.originalEvent.clipboardData &&
@@ -632,15 +677,15 @@ function onPaste(e) {
  */
 function sortTemplates(searchTerm: string) {
   templateProperties.filtered = [];
-  templateProperties.templates.forEach((element: any) => {
+  templateProperties.templates.forEach((element) => {
     // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
     let searchString =
-      element["name"].toLowerCase() +
+      element.name.toLowerCase() +
       " " +
-      element["organisation"].toLowerCase() +
+      element.organisation.toLowerCase() +
       " " +
-      element["description"].toString().toLowerCase() +
-      element["authors"].toString().toLowerCase();
+      element.description.toString().toLowerCase() +
+      element.authors.toString().toLowerCase();
     if (searchString.includes(searchTerm.toLowerCase())) {
       templateProperties.filtered.push(element);
     }
@@ -670,6 +715,19 @@ function checkName(name: String) {
     "license",
     "licence",
     ".gitkeep",
+    ".ipynb",
+    ".tsv",
+    ".log",
+    ".nf",
+    ".def",
+    ".bin",
+    ".mac",
+    ".ctl",
+    ".mth",
+    ".xsd",
+    ".ini",
+    ".bak",
+    ".zj",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -694,11 +752,11 @@ async function sendToBackend() {
 
   // replace null values with empty string
   toSend.forEach(async (element, i) => {
-    element.forEach((entry, j) => {
+    element.forEach((entry: string | null, j: number) => {
       if (entry == null) toSend[i][j] = "";
     });
   });
-  let response = await fetch(backend + "saveFile", {
+  let response = await fetch(backend + "projects/saveFile", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     // body for the backend containing all necessary data
@@ -730,13 +788,14 @@ async function sendToBackend() {
  * @param field - array containing the data for the specific row(column wise)
  * @param index - the index number for the current column to check
  */
-function mandatory(field: Array<any>, index: number) {
+function mandatory(field: Array<string>, index: number) {
   switch (field[index]) {
     case "Investigation Identifier":
     case "Investigation Title":
     case "Investigation Description":
     case "Study Identifier":
     case "Study File Name":
+    case "Study Description":
     case "Assay Measurement Type":
     case "Assay File Name":
     case "Measurement Type":
@@ -767,10 +826,12 @@ function extendIsa() {
  *
  */
 function setIds() {
-  sheetProperties.rowIds = Array.from(
-    { length: templateProperties.content[0].length },
-    (_, i) => i + 1
-  );
+  if (templateProperties.content.length > 0) {
+    sheetProperties.rowIds = Array.from(
+      { length: templateProperties.content[0].length },
+      (_, i) => i + 1
+    );
+  }
   keyNumber.value += 1;
 }
 </script>
@@ -779,7 +840,11 @@ function setIds() {
   <!-- TOOLBAR TITLES | SPINNER-->
   <q-list>
     <q-toolbar-title v-if="isaProperties.entries.length != 0"
-      >Isa Entries<q-checkbox v-model="alternative">alternative</q-checkbox>
+      >Isa Entries<q-checkbox v-model="alternative"
+        >alternative<q-tooltip
+          >Show the alternative view of the isa file</q-tooltip
+        ></q-checkbox
+      >
       <span style="padding-left: 1em; color: red"
         >Mandatory fields are red</span
       ></q-toolbar-title
@@ -930,6 +995,7 @@ function setIds() {
         ></template>
       </q-tabs>
     </div>
+    <!-- Publication -->
     <q-tab-panels
       v-model="isaProperties.publication"
       animated
@@ -953,7 +1019,9 @@ function setIds() {
                 isaProperties.publication = 'publication ' + (j + 1);
               "
               v-if="j == isaProperties.publications[0].length - 1"
-              >New Publication</q-btn
+              >New Publication<q-tooltip
+                >Create a new publication</q-tooltip
+              ></q-btn
             >
           </div></q-tab-panel
         ></template
@@ -971,6 +1039,7 @@ function setIds() {
         ></template>
       </q-tabs>
     </div>
+    <!-- Contacts-->
     <q-tab-panels v-model="isaProperties.contact" animated>
       <template v-for="j in isaProperties.contacts[0].length - 1">
         <q-tab-panel :name="'contact ' + j">
@@ -989,7 +1058,7 @@ function setIds() {
                 isaProperties.contact = 'contact ' + (j + 1);
               "
               v-if="j == isaProperties.contacts[0].length - 1"
-              >New Contact</q-btn
+              >New Contact<q-tooltip>Create a new contact</q-tooltip></q-btn
             >
           </div></q-tab-panel
         ></template
@@ -997,7 +1066,7 @@ function setIds() {
     >
     <q-item-section
       ><q-btn icon="save" type="submit" color="teal" @click="sendToBackend()"
-        >Save</q-btn
+        >Save<q-tooltip>Save the data</q-tooltip></q-btn
       ></q-item-section
     >
   </template>
@@ -1033,14 +1102,17 @@ function setIds() {
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
-            >{{ term["Name"] }}
+            >{{ term.Name }}
             <a
-              :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
+              :href="
+                'http://purl.obolibrary.org/obo/' +
+                term.Accession.replace(':', '_')
+              "
               target="_blank"
               style="font-size: medium"
-              >({{ term["Accession"] }})</a
+              >({{ term.Accession }})</a
             >
-            <template v-if="term['IsObsolete']">
+            <template v-if="term.IsObsolete">
               <span style="color: red; margin-left: 1mm"
                 >Obsolete</span
               ></template
@@ -1048,7 +1120,7 @@ function setIds() {
           >
         </template>
         <q-card
-          ><q-card-section>{{ term["Description"] }}</q-card-section>
+          ><q-card-section>{{ term.Description }}</q-card-section>
           <q-card-section
             ><q-select
               v-model="templateProperties.rowId"
@@ -1058,11 +1130,11 @@ function setIds() {
               style="width: 12em"></q-select
             ><q-btn
               class="alt"
-              @click="
-                setTerm(term['Name'], term['Accession'], term['FK_Ontology'])
-              "
-              :disable="term['Name'] == 'No Term was found!'"
-              >Insert</q-btn
+              @click="setTerm(term)"
+              :disable="term.Name == 'No Term was found!'"
+              >Insert<q-tooltip
+                >Insert the term on the selected row</q-tooltip
+              ></q-btn
             ></q-card-section
           >
         </q-card>
@@ -1085,14 +1157,17 @@ function setIds() {
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
-            >{{ term["Name"] }}
+            >{{ term.Name }}
             <a
-              :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
+              :href="
+                'http://purl.obolibrary.org/obo/' +
+                term.Accession.replace(':', '_')
+              "
               target="_blank"
               style="font-size: medium"
-              >({{ term["Accession"] }})</a
+              >({{ term.Accession }})</a
             >
-            <template v-if="term['IsObsolete']">
+            <template v-if="term.IsObsolete">
               <span style="color: red; margin-left: 1mm"
                 >Obsolete</span
               ></template
@@ -1100,15 +1175,13 @@ function setIds() {
           >
         </template>
         <q-card
-          ><q-card-section>{{ term["Description"] }}</q-card-section>
+          ><q-card-section>{{ term.Description }}</q-card-section>
           <q-card-section
             ><q-btn
               class="bb"
-              @click="
-                setUnit(term['Name'], term['Accession'], term['FK_Ontology'])
-              "
-              :disable="term['Name'] == 'No Term was found!'"
-              >Select</q-btn
+              @click="setUnit(term)"
+              :disable="term.Name == 'No Term was found!'"
+              >Select<q-tooltip>Add the term as a unit</q-tooltip></q-btn
             ></q-card-section
           >
         </q-card>
@@ -1123,14 +1196,17 @@ function setIds() {
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
-            >{{ term["Name"] }}
+            >{{ term.Name }}
             <a
-              :href="'http://purl.obolibrary.org/obo/' + term['Accession']"
+              :href="
+                'http://purl.obolibrary.org/obo/' +
+                term.Accession.replace(':', '_')
+              "
               target="_blank"
               style="font-size: medium"
-              >({{ term["Accession"] }})</a
+              >({{ term.Accession }})</a
             >
-            <template v-if="term['IsObsolete']">
+            <template v-if="term.IsObsolete">
               <span style="color: red; margin-left: 1mm"
                 >Obsolete</span
               ></template
@@ -1138,13 +1214,15 @@ function setIds() {
           >
         </template>
         <q-card
-          ><q-card-section>{{ term["Description"] }}</q-card-section>
+          ><q-card-section>{{ term.Description }}</q-card-section>
           <q-card-section
             ><q-btn
               class="bb"
-              @click="setBB(term['Name'], term['Accession'])"
-              :disable="term['Name'] == 'No Term was found!'"
-              >Select</q-btn
+              @click="setBB(term)"
+              :disable="term.Name == 'No Term was found!'"
+              >Select<q-tooltip
+                >Create a new building block with the term</q-tooltip
+              ></q-btn
             ></q-card-section
           >
         </q-card>
@@ -1209,14 +1287,32 @@ function setIds() {
             >Updated last:
             {{ template.last_updated.slice(0, 10) }}</q-card-section
           ><q-card-section
-            ><q-btn class="alt" @click="setTemplate(template.table)"
-              >Import</q-btn
+            ><q-btn
+              class="alt"
+              @click="
+                setTemplate(template.table);
+                templateProperties.templateName = template.name;
+                templateProperties.templateVersion = template.version;
+              "
+              >Import<q-tooltip
+                >Import the template and create a new sheet</q-tooltip
+              ></q-btn
             ></q-card-section
           >
         </q-card>
       </q-expansion-item>
     </q-item>
   </q-list>
+  <!-- IF its an PDF-->
+  <q-item-section
+    v-if="
+      fileProperties.name.toLowerCase().endsWith('.pdf') &&
+      fileProperties.pdfContent != ''
+    ">
+    <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
+
+    <span v-html="fileProperties.pdfContent"></span>
+  </q-item-section>
   <!-- If its an non isa file, display the content-->
   <q-item-section v-if="fileProperties.content != ''">
     <template
@@ -1232,14 +1328,13 @@ function setIds() {
         ></q-toolbar-title
       >
       <q-editor
+        readonly
         v-model="fileProperties.content"
         style="white-space: pre-line"
         @paste="onPaste"></q-editor>
     </template>
     <template v-else>
       <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
-      <!-- IF its an PDF-->
-
       <!-- IF its an png -->
       <q-img
         v-if="fileProperties.name.toLowerCase().includes('.png')"
@@ -1267,24 +1362,43 @@ function setIds() {
           icon="save"
           @click="commitFile()"
           :disable="
-            fileProperties.name == '413' || checkName(fileProperties.name)
+            fileProperties.name == '413' ||
+            checkName(fileProperties.name) ||
+            fileProperties.content.startsWith('Empty File')
           "
-          >Save</q-btn
+          >Save<q-tooltip>Save the content to the file</q-tooltip></q-btn
         ></template
       ></template
     >
   </q-item-section>
   <!-- Display the changes made in the arc-->
   <q-item-section
-    v-else-if="checkEmptyIsaView() && arcProperties.changes != ''">
-    <q-checkbox v-model="showChanges" label="View changes" />
+    v-else-if="
+      checkEmptyIsaView() &&
+      arcProperties.changes != '' &&
+      fileProperties.pdfContent == ''
+    ">
+    <div class="row">
+      <q-checkbox v-model="showChanges" label="View changes" />
+      <q-select
+        v-model="arcProperties.branch"
+        :options="arcProperties.branches"
+        label="Branch"
+        style="margin-left: 2em; max-width: 150px"></q-select>
+    </div>
+
     <q-card v-if="showChanges">
       <q-card-section>Changes</q-card-section>
       <q-card-section v-html="arcProperties.changes"></q-card-section>
     </q-card>
   </q-item-section>
-  <q-item-section v-else-if="checkEmptyIsaView()">
-    <q-checkbox v-model="appProperties.experimental">Experimental</q-checkbox>
+  <q-item-section
+    v-else-if="checkEmptyIsaView() && fileProperties.pdfContent == ''">
+    <q-checkbox v-model="appProperties.experimental"
+      >Experimental<q-tooltip self="top left" anchor="bottom left"
+        >Show experimental features</q-tooltip
+      ></q-checkbox
+    >
   </q-item-section>
 </template>
 
