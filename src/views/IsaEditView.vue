@@ -37,7 +37,8 @@ async function sendToBackend() {
   });
 
   if (!response.ok) {
-    errors = "ERROR: " + response.statusText;
+    let errorJson = await response.json();
+    errors = "ERROR: " + response.statusText + "; " + errorJson["detail"];
     keyNumber.value += 1;
   } else {
     isaProperties.entries[isaProperties.rowId] = isaProperties.entry;
@@ -79,10 +80,12 @@ let keyNumber = ref(0);
     >
   </q-item-section>
   <q-item-section>
-    <q-btn id="add" icon="add" @click="addEntry()"></q-btn>
+    <q-btn id="add" icon="add" @click="addEntry()"
+      ><q-tooltip>Add a new entry field</q-tooltip></q-btn
+    >
     <q-separator />
     <q-btn id="save" icon="save" @click="sendToBackend()"
-      >Save</q-btn
+      >Save<q-tooltip>Save the data</q-tooltip></q-btn
     ></q-item-section
   >
 </template>

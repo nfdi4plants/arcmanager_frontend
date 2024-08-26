@@ -14,14 +14,14 @@ const appProperties = reactive({
   // the list containing the arcs/arc folders (expanded if true)
   arcList: true,
 
-  // show experimental features (like template editor)
+  // show experimental features (like template editor and arc search)
   experimental: false,
 
   // displays dark mode
   dark: false,
 
   //version of the app
-  version: "0.7.1"
+  version: "0.9.4",
 });
 
 export default appProperties;

@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive } from "vue";
 
 const fileProperties = reactive({
   // name of the file
@@ -9,9 +9,11 @@ const fileProperties = reactive({
 
   buffer: new Uint8Array(),
 
+  pdfContent: "",
+
   // id of the repo
   id: 0,
-  
+
   //path to the file
   path: "",
 });
