@@ -348,6 +348,9 @@ function openGit(target: string) {
     case "plantmicrobe":
       window.open("https://gitlab.plantmicrobe.de/explore");
       break;
+    case "tuebingen_testenv":
+      window.open("https://gitlab.test-nfdi4plants.de/explore");
+      break;
     default:
       errors = "Please select a DataHub first!";
       forcereload();

@@ -104,11 +104,6 @@ const loginOptions: ReadonlyArray<{
     description: "DataHUB for the transregio project TRR356",
   },
   {
-    label: "Dev",
-    value: "dev",
-    description: "Development server for testing purposes",
-  },
-  {
     label: "DataHUB (federated) test environment",
     value: "tuebingen_testenv",
     description: "Development server for federated DataHUB",
@@ -488,7 +483,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
       <q-footer bordered class="footer row">
         <a
           class="footer"
-          href="https://www.nfdi4plants.de/nfdi4plants.knowledgebase/docs/ARCmanager-manual/index.html"
+          href="https://www.nfdi4plants.de/nfdi4plants.knowledgebase/docs/ARCmanager-manual/00_index.html"
           target="_blank"
           style="margin-left: 45%"
           >Manual</a
