@@ -198,10 +198,6 @@ if (document.cookie.includes("error")) {
   window.alert(document.cookie.split("error=")[1]);
 }
 
-function openArcSearch() {
-  window.open("https://arcregistry.nfdi4plants.org/isasearch");
-}
-
 /** get the list of branches
  *
  * @param id - the id of the arc
@@ -359,15 +355,6 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             <q-item-section style="margin-left: -1.2em">New ARC</q-item-section
             ><q-tooltip>Create a new Arc</q-tooltip> </q-item
           ><q-separator />
-          <!-- ARC REGISTRY-->
-          <q-item v-ripple clickable v-on:click="openArcSearch()">
-            <q-item-section avatar>
-              <q-icon color="grey-7" name="open_in_new"></q-icon>
-            </q-item-section>
-            <q-item-section style="margin-left: -1.2em"
-              >ARC Registry</q-item-section
-            ><q-tooltip>Open the Arc registry in a new tab</q-tooltip>
-          </q-item>
           <!-- TEMPLATE EDITOR-->
           <q-item
             v-if="appProperties.experimental"
@@ -389,9 +376,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             ><q-tooltip>Open the template editor</q-tooltip>
           </q-item>
           <!-- ARC SEARCH -->
-          <q-separator v-if="appProperties.experimental"></q-separator>
           <q-item
-            v-if="appProperties.experimental"
             v-ripple
             clickable
             v-on:click="

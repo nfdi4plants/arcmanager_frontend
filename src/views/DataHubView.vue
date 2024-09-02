@@ -1062,7 +1062,7 @@ async function fileUpload(folder = false) {
         }
 
         try {
-          let response = await fetch(backend + "uploadFile", {
+          let response = await fetch(appProperties.backend + "fnf/uploadFile", {
             method: "POST",
             body: formData,
             credentials: "include",
@@ -1450,7 +1450,13 @@ async function deleteFile(
     console.log("Deleting " + name + "...");
     // send delete request to backend
     let response = await fetch(
-      backend + "deleteFile?path=" + path + "&id=" + id + "&branch=" + branch,
+      appProperties.backend +
+        "fnf/deleteFile?path=" +
+        path +
+        "&id=" +
+        id +
+        "&branch=" +
+        branch,
       {
         method: "DELETE",
         credentials: "include",
@@ -1494,7 +1500,13 @@ async function deleteFolder(
     console.log("Deleting " + name + "...");
     // send delete request to backend
     let response = await fetch(
-      backend + "deleteFolder?path=" + path + "&id=" + id + "&branch=" + branch,
+      appProperties.backend +
+        "fnf/deleteFolder?path=" +
+        path +
+        "&id=" +
+        id +
+        "&branch=" +
+        branch,
       {
         method: "DELETE",
         credentials: "include",
@@ -1528,7 +1540,7 @@ async function createFolder(
   loading = true;
   forcereload();
   // send name and properties to the backend
-  let response = await fetch(backend + "createFolder", {
+  let response = await fetch(appProperties.backend + "fnf/createFolder", {
     credentials: "include",
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1901,10 +1913,10 @@ async function renameFolder(id: number, path: string, branch: string) {
   $q.dialog({
     dark: appProperties.dark,
     title: "Rename " + pathSplit.slice(-1)[0],
-    message: "Type in the new name for your folder (no whitespace): ",
+    message: "Type in the new name for your folder (no whitespace or '/'): ",
     prompt: {
       model: "",
-      isValid: (val) => val.length > 0,
+      isValid: (val) => val.length > 0 && !val.includes("/"),
       type: "text",
     },
     cancel: true,
@@ -1919,11 +1931,13 @@ async function renameFolder(id: number, path: string, branch: string) {
     // user confirmed the deletion
     console.log("Renaming folder " + path + "...");
 
-    let newPath = currentPath + "/" + name;
+    let newPath = "";
+    if (currentPath != "") newPath = currentPath + "/" + name;
+    else newPath = name;
 
     let response = await fetch(
-      backend +
-        `renameFolder?oldPath=${path}&newPath=${newPath}&id=${id}&branch=${branch}`,
+      appProperties.backend +
+        `fnf/renameFolder?oldPath=${path}&newPath=${newPath}&id=${id}&branch=${branch}`,
       {
         method: "PUT",
         credentials: "include",
