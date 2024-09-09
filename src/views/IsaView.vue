@@ -70,6 +70,10 @@ async function buildChart(password: string) {
   let data = await metrics.json();
   if (!metrics.ok) {
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     authorized.value = true;
     let responseTimes = data["responseTimes"];
@@ -210,6 +214,10 @@ async function commitFile() {
   if (!(await response).ok) {
     let data = await response.json();
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     fileProperties.name = "";
@@ -419,7 +427,11 @@ function setBB(term: Term) {
         element.Type == termProperties.parameterType + " [" + term.Name + "]"
     )
   ) {
-    errors = "ERROR: Column '" + term.Name + "' already exists!!";
+    errors = "Warning: Column '" + term.Name + "' already exists!!";
+    $q.notify({
+      type: "warning",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     appProperties.showIsaView = false;
@@ -432,10 +444,10 @@ function setBB(term: Term) {
         Accession: term.Accession,
       },
       {
-        Type: "Term Source REF [" + term.Accession + "]",
+        Type: "Term Source REF (" + term.Accession + ")",
       },
       {
-        Type: "Term Accession Number [" + term.Accession + "]",
+        Type: "Term Accession Number (" + term.Accession + ")",
       }
     );
 
@@ -499,11 +511,19 @@ function setUnit(term: Term) {
       appProperties.showIsaView = false;
       // if there is already a unit column, throw an error
     } else {
-      errors = "ERROR: Building block already has a Unit!";
+      errors = "Warning: Building block already has a Unit!";
+      $q.notify({
+        type: "warning",
+        message: errors,
+      });
       keyNumber.value += 1;
     }
   } catch {
-    errors = "ERROR: You must add a parameter first!";
+    errors = "Warning: You must add a parameter first!";
+    $q.notify({
+      type: "warning",
+      message: errors,
+    });
     keyNumber.value += 1;
   }
 }
@@ -605,12 +625,20 @@ async function selectSheet(name: string, index: number) {
   // if the content is empty, get a list of templates and display them
   if (templateProperties.template.length == 0) {
     errors = "ERROR: Sheet is empty! Insert a Template!";
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     // retrieve the templates
     await fetch(backend + "tnt/getTemplates")
       .then((response) => response.json())
       .then((templates) => {
         if (templates.templates.length == 0) {
           errors = "ERROR: No templates found!";
+          $q.notify({
+            type: "negative",
+            message: errors,
+          });
           keyNumber.value += 1;
         }
         // save the templates
@@ -772,11 +800,15 @@ async function sendToBackend() {
 
   if (!response.ok) {
     errors = "ERROR: " + response.statusText;
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     isaProperties.entry = [];
     errors = "";
-    $q.notify("Saved");
+    $q.notify({ type: "positive", message: "Saved" });
   }
 
   loading = false;

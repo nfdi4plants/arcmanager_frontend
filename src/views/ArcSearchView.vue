@@ -165,6 +165,10 @@ async function getArcJson() {
 
   if (!arcJsonData.ok) {
     errors = "ERROR: " + arcJsonData.statusText;
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     arcJson = await arcJsonData.json();
@@ -271,6 +275,10 @@ async function downloadJson() {
 
   if (!searchJson.ok) {
     errors = "ERROR: " + searchJson.json();
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     const url = window.URL.createObjectURL(await searchJson.blob());

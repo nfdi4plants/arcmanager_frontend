@@ -375,6 +375,10 @@ async function fetchArcs(page = 1) {
     // if no datahub is selected, show an error
     if (git.site == "") {
       errors = "Please select a DataHub first!";
+      $q.notify({
+        type: "warning",
+        message: "Please select a Datahub first!",
+      });
       loading = false;
     } else {
       errors = "Not logged in! Listing only public ARCs";
@@ -397,6 +401,10 @@ async function fetchArcs(page = 1) {
         });
         searchList = list;
       } catch (error: any) {
+        $q.notify({
+          type: "negative",
+          message: error.toString(),
+        });
         errors = error.toString();
       }
 
@@ -445,6 +453,10 @@ async function fetchArcs(page = 1) {
       if (window.sessionStorage.getItem("username") != null)
         username = window.sessionStorage.getItem("username");
     } catch (error: any) {
+      $q.notify({
+        type: "negative",
+        message: error.toString(),
+      });
       errors = error.toString();
     }
     loading = false;
@@ -468,6 +480,10 @@ async function fetchAllArcs() {
   repairClicked.value = false;
   // if not logged in, show only public arcs
   if (!appProperties.loggedIn) {
+    $q.notify({
+      type: "warning",
+      message: "Please login first!",
+    });
     errors = "Please login first!";
     loading = false;
     forcereload();
@@ -527,6 +543,10 @@ async function fetchAllArcs() {
       if (window.sessionStorage.getItem("username") != null)
         username = window.sessionStorage.getItem("username");
     } catch (error: any) {
+      $q.notify({
+        type: "negative",
+        message: error.toString(),
+      });
       errors = error.toString();
     }
     loading = false;
@@ -606,6 +626,10 @@ async function inspectArc(id: number) {
     // get the branches
     getBranches(id);
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
   loading = false;
@@ -635,6 +659,10 @@ async function getChanges(id: number, branch: string) {
         }
       });
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
 }
@@ -659,6 +687,10 @@ async function getBranches(id: number) {
         }
       });
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
 }
@@ -713,6 +745,10 @@ async function inspectTree(
     else pathHistory.pop();
     cleanIsaView();
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
   if (page > 1) window.scrollTo(0, 0);
@@ -1073,10 +1109,18 @@ async function fileUpload(folder = false) {
               let data = await response.json();
               errors =
                 response.statusText + ", " + data["detail"].slice(0, 200);
+              $q.notify({
+                type: "negative",
+                message: errors,
+              });
             } catch (error) {
               errors =
                 response.statusText + ", Error while uploading your file(s)!";
             }
+            $q.notify({
+              type: "negative",
+              message: errors,
+            });
             progress = 1;
             $q.loading.hide();
             uploading = false;
@@ -1088,7 +1132,6 @@ async function fileUpload(folder = false) {
             // update progress if its not the last chunk
             if (progress != 0.99)
               progress = Number((chunkNumber + 1) * chunkProgress);
-
             console.log(temp);
             chunkNumber++;
             start = end;
@@ -1102,6 +1145,10 @@ async function fileUpload(folder = false) {
         // when every chunk is uploaded, set the progress to 1
       } else {
         progress = 1;
+        $q.notify({
+          type: "positive",
+          message: fileInput.value[i].name + " was uploaded successfully!",
+        });
         console.log("Upload complete");
         // when the largest file (which in return is the last file to finish) was uploaded, finish the process and clear the input
         if (i == largestFile) {
@@ -1142,6 +1189,10 @@ async function getTemplates() {
 
   if (!response.ok) {
     errors = "ERROR: No templates found!";
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     templateProperties.templates = [emptyTemplate];
     templateProperties.filtered = [emptyTemplate];
     forcereload();
@@ -1188,9 +1239,17 @@ async function getSheets(path: string, id: number, branch: string) {
   let sheets = await request.json();
   if (!request.ok) {
     errors = "ERROR: " + sheets["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     if (sheets[0].length == 0) {
-      errors = "ERROR: No sheets found!";
+      errors = "Warning: No sheets found!";
+      $q.notify({
+        type: "warning",
+        message: errors,
+      });
       forcereload();
     } else {
       appProperties.showIsaView = true;
@@ -1210,6 +1269,7 @@ async function getSheets(path: string, id: number, branch: string) {
  */
 async function getAssaysAndStudies(id: number) {
   loading = true;
+  errors = "";
   forcereload();
   try {
     // get names of the assays and studies
@@ -1244,6 +1304,12 @@ async function getAssaysAndStudies(id: number) {
   // if either no assay or no study is found, return error
   if (arcProperties.assays.length == 0) errors = "ERROR: No Assays found!";
   if (arcProperties.studies.length == 0) errors = "ERROR: No Studies found!";
+
+  if (errors != "")
+    $q.notify({
+      type: "negative",
+      message: errors ? errors : "",
+    });
 
   loading = false;
   forcereload();
@@ -1289,9 +1355,16 @@ async function syncAssay(
       throw new Error(response.statusText + ", " + data["detail"]);
     }
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
-
+  $q.notify({
+    type: "positive",
+    message: assay + " data was synced into study successfully!",
+  });
   loading = false;
   forcereload();
 }
@@ -1328,9 +1401,16 @@ async function syncStudy(id: number, study: string, branch: string) {
       throw new Error(response.statusText + ", " + data["detail"]);
     }
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
-
+  $q.notify({
+    type: "positive",
+    message: study + " data was synced into the investigation successfully!",
+  });
   loading = false;
   forcereload();
 }
@@ -1397,6 +1477,10 @@ async function getArchive(id: number) {
     // start the download
     downloadLink.click();
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
   loading = false;
@@ -1463,10 +1547,16 @@ async function deleteFile(
       }
     );
     let data = await response.json();
-    if (!response.ok) errors = response.statusText + ", " + data["detail"];
+    if (!response.ok) {
+      errors = response.statusText + ", " + data["detail"];
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
+    }
     // if the deletion was successful
     else {
-      $q.notify(data);
+      $q.notify({ type: "positive", message: data });
       await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
     }
     forcereload();
@@ -1513,9 +1603,14 @@ async function deleteFolder(
       }
     );
     let data = await response.json();
-    if (!response.ok) errors = response.statusText + ", " + data["detail"];
-    else {
-      $q.notify(data);
+    if (!response.ok) {
+      errors = response.statusText + ", " + data["detail"];
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
+    } else {
+      $q.notify({ type: "positive", message: data });
       await inspectTree(arcId, pathHistory[pathHistory.length - 1], undefined);
     }
     loading = false;
@@ -1554,6 +1649,10 @@ async function createFolder(
   let data = await response.json();
   if (!response.ok) {
     errors = response.statusText + ", " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     // get the updated tree
     inspectTree(id, path);
@@ -1561,7 +1660,10 @@ async function createFolder(
     // get the updated changes, assays and studies
     await getChanges(id, arcProperties.branch);
   }
-
+  $q.notify({
+    type: "positive",
+    message: "New folder '" + identifier + "' was created successfully!",
+  });
   loading = false;
   forcereload();
 }
@@ -1608,6 +1710,10 @@ async function getUser() {
       return 0;
     });
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
   loading = false;
@@ -1661,6 +1767,10 @@ async function getArcUser(id: number) {
       return 0;
     });
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
   loading = false;
@@ -1698,8 +1808,13 @@ async function addUser(
     }),
   });
   let data = await response.json();
-  if (!response.ok) errors = response.statusText + ", " + data["detail"];
-  else $q.notify(data);
+  if (!response.ok) {
+    errors = response.statusText + ", " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
+  } else $q.notify({ type: "positive", message: data });
 
   loading = false;
   forcereload();
@@ -1725,8 +1840,13 @@ async function removeUser(id: number, user: any) {
     }
   );
   let data = await response.json();
-  if (!response.ok) errors = response.statusText + ", " + data["detail"];
-  else $q.notify(data);
+  if (!response.ok) {
+    errors = response.statusText + ", " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
+  } else $q.notify({ type: "positive", message: data });
 
   loading = false;
   forcereload();
@@ -1763,8 +1883,13 @@ async function editUser(
     }),
   });
   let data = await response.json();
-  if (!response.ok) errors = response.statusText + ", " + data["detail"];
-  else $q.notify(data);
+  if (!response.ok) {
+    errors = response.statusText + ", " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
+  } else $q.notify({ type: "positive", message: data });
 
   loading = false;
   forcereload();
@@ -1789,6 +1914,10 @@ async function downloadFile(path: string) {
     // start the download
     downloadLink.click();
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
   loading = false;
@@ -1857,6 +1986,10 @@ async function inspectTreeCrumb(index: number) {
     }
     cleanIsaView();
   } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
     errors = error.toString();
   }
   window.scrollTo(0, 0);
@@ -1884,6 +2017,10 @@ async function addDatamap() {
   let data = await response.json();
   if (!response.ok) {
     errors = response.statusText + ", " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     // get the updated tree
     inspectTree(arcId, pathHistory[pathHistory.length - 1]);
@@ -1944,9 +2081,14 @@ async function renameFolder(id: number, path: string, branch: string) {
       }
     );
     let data = await response.json();
-    if (!response.ok) errors = response.statusText + ", " + data["detail"];
-    else {
-      $q.notify(data);
+    if (!response.ok) {
+      errors = response.statusText + ", " + data["detail"];
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
+    } else {
+      $q.notify({ type: "positive", message: data });
       await inspectTree(arcId, currentPath, undefined);
     }
     loading = false;
@@ -1979,6 +2121,10 @@ async function repairArc() {
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     forcereload();
   }
 
@@ -2003,6 +2149,10 @@ async function validateArc() {
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     forcereload();
   } else {
     slide.value = "structure";
@@ -2076,6 +2226,10 @@ async function validateArc() {
             errors = appProperties.experimental
               ? 'ERROR: File too big (max. 50 GB) or too many selected!'
               : 'ERROR: File too big (max. 10 GB) or too many selected!';
+            $q.notify({
+              type: 'negative',
+              message: errors,
+            });
             forcereload();
           "
           :key="refresher"

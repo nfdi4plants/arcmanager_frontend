@@ -102,6 +102,10 @@ async function getTerms(input: string) {
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     // if the list of terms is empty
     if (data["terms"].length == 0) {
@@ -148,6 +152,10 @@ async function saveSheet() {
     } catch (error) {
       errors = "ERROR: Couldn't save Table!";
     }
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     // cleanup view
     templateProperties.template = [];
@@ -156,6 +164,11 @@ async function saveSheet() {
     termProperties.terms = [];
     appProperties.arcList = true;
     appProperties.showIsaView = false;
+    $q.notify({
+      type: "positive",
+      message:
+        "Successfully saved the table to '" + sheetProperties.name + "'!",
+    });
   }
   loading = false;
   keyNumber.value += 1;
@@ -254,6 +267,10 @@ async function getSuggestionsByParent() {
   let data = await response.json();
   if (!response.ok) {
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     appProperties.showIsaView = true;
     // if the list of terms is empty
@@ -293,6 +310,10 @@ async function getSuggestions() {
   let data = await terms.json();
   if (!terms.ok) {
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     appProperties.showIsaView = true;
     // if the list of terms is empty
@@ -330,6 +351,10 @@ async function getUnitSuggestions() {
   let data = await terms.json();
   if (!terms.ok) {
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     appProperties.showIsaView = true;
     // if the list of terms is empty
@@ -450,11 +475,11 @@ function addColumn() {
           // adds two term columns
           if (customColumnTerms.value) {
             templateProperties.template.splice(i + 1, 0, {
-              Type: "Term Source REF [" + customColumnName.value + "]",
+              Type: "Term Source REF (" + customColumnName.value + ")",
               Custom: true,
             });
             templateProperties.template.splice(i + 2, 0, {
-              Type: "Term Accession Number [" + customColumnName.value + "]",
+              Type: "Term Accession Number (" + customColumnName.value + ")",
               Custom: true,
             });
             let emptyArray2 = Array.from(
@@ -483,6 +508,7 @@ function addColumn() {
           }
         }
       }
+      // add new column right before the output column if column number is equal to current number of columns
       if (
         i == templateProperties.template.length - 1 &&
         customColumnNumber.value == sheetProperties.columnIds
@@ -512,11 +538,11 @@ function addColumn() {
         // adds two term columns
         if (customColumnTerms.value) {
           templateProperties.template.splice(i + 1, 0, {
-            Type: "Term Source REF [" + customColumnName.value + "]",
+            Type: "Term Source REF (" + customColumnName.value + ")",
             Custom: true,
           });
           templateProperties.template.splice(i + 2, 0, {
-            Type: "Term Accession Number [" + customColumnName.value + "]",
+            Type: "Term Accession Number (" + customColumnName.value + ")",
             Custom: true,
           });
           let emptyArray2 = Array.from(
@@ -554,6 +580,10 @@ function addColumn() {
   } else {
     if (columnExists) errors = "ERROR: Column already exists!";
     else errors = "Couldn't add column! Please check your input again!";
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   }
   keyNumber.value += 1;
 }
@@ -673,6 +703,10 @@ function shift(direction: string, index: number) {
 
     default:
       errors = "Error while shifting! Direction not clear stated!";
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
       keyNumber.value += 1;
       break;
   }

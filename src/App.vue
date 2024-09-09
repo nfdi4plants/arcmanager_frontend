@@ -220,9 +220,17 @@ async function getGroups() {
       });
     } else {
       errors = "Error retrieving your groups! Try to login again!";
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
     }
   } catch (error: any) {
     errors = error.toString();
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   }
   forcereload();
 }

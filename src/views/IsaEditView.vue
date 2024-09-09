@@ -39,12 +39,16 @@ async function sendToBackend() {
   if (!response.ok) {
     let errorJson = await response.json();
     errors = "ERROR: " + response.statusText + "; " + errorJson["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     isaProperties.entries[isaProperties.rowId] = isaProperties.entry;
     isaProperties.entry = [];
     errors = "";
-    $q.notify("Saved");
+    $q.notify({ type: "positive", message: "Saved" });
   }
   loading = false;
   keyNumber.value += 1;
