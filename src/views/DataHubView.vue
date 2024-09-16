@@ -1090,8 +1090,8 @@ async function fileUpload(folder = false) {
         formData.append("path", filePath);
         formData.append("namespace", arcNamespace.value);
 
-        // force lfs for files larger than 1 gb
-        if (totalChunks > 10) {
+        // force lfs for files larger than 50 mb
+        if (fileSize > 50 * 1024 * 1024) {
           formData.append("lfs", "true");
         } else {
           formData.append("lfs", lfs.value.toString());
@@ -2138,6 +2138,7 @@ async function repairArc() {
 
 async function validateArc() {
   loading = true;
+  appProperties.showIsaView = false;
   forcereload();
 
   const response = await fetch(
