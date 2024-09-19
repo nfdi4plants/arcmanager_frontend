@@ -1019,8 +1019,8 @@ async function fileUpload(folder = false) {
 
   errors = "";
   const chunkSize = 100 * 1024 * 1024;
-  // index of the largest file (default is the last file)
-  let largestFile = fileInput.value.length - 1;
+
+  let filesDone = 0;
 
   forcereload();
   // loop for the amount of selected files
@@ -1048,20 +1048,12 @@ async function fileUpload(folder = false) {
       }
     }
 
-    // amount of chunks for the largest file
-    let largestFileChunks = Math.ceil(
-      fileInput.value[largestFile].size / chunkSize
-    );
-
     // amount of chunks for the current file
     const totalChunks = Math.ceil(fileInput.value[i].size / chunkSize);
     const chunkProgress = 1 / totalChunks;
     progress = chunkProgress;
     let fileSize = fileInput.value[i].size;
     const selectedFile = fileInput.value[i];
-
-    // find out which i value will have the most chunks (skip if amount of chunks is 1)
-    if (largestFileChunks < totalChunks && totalChunks != 1) largestFile = i;
 
     let chunkNumber = 0;
     let start = 0;
@@ -1092,7 +1084,7 @@ async function fileUpload(folder = false) {
 
         // force lfs for files larger than 50 mb
         if (fileSize > 50 * 1024 * 1024) {
-          formData.append("lfs", "true");
+          formData.append("lfs", "false");
         } else {
           formData.append("lfs", lfs.value.toString());
         }
@@ -1125,6 +1117,7 @@ async function fileUpload(folder = false) {
             $q.loading.hide();
             uploading = false;
           } else {
+            if (response.status == 201) filesDone++;
             const temp = `Chunk ${
               chunkNumber + 1
             }/${totalChunks} uploaded successfully`;
@@ -1151,7 +1144,7 @@ async function fileUpload(folder = false) {
         });
         console.log("Upload complete");
         // when the largest file (which in return is the last file to finish) was uploaded, finish the process and clear the input
-        if (i == largestFile) {
+        if (filesDone == fileInput.value.length) {
           fileInput.value = [];
           $q.loading.hide();
           fileProperties.path = fileProperties.content = "";
