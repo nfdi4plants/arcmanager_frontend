@@ -1036,7 +1036,9 @@ async function fileUpload(folder = false) {
       else filePath = fileInput.value[i].webkitRelativePath;
     else filePath = pathHistory[pathHistory.length - 1];
     $q.loading.show({
-      message: "Uploading the file(s)...",
+      message:
+        "Uploading the file(s)...<br><i>All files over 50 mb are uploaded through git-lfs!</i>",
+      html: true,
     });
 
     if (!folder) {
@@ -1084,7 +1086,7 @@ async function fileUpload(folder = false) {
 
         // force lfs for files larger than 50 mb
         if (fileSize > 50 * 1024 * 1024) {
-          formData.append("lfs", "false");
+          formData.append("lfs", "true");
         } else {
           formData.append("lfs", lfs.value.toString());
         }
