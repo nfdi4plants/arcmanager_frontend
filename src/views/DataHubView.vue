@@ -1018,6 +1018,8 @@ async function fileUpload(folder = false) {
   uploading = true;
 
   errors = "";
+
+  // chunksize is set to 100mb
   const chunkSize = 100 * 1024 * 1024;
 
   let filesDone = 0;
@@ -1026,14 +1028,17 @@ async function fileUpload(folder = false) {
   // loop for the amount of selected files
   for (let i = 0; i < fileInput.value.length; i++) {
     let filePath = "";
+
+    const selectedFile = fileInput.value[i];
+
     // save the file on the most recent path
     if (folder)
       if (pathHistory[pathHistory.length - 1] != "")
         filePath =
           pathHistory[pathHistory.length - 1] +
           "/" +
-          fileInput.value[i].webkitRelativePath;
-      else filePath = fileInput.value[i].webkitRelativePath;
+          selectedFile.webkitRelativePath;
+      else filePath = selectedFile.webkitRelativePath;
     else filePath = pathHistory[pathHistory.length - 1];
     $q.loading.show({
       message:
@@ -1044,18 +1049,17 @@ async function fileUpload(folder = false) {
     if (!folder) {
       // if the file is in a subfolder, include an "/"
       if (filePath == "") {
-        filePath += fileInput.value[i].name;
+        filePath += selectedFile.name;
       } else {
-        filePath += "/" + fileInput.value[i].name;
+        filePath += "/" + selectedFile.name;
       }
     }
 
     // amount of chunks for the current file
-    const totalChunks = Math.ceil(fileInput.value[i].size / chunkSize);
+    const totalChunks = Math.ceil(selectedFile.size / chunkSize);
     const chunkProgress = 1 / totalChunks;
     progress = chunkProgress;
-    let fileSize = fileInput.value[i].size;
-    const selectedFile = fileInput.value[i];
+    let fileSize = selectedFile.size;
 
     let chunkNumber = 0;
     let start = 0;
@@ -1078,7 +1082,7 @@ async function fileUpload(folder = false) {
         formData.append("file", chunk);
         formData.append("chunkNumber", chunkNumber.toString());
         formData.append("totalChunks", totalChunks.toString());
-        formData.append("name", fileInput.value[i].name);
+        formData.append("name", selectedFile.name);
         formData.append("id", arcId.toString());
         formData.append("branch", arcProperties.branch);
         formData.append("path", filePath);
@@ -1142,7 +1146,7 @@ async function fileUpload(folder = false) {
         progress = 1;
         $q.notify({
           type: "positive",
-          message: fileInput.value[i].name + " was uploaded successfully!",
+          message: selectedFile.name + " was uploaded successfully!",
         });
         console.log("Upload complete");
         // when the largest file (which in return is the last file to finish) was uploaded, finish the process and clear the input
@@ -1348,6 +1352,11 @@ async function syncAssay(
     if (!response.ok) {
       const data = await response.json();
       throw new Error(response.statusText + ", " + data["detail"]);
+    } else {
+      $q.notify({
+        type: "positive",
+        message: assay + " data was synced into study successfully!",
+      });
     }
   } catch (error: any) {
     $q.notify({
@@ -1356,10 +1365,6 @@ async function syncAssay(
     });
     errors = error.toString();
   }
-  $q.notify({
-    type: "positive",
-    message: assay + " data was synced into study successfully!",
-  });
   loading = false;
   forcereload();
 }
@@ -1394,6 +1399,12 @@ async function syncStudy(id: number, study: string, branch: string) {
     if (!response.ok) {
       const data = await response.json();
       throw new Error(response.statusText + ", " + data["detail"]);
+    } else {
+      $q.notify({
+        type: "positive",
+        message:
+          study + " data was synced into the investigation successfully!",
+      });
     }
   } catch (error: any) {
     $q.notify({
@@ -1402,10 +1413,6 @@ async function syncStudy(id: number, study: string, branch: string) {
     });
     errors = error.toString();
   }
-  $q.notify({
-    type: "positive",
-    message: study + " data was synced into the investigation successfully!",
-  });
   loading = false;
   forcereload();
 }
@@ -2435,13 +2442,19 @@ async function validateArc() {
           <div class="q-pa-none text-center">
             <q-list>
               <q-item v-for="item in validateData.Assays">
-                <q-item-section>{{ Object.keys(item)[0] }}</q-item-section>
+                <q-item-section
+                  >{{ Object.keys(item)[0]
+                  }}<q-item-label
+                    caption
+                    v-if="typeof Object.values(item)[0] == 'string'"
+                    >{{ Object.values(item)[0] }}</q-item-label
+                  ></q-item-section
+                >
                 <q-item-section avatar>
                   <q-icon
-                    v-if="Boolean(Object.values(item)[0])"
+                    v-if="typeof Object.values(item)[0] === 'boolean'"
                     name="done"
-                    :color="validateData.ARC ? 'gold' : 'green'" />
-                  <q-icon v-else name="clear" color="red"
+                    :color="validateData.ARC ? 'gold' : 'green'"
                 /></q-item-section>
               </q-item>
             </q-list>
@@ -2457,14 +2470,21 @@ async function validateArc() {
             >
             <q-list>
               <q-item v-for="item in validateData.Studies">
-                <q-item-section>{{ Object.keys(item)[0] }}</q-item-section>
-                <q-item-section avatar>
+                <q-item-section
+                  >{{ Object.keys(item)[0]
+                  }}<q-item-label
+                    caption
+                    v-if="typeof Object.values(item)[0] == 'string'"
+                    >{{ Object.values(item)[0] }}</q-item-label
+                  ></q-item-section
+                >
+                <q-item-section
+                  avatar
+                  v-if="typeof Object.values(item)[0] == 'boolean'">
                   <q-icon
-                    v-if="Boolean(Object.values(item)[0])"
                     name="done"
                     :color="validateData.ARC ? 'gold' : 'green'" />
-                  <q-icon v-else name="clear" color="red"
-                /></q-item-section>
+                </q-item-section>
               </q-item>
             </q-list>
           </div>

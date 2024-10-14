@@ -756,6 +756,7 @@ function checkName(name: String) {
     ".ini",
     ".bak",
     ".zj",
+    ".mztab",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -882,7 +883,13 @@ function setIds() {
       ></q-toolbar-title
     >
     <q-toolbar-title v-if="templateProperties.templates.length > 1"
-      >Templates</q-toolbar-title
+      >Templates
+      <span style="margin-left: 1em"
+        >Don't know which template to use? Use the
+        <a href="https://nfdi4plants.github.io/metadataquiz/" target="_blank"
+          >Metadata Quiz</a
+        >.</span
+      ></q-toolbar-title
     >
     <q-toolbar-title v-if="termProperties.terms.length > 0"
       >Terms</q-toolbar-title
