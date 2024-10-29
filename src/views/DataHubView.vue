@@ -2212,6 +2212,7 @@ async function validateArc() {
               ? 'background-color: midnightblue'
               : 'background-color: lightgoldenrodyellow',
             appProperties.showIsaView ? 'max-width: 56px' : 'max-width: 150px',
+            'overflow: hidden',
           ]"
           v-model="fileInput"
           dense

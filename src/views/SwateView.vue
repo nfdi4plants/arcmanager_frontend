@@ -694,6 +694,8 @@ function shift(direction: string, index: number) {
       ) {
         shiftCount += 1;
       }
+      if (index == templateProperties.id)
+        templateProperties.id = templateProperties.id - shiftCount;
       columns.forEach((element, i) => {
         templateProperties.template.splice(index - shiftCount, 0, element);
         templateProperties.content.splice(index - shiftCount, 0, content[i]);
@@ -711,6 +713,8 @@ function shift(direction: string, index: number) {
       ) {
         shiftRight += 1;
       }
+      if (index == templateProperties.id)
+        templateProperties.id = templateProperties.id + shiftRight;
       columns.forEach((element, i) => {
         templateProperties.template.splice(index + shiftRight, 0, element);
         templateProperties.content.splice(index + shiftRight, 0, content[i]);
