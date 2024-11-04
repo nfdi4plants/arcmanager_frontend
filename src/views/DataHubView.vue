@@ -3112,6 +3112,7 @@ async function validateArc() {
                   arcProperties.identifier = item.name;
                   arcProperties.description = item.description;
                   arcProperties.url = item.http_url_to_repo;
+                  arcNamespace = item.path_with_namespace;
                   inspectArc(item.id);
                 "
                 icon="expand_more"

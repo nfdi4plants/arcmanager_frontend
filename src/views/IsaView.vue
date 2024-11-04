@@ -605,22 +605,14 @@ async function selectSheet(name: string, index: number) {
     }
     let cellContent: string[] = [];
 
-    // if the sheet has more than hundred rows, only show the last 100 to save memory
-    if (sheetProperties.sheets[index].data.length < 100) {
-      // load in the cell data row by row
-      for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
-        cellContent.push(sheetProperties.sheets[index].data[j][i]);
-      }
-    } else {
-      for (
-        let j = sheetProperties.sheets[index].data.length - 100;
-        j < sheetProperties.sheets[index].data.length;
-        j++
-      ) {
-        cellContent.push(sheetProperties.sheets[index].data[j][i]);
-      }
+    // load in the cell data row by row
+    for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
+      cellContent.push(sheetProperties.sheets[index].data[j][i]);
     }
     templateProperties.content.push(cellContent);
+
+    templateProperties.pages =
+      Math.floor(sheetProperties.sheets[index].data.length / 100) + 1;
   }
   // if the content is empty, get a list of templates and display them
   if (templateProperties.template.length == 0) {

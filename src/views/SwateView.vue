@@ -76,6 +76,9 @@ var protocolColumns = ref({
 // the type of unit for the building block
 var unitSearch = ref("");
 
+// current page of the table (used in case of more than 100 rows)
+var tablePage = ref(1);
+
 // the type of term to be searched for
 var searchType = "";
 
@@ -744,7 +747,10 @@ function shift(direction: string, index: number) {
     >DataPLANT Ontology</a
   >
   <div>
-    <q-scroll-area style="height: 1000px; max-width: 100%" :key="keyNumber">
+    <q-scroll-area
+      style="height: 1000px; max-width: 100%"
+      :key="keyNumber"
+      visible>
       <!-- Display the search area for default terms-->
       <template v-if="showSearch">
         <span>Search term:</span>
@@ -945,10 +951,23 @@ function shift(direction: string, index: number) {
         "
         >Add custom column</q-btn
       >
+      <div v-show="templateProperties.pages > 1" class="q-pa-lg flex">
+        Page:
+        <q-pagination
+          :max="templateProperties.pages"
+          v-model="tablePage"
+          boundary-numbers
+          :max-pages="6"
+          @update:model-value="
+            console.log(tablePage);
+            keyNumber += 1;
+          "></q-pagination>
+      </div>
       <!-- The table to enter the values with swate is a default html table -->
       <q-markup-table
         style="width: max-content; border-collapse: collapse"
         separator="cell"
+        :key="keyNumber"
         dense>
         <thead>
           <tr q-tr--no-hover>
@@ -1096,7 +1115,11 @@ function shift(direction: string, index: number) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, j) in templateProperties.content[0]">
+          <tr
+            v-for="(row, j) in templateProperties.content[0].slice(
+              (tablePage - 1) * 100,
+              tablePage * 100
+            )">
             <!-- insert a second row containing the cell values for the headers -->
             <td>
               <q-btn
@@ -1108,7 +1131,7 @@ function shift(direction: string, index: number) {
                 flat
                 @click="deleteRow(j)"
                 ><q-tooltip>Delete the row</q-tooltip></q-btn
-              >{{ j + 1 }}
+              >{{ j + 1 + (tablePage - 1) * 100 }}
             </td>
             <td
               v-for="(column, i) in templateProperties.template"
@@ -1130,13 +1153,18 @@ function shift(direction: string, index: number) {
                     border: 0px;
                     font-size: small;
                   "
-                  v-model="templateProperties.content[i][j]" />
+                  v-model="
+                    templateProperties.content[i][j + (tablePage - 1) * 100]
+                  " />
               </div>
             </td>
           </tr>
         </tbody>
       </q-markup-table>
-      <q-btn icon="add" @click="extendTemplate()"
+      <q-btn
+        icon="add"
+        @click="extendTemplate()"
+        :disable="tablePage < templateProperties.pages"
         >Extend<q-tooltip>Add a new row</q-tooltip></q-btn
       >
     </q-scroll-area>
