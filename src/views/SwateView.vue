@@ -958,10 +958,7 @@ function shift(direction: string, index: number) {
           v-model="tablePage"
           boundary-numbers
           :max-pages="6"
-          @update:model-value="
-            console.log(tablePage);
-            keyNumber += 1;
-          "></q-pagination>
+          @update:model-value="keyNumber += 1"></q-pagination>
       </div>
       <!-- The table to enter the values with swate is a default html table -->
       <q-markup-table
@@ -1129,7 +1126,7 @@ function shift(direction: string, index: number) {
                 round
                 dense
                 flat
-                @click="deleteRow(j)"
+                @click="deleteRow((tablePage - 1) * 100 + j)"
                 ><q-tooltip>Delete the row</q-tooltip></q-btn
               >{{ j + 1 + (tablePage - 1) * 100 }}
             </td>

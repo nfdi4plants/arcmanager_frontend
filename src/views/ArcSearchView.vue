@@ -188,6 +188,7 @@ function sortArcs(searchTerm: string) {
   searchList = [];
   searchTerm = searchTerm.replace("ü", "ue");
   arcJson.forEach((element) => {
+    console.log(element);
     // craft the string to search in including the name of the arc, the creators name, the id and the topics of the arc
     let searchString = `${element.name.toLowerCase()}
     ${element.id}
