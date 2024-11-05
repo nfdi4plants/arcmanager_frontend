@@ -1257,6 +1257,7 @@ async function getSheets(path: string, id: number, branch: string) {
     // save the sheets
     sheetProperties.sheets = sheets[0];
     sheetProperties.names = sheets[1];
+    templateProperties.pages = 1;
   }
   loading = false;
   forcereload();
@@ -2274,7 +2275,12 @@ async function validateArc() {
           icon="open_in_new"
           glossy
           :key="refresher + 1"
-          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+          ><template
+            v-if="
+              !appProperties.showIsaView &&
+              appProperties.arcList &&
+              windowWidth > 1520
+            "
             >Open</template
           ><q-tooltip
             >Open the arc from the datahub in a new tab</q-tooltip
@@ -2282,7 +2288,12 @@ async function validateArc() {
         >
         <!-- ZIP -->
         <q-btn icon="download" @click="getArchive(arcId)" glossy color="teal-10"
-          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+          ><template
+            v-if="
+              !appProperties.showIsaView &&
+              appProperties.arcList &&
+              windowWidth > 1520
+            "
             >zip</template
           ><q-tooltip
             >Download the arc compressed as a zip file</q-tooltip
@@ -2291,7 +2302,12 @@ async function validateArc() {
 
         <!-- Reloads the arc -->
         <q-btn icon="refresh" @click="inspectArc(arcId)" glossy
-          ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+          ><template
+            v-if="
+              !appProperties.showIsaView &&
+              appProperties.arcList &&
+              windowWidth > 1520
+            "
             >Reload</template
           ><q-tooltip>Reload the content of the arc</q-tooltip></q-btn
         >
@@ -2311,7 +2327,13 @@ async function validateArc() {
   <div class="q-pa-xs row q-gutter-sm" v-if="arcList.length != 0">
     <q-btn-group style="max-height: 3em">
       <q-btn class="send" icon="checklist" @click="validateArc()"
-        ><template v-if="!appProperties.showIsaView">Validate</template
+        ><template
+          v-if="
+            !appProperties.showIsaView &&
+            appProperties.arcList &&
+            windowWidth > 1520
+          "
+          >Validate</template
         ><q-tooltip>Performs a validation check on your ARC</q-tooltip></q-btn
       ><!-- SYNC ASSAY-->
       <q-btn
@@ -2360,7 +2382,12 @@ async function validateArc() {
         ></q-btn
       ><!-- USER MANAGEMENT-->
       <q-btn icon="person" glossy id="user"
-        ><template v-if="!appProperties.showIsaView && appProperties.arcList"
+        ><template
+          v-if="
+            !appProperties.showIsaView &&
+            appProperties.arcList &&
+            windowWidth > 1520
+          "
           >Members</template
         ><q-menu>
           <q-list style="min-width: 100px">
@@ -3287,6 +3314,7 @@ async function validateArc() {
     </template>
   </q-list>
 </template>
+
 <style>
 input[type="file"] {
   display: none;

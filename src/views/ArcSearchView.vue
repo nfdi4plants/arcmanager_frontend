@@ -1,7 +1,10 @@
 <script lang="ts" setup>
 import appProperties from "@/AppProperties";
 import isaProperties from "@/IsaProperties";
+import { useQuasar } from "quasar";
 import { ref } from "vue";
+
+const $q = useQuasar();
 
 var backend = appProperties.backend + "search/";
 

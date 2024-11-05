@@ -347,7 +347,11 @@ function setTemplate(table: Table) {
     ];
     templateProperties.content = [[""], [""]];
   }
-  templateProperties.rowId = 1;
+  templateProperties.rowId = templateProperties.content[0].length;
+  sheetProperties.rowIds = [];
+  for (let j = 0; j < templateProperties.content[0].length; j++) {
+    sheetProperties.rowIds.push(j + 1);
+  }
   loading = false;
   keyNumber.value += 1;
 }
@@ -640,6 +644,8 @@ async function selectSheet(name: string, index: number) {
   } else {
     appProperties.arcList = false;
   }
+  templateProperties.templateName = "-";
+  templateProperties.templateVersion = "";
   sheetProperties.sheets = sheetProperties.names = [];
   setIds();
 }

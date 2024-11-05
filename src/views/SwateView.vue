@@ -79,6 +79,9 @@ var unitSearch = ref("");
 // current page of the table (used in case of more than 100 rows)
 var tablePage = ref(1);
 
+// amount of rows per page
+var rowsPerPage = 100;
+
 // the type of term to be searched for
 var searchType = "";
 
@@ -262,6 +265,13 @@ function extendTemplate() {
   });
   sheetProperties.rowIds.push(sheetProperties.rowIds.length);
   templateProperties.rowId = sheetProperties.rowIds.length;
+  if (
+    templateProperties.rowId % rowsPerPage == 1 &&
+    templateProperties.rowId > rowsPerPage
+  ) {
+    templateProperties.pages += 1;
+    tablePage.value += 1;
+  }
   keyNumber.value += 1;
 }
 
@@ -448,6 +458,15 @@ function deleteRow(rowIndex: number) {
     if (templateProperties.rowId > sheetProperties.rowIds.length - 1)
       templateProperties.rowId = sheetProperties.rowIds.pop() - 1;
     else sheetProperties.rowIds.pop();
+
+    // delete the table page if its last row is deleted
+    if (
+      sheetProperties.rowIds.length % rowsPerPage == 0 &&
+      sheetProperties.rowIds.length >= rowsPerPage
+    ) {
+      tablePage.value -= 1;
+      templateProperties.pages -= 1;
+    }
     keyNumber.value += 1;
   });
 }
@@ -951,7 +970,10 @@ function shift(direction: string, index: number) {
         "
         >Add custom column</q-btn
       >
-      <div v-show="templateProperties.pages > 1" class="q-pa-lg flex">
+      <div
+        v-show="templateProperties.pages > 1"
+        class="q-pa-lg flex"
+        :key="keyNumber">
         Page:
         <q-pagination
           :max="templateProperties.pages"
@@ -1114,8 +1136,8 @@ function shift(direction: string, index: number) {
         <tbody>
           <tr
             v-for="(row, j) in templateProperties.content[0].slice(
-              (tablePage - 1) * 100,
-              tablePage * 100
+              (tablePage - 1) * rowsPerPage,
+              tablePage * rowsPerPage
             )">
             <!-- insert a second row containing the cell values for the headers -->
             <td>
@@ -1126,9 +1148,9 @@ function shift(direction: string, index: number) {
                 round
                 dense
                 flat
-                @click="deleteRow((tablePage - 1) * 100 + j)"
+                @click="deleteRow((tablePage - 1) * rowsPerPage + j)"
                 ><q-tooltip>Delete the row</q-tooltip></q-btn
-              >{{ j + 1 + (tablePage - 1) * 100 }}
+              >{{ j + 1 + (tablePage - 1) * rowsPerPage }}
             </td>
             <td
               v-for="(column, i) in templateProperties.template"
@@ -1151,7 +1173,9 @@ function shift(direction: string, index: number) {
                     font-size: small;
                   "
                   v-model="
-                    templateProperties.content[i][j + (tablePage - 1) * 100]
+                    templateProperties.content[i][
+                      j + (tablePage - 1) * rowsPerPage
+                    ]
                   " />
               </div>
             </td>
