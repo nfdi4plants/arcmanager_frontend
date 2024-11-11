@@ -352,6 +352,7 @@ function setTemplate(table: Table) {
   for (let j = 0; j < templateProperties.content[0].length; j++) {
     sheetProperties.rowIds.push(j + 1);
   }
+  templateProperties.pages = sheetProperties.rowIds.length;
   loading = false;
   keyNumber.value += 1;
 }
@@ -616,7 +617,7 @@ async function selectSheet(name: string, index: number) {
     templateProperties.content.push(cellContent);
 
     templateProperties.pages =
-      Math.floor(sheetProperties.sheets[index].data.length / 100) + 1;
+      Math.floor(sheetProperties.sheets[index].data.length / 50) + 1;
   }
   // if the content is empty, get a list of templates and display them
   if (templateProperties.template.length == 0) {

@@ -110,6 +110,9 @@ const loginOptions: ReadonlyArray<{
   },
 ];
 
+const manualLink =
+  "https://nfdi4plants.github.io/nfdi4plants.knowledgebase/arc-manager/";
+
 if ($q.cookies.get("logged_in") != null) {
   appProperties.loggedIn = true;
 
@@ -476,7 +479,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
       <q-footer bordered class="footer row">
         <a
           class="footer"
-          href="https://www.nfdi4plants.de/nfdi4plants.knowledgebase/docs/ARCmanager-manual/00_index.html"
+          :href="manualLink"
           target="_blank"
           style="margin-left: 45%"
           >Manual</a

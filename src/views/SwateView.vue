@@ -80,7 +80,7 @@ var unitSearch = ref("");
 var tablePage = ref(1);
 
 // amount of rows per page
-var rowsPerPage = 100;
+var rowsPerPage = 50;
 
 // the type of term to be searched for
 var searchType = "";
