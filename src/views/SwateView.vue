@@ -779,11 +779,12 @@ function shift(direction: string, index: number) {
         ><q-btn @click="getTerms(search)" :disable="search.length == 0"
           >Search</q-btn
         >
+        <!-- Checkbox for advanced search is disabled for now
         <q-checkbox v-model="advanced"
           >Extended search<q-tooltip
             >Search for any term containing the name</q-tooltip
           ></q-checkbox
-        >
+        >-->
         <q-btn id="suggestion" @click="getSuggestionsByParent()"
           >Get suggestions<q-tooltip
             >Get fitting suggestions for the parent term</q-tooltip

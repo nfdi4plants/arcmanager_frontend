@@ -23,3 +23,11 @@ npm run dev
 ```sh
 npm run build
 ```
+
+For local development change the line in [AppProperties.ts](./src/AppProperties.ts) to:
+
+```typescript
+//address of the backend
+//backend: "https://nfdi4plants.de/arcmanager/api/v1/",
+backend: "http://localhost:8000/arcmanager/api/v1/",
+```
