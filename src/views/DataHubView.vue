@@ -1253,7 +1253,7 @@ async function fileUpload(folder = false) {
             $q.loading.hide();
             uploading = false;
           } else {
-            if (response.status == 201) filesDone++;
+            if (response.status == 201 || response.status == 200) filesDone++;
             const temp = `Chunk ${
               chunkNumber + 1
             }/${totalChunks} uploaded successfully`;
@@ -2441,11 +2441,10 @@ async function validateArc() {
           ><q-tooltip>Reload the content of the arc</q-tooltip></q-btn
         >
       </q-btn-group>
-      <!-- activates lfs -->
+      <!-- activates lfs
       <q-checkbox v-model="lfs"
-        >LFS<q-tooltip>Activate lfs for your file upload</q-tooltip></q-checkbox
-      ></template
-    >
+        >LFS<q-tooltip>Activate lfs for your file upload</q-tooltip></q-checkbox> -->
+    </template>
 
     <!-- LOADING SPINNER --><q-spinner
       id="loader"
@@ -2752,7 +2751,7 @@ async function validateArc() {
       <div style="display: block; margin: 0 auto; max-width: 100%">
         <q-splitter v-model="splitterModel" style="height: 100%">
           <template v-slot:before v-if="arcList.length > 0">
-            <div class="q-pa-xs">
+            <div class="q-pa-xs row">
               <q-tree
                 :nodes="arcTreeList"
                 dense

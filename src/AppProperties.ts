@@ -5,8 +5,8 @@ const appProperties = reactive({
   loggedIn: false,
 
   //address of the backend
-  backend: "https://nfdi4plants.de/arcmanager/api/v1/",
-  //backend: "http://localhost:8000/arcmanager/api/v1/",
+  //backend: "https://nfdi4plants.de/arcmanager/api/v1/",
+  backend: "http://localhost:8000/arcmanager/api/v1/",
 
   // displays the right side
   showIsaView: false,
@@ -18,7 +18,7 @@ const appProperties = reactive({
   experimental: false,
 
   // displays dark mode
-  dark: false,
+  dark: true,
 
   //version of the app
   version: "1.1.0",

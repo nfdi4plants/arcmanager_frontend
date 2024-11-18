@@ -146,7 +146,7 @@ async function saveSheet() {
       path: isaProperties.path,
       id: isaProperties.repoId,
       // replace whitespace with underscores
-      name: sheetProperties.name.replace(" ", "_"),
+      name: sheetProperties.name,
       branch: arcProperties.branch,
     }),
     credentials: "include",
@@ -918,8 +918,7 @@ function shift(direction: string, index: number) {
           style="width: 10%"
           label="Sheet name"
           v-model="sheetProperties.name"
-          placeholder="Name your sheet"
-          :rules="[(val) => !val.includes(' ') || 'No whitespace allowed!']" />
+          placeholder="Name your sheet" />
         <span
           style="padding-left: 2em"
           v-if="templateProperties.templateName != ''"
