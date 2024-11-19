@@ -756,6 +756,7 @@ function checkName(name: String) {
     ".bak",
     ".zj",
     ".mztab",
+    ".ab1",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {

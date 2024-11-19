@@ -1,6 +1,6 @@
 {
   "name": "arcmanager",
-  "version": "1.0.7",
+  "version": "1.1.2",
   "private": true,
   "scripts": {
     "dev": "vite",

@@ -320,7 +320,7 @@ const userPermissions: ReadonlyArray<{ label: string; value: number }> = [
   },
 ];
 // the permission level for the new user
-var permission = ref({ label: "Developer", value: 30 });
+var permission = ref({ label: "Maintainer", value: 40 });
 
 // the selected study and assay
 var studySelect = ref("");
@@ -1809,7 +1809,7 @@ async function getUser() {
   forcereload();
   userList = [];
   userSelect.value = { label: "", value: 0 };
-  permission.value = { label: "Developer", value: 30 };
+  permission.value = { label: "Maintainer", value: 40 };
   try {
     // get all users
     let user = await fetch(appProperties.backend + "user/" + "getUser", {
@@ -1862,7 +1862,7 @@ async function getArcUser(id: number) {
   forcereload();
   userList = [];
   userSelect.value = { label: "", value: 0 };
-  permission.value = { label: "Developer", value: 30 };
+  permission.value = { label: "Maintainer", value: 40 };
   try {
     // get all users that are part of the arc
     let user = await fetch(
@@ -3430,7 +3430,7 @@ async function validateArc() {
               user = -1;
               addUser(arcId, userSelect, permission);
               userSelect = { label: '', value: 0 };
-              permission = { label: 'Developer', value: 30 };
+              permission = { label: 'Maintainer', value: 40 };
               forcereload();
             "
             :disable="userSelect.label == '' || permission.label == ''"
@@ -3443,7 +3443,7 @@ async function validateArc() {
               user = -1;
               removeUser(arcId, userSelect);
               userSelect = { label: '', value: 0 };
-              permission = { label: 'Developer', value: 30 };
+              permission = { label: 'Maintainer', value: 40 };
               forcereload();
             "
             :disable="userSelect.label == ''"
@@ -3456,7 +3456,7 @@ async function validateArc() {
               user = -1;
               editUser(arcId, userSelect, permission);
               userSelect = { label: '', value: 0 };
-              permission = { label: 'Developer', value: 30 };
+              permission = { label: 'Maintainer', value: 40 };
               forcereload();
             "
             :disable="userSelect.label == '' || permission.label == ''"
@@ -3535,7 +3535,7 @@ input[type="file"] {
 
 /* DARK MODE */
 .body--dark #arcFetch {
-  background-color: dodgerblue;
+  background-color: rebeccapurple;
   max-width: 200px;
 }
 

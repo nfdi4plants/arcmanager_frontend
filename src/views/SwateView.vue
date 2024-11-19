@@ -695,8 +695,9 @@ function shift(direction: string, index: number) {
 
   let counter = 1;
   while (
-    templateProperties.template[index + counter].Type.startsWith("Unit") ||
-    templateProperties.template[index + counter].Type.startsWith("Term")
+    index + counter < templateProperties.template.length - 1 &&
+    (templateProperties.template[index + counter].Type.startsWith("Unit") ||
+      templateProperties.template[index + counter].Type.startsWith("Term"))
   ) {
     columns.push(templateProperties.template[index + counter]);
     content.push(templateProperties.content[index + counter]);
@@ -728,10 +729,13 @@ function shift(direction: string, index: number) {
     case "right":
       let shiftRight = 1;
       while (
-        templateProperties.template[index + shiftRight].Type.startsWith(
+        index + shiftRight < templateProperties.template.length - 1 &&
+        (templateProperties.template[index + shiftRight].Type.startsWith(
           "Unit"
         ) ||
-        templateProperties.template[index + shiftRight].Type.startsWith("Term")
+          templateProperties.template[index + shiftRight].Type.startsWith(
+            "Term"
+          ))
       ) {
         shiftRight += 1;
       }
@@ -1115,7 +1119,7 @@ function shift(direction: string, index: number) {
                   dense
                   unelevated
                   icon="chevron_left"
-                  v-if="i > 1"
+                  v-if="i > 0 && checkName(templateProperties.template[i].Type)"
                   @click="shift('left', i)" />
                 <q-btn
                   size="xs"
@@ -1127,7 +1131,8 @@ function shift(direction: string, index: number) {
                   v-if="
                     (i < templateProperties.template.length - 4 &&
                       i != templateProperties.template.length - 5) ||
-                    checkName(templateProperties.template[i + 1].Type)
+                    (i < templateProperties.template.length - 1 &&
+                      checkName(templateProperties.template[i + 1].Type))
                   " />
               </template>
             </th>
