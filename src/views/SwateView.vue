@@ -464,7 +464,7 @@ function deleteRow(rowIndex: number) {
       sheetProperties.rowIds.length % rowsPerPage == 0 &&
       sheetProperties.rowIds.length >= rowsPerPage
     ) {
-      tablePage.value -= 1;
+      if (tablePage.value == templateProperties.pages) tablePage.value -= 1;
       templateProperties.pages -= 1;
     }
     keyNumber.value += 1;
@@ -1119,7 +1119,11 @@ function shift(direction: string, index: number) {
                   dense
                   unelevated
                   icon="chevron_left"
-                  v-if="i > 0 && checkName(templateProperties.template[i].Type)"
+                  v-if="
+                    i > 0 &&
+                    checkName(templateProperties.template[i].Type) &&
+                    !templateProperties.template[i - 1].Type.startsWith('Input')
+                  "
                   @click="shift('left', i)" />
                 <q-btn
                   size="xs"

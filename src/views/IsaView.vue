@@ -564,7 +564,7 @@ async function selectSheet(name: string, index: number) {
       let accession = "";
       try {
         // retrieve the accession (get the word between the square brackets)
-        accession = sheetProperties.sheets[index].columns[i + 1]
+        accession = sheetProperties.sheets[index].columns[i + 2]
           .split("[")[1]
           .split("]")[0];
 
@@ -575,7 +575,7 @@ async function selectSheet(name: string, index: number) {
       } catch (error) {
         try {
           // retrieve the accession (get the word between the round brackets)
-          accession = sheetProperties.sheets[index].columns[i + 1]
+          accession = sheetProperties.sheets[index].columns[i + 2]
             .split("(")[1]
             .split(")")[0];
         } catch (error) {
