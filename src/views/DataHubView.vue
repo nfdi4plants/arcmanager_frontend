@@ -459,6 +459,7 @@ async function fetchArcs(page = 1) {
         );
         const data = await response.json();
         if (!response.ok) {
+          arcsPageMax = 1;
           throw new Error(response.statusText + ", " + data["detail"]);
         }
         // get the number of total pages
@@ -1096,22 +1097,29 @@ async function addIsa(
 ) {
   loading = true;
   forcereload();
-  await fetch(backend + "createISA", {
-    credentials: "include",
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      identifier: identifier,
-      id: id,
-      type: type,
-      branch: branch,
-    }),
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      // get the updated tree
-      inspectTree(id, type);
+  try {
+    const response = await fetch(backend + "createISA", {
+      credentials: "include",
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: identifier,
+        id: id,
+        type: type,
+        branch: branch,
+      }),
     });
+    const data = await response.json();
+    if (!response.ok)
+      throw new Error(response.statusText + ", " + data["detail"]);
+  } catch (error: any) {
+    $q.notify({
+      type: "negative",
+      message: error.toString(),
+    });
+    errors = error.toString();
+  }
+  inspectTree(id, type);
 
   // get the updated changes, assays and studies
   await getChanges(id, arcProperties.branch);

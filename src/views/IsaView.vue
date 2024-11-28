@@ -617,7 +617,7 @@ async function selectSheet(name: string, index: number) {
     templateProperties.content.push(cellContent);
 
     templateProperties.pages =
-      Math.floor(sheetProperties.sheets[index].data.length / 50) + 1;
+      Math.floor(sheetProperties.sheets[index].data.length / 51) + 1;
   }
   // if the content is empty, get a list of templates and display them
   if (templateProperties.template.length == 0) {
@@ -757,6 +757,7 @@ function checkName(name: String) {
     ".zj",
     ".mztab",
     ".ab1",
+    ".bib",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {

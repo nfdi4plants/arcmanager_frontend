@@ -59,6 +59,11 @@ var customColumnTerms = ref(false);
 // whether or not the new column should also have a unit column
 var customColumnUnit = ref(false);
 
+// whether or not the input/output column is sticky
+var stickyColumn = ref(false);
+var stickyOutput = ref(false);
+// sticks the top row of the table
+var stickyHead = ref(true);
 ////////
 
 // set to true if the building block has a unit
@@ -236,7 +241,7 @@ function extendTemplate() {
   // extend each column by a new cell
   templateProperties.template.forEach((element, i) => {
     // if the column is a unit, fill the new cell with the name of the unit
-    if (templateProperties.template[i].Type.startsWith("Unit")) {
+    if (element.Type.startsWith("Unit")) {
       templateProperties.content[i].push(templateProperties.content[i][0]);
       if (templateProperties.template[i - 1].Type.startsWith("Term")) {
         templateProperties.content[i - 1].pop();
@@ -254,7 +259,7 @@ function extendTemplate() {
     } else {
       // skip adding an empty field if its a term column related to a unit
       if (
-        !templateProperties.template[i].Type.startsWith("Term") ||
+        !element.Type.startsWith("Term") ||
         !(
           templateProperties.template[i - 1].Type.startsWith("Unit") ||
           templateProperties.template[i - 2].Type.startsWith("Unit")
@@ -987,19 +992,77 @@ function shift(direction: string, index: number) {
           @update:model-value="keyNumber += 1"></q-pagination>
       </div>
       <!-- The table to enter the values with swate is a default html table -->
-      <q-markup-table
+      <table
         style="width: max-content; border-collapse: collapse"
-        separator="cell"
-        :key="keyNumber"
-        dense>
+        :key="keyNumber">
         <thead>
-          <tr q-tr--no-hover>
+          <tr q-tr--no-hover class="stickyRow">
             <!-- Each table header column is a entry in the template array -->
-            <th style="width: 1em; al"></th>
+            <th style="width: 1em; al">
+              <q-btn
+                icon="push_pin"
+                size="xs"
+                :color="
+                  stickyHead ? (appProperties.dark ? 'white' : 'black') : 'grey'
+                "
+                round
+                dense
+                flat
+                @click="stickyHead = !stickyHead"
+                ><q-tooltip>Pin the head row</q-tooltip></q-btn
+              ><br /><span style="font-weight: 500; font-size: 12px"
+                >Stick row</span
+              >
+            </th>
             <th
+              :class="{
+                sticky: i == 0 && stickyColumn,
+                stickyOutput:
+                  i == templateProperties.template.length - 1 && stickyOutput,
+                stickyRow:
+                  stickyHead &&
+                  i != 0 &&
+                  i < templateProperties.template.length - 1,
+              }"
               v-for="(column, i) in templateProperties.template"
               v-show="!(column.Type.startsWith('Term') && hidden)"
               style="width: 13em">
+              <q-btn
+                v-if="i == 0"
+                icon="push_pin"
+                size="xs"
+                :color="
+                  stickyColumn
+                    ? appProperties.dark
+                      ? 'white'
+                      : 'black'
+                    : 'grey'
+                "
+                round
+                dense
+                flat
+                @click="stickyColumn = !stickyColumn"
+                ><q-tooltip>Pin the first column to the left</q-tooltip></q-btn
+              >
+              <q-btn
+                v-if="i == templateProperties.template.length - 1"
+                icon="push_pin"
+                size="xs"
+                :color="
+                  stickyOutput
+                    ? appProperties.dark
+                      ? 'white'
+                      : 'black'
+                    : 'grey'
+                "
+                round
+                dense
+                flat
+                @click="stickyOutput = !stickyOutput"
+                ><q-tooltip>Pin the last column to the right</q-tooltip></q-btn
+              >
+              <br
+                v-if="i == 0 || i == templateProperties.template.length - 1" />
               <!-- Input and Output columns are editable (e.g. to exchange source name to image file)-->
               <template
                 v-if="
@@ -1008,7 +1071,7 @@ function shift(direction: string, index: number) {
                 "
                 ><input
                   type="text"
-                  style="width: 100%; height: unset; border: 0px"
+                  style="width: 90%; height: unset; border: 0px"
                   v-model="column.Type"
               /></template>
               <!-- if there are round brackets-->
@@ -1163,7 +1226,12 @@ function shift(direction: string, index: number) {
             </td>
             <td
               v-for="(column, i) in templateProperties.template"
-              v-show="!(column.Type.startsWith('Term') && hidden)">
+              v-show="!(column.Type.startsWith('Term') && hidden)"
+              :class="{
+                sticky: i == 0 && stickyColumn,
+                stickyOutput:
+                  i == templateProperties.template.length - 1 && stickyOutput,
+              }">
               <div
                 style="
                   display: flex;
@@ -1190,7 +1258,7 @@ function shift(direction: string, index: number) {
             </td>
           </tr>
         </tbody>
-      </q-markup-table>
+      </table>
       <q-btn
         icon="add"
         @click="extendTemplate()"
@@ -1204,8 +1272,23 @@ function shift(direction: string, index: number) {
 td,
 th {
   border: 1px solid;
-  padding: 1px;
+  padding: 4px;
   font-size: small;
+  border-color: #0000001f;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+input {
+  background-color: inherit;
+}
+
+.body--dark td,
+.body--dark th {
+  border-color: #ffffff47;
 }
 
 .body--light .sheet {
@@ -1225,7 +1308,51 @@ th {
 }
 
 .body--dark input {
-  background-color: #1d1d1d;
   color: white;
+}
+
+th.sticky,
+td.sticky {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: whitesmoke;
+  box-shadow: inset -1px 0 0 black;
+}
+
+td.stickyOutput,
+th.stickyOutput {
+  position: sticky;
+  right: 0;
+  z-index: 10;
+  background: whitesmoke;
+  box-shadow: inset 1px 0 0 black;
+}
+
+td.stickyRow,
+th.stickyRow {
+  position: sticky;
+  top: 0;
+  z-index: 11;
+  background: whitesmoke;
+  box-shadow: inset 0 -1px 0 black;
+}
+
+.body--dark th.stickyOutput,
+.body--dark td.stickyOutput {
+  background: #050505;
+  box-shadow: inset 1px 0 0 #ffffff47;
+}
+
+.body--dark th.sticky,
+.body--dark td.sticky {
+  background: #050505;
+  box-shadow: inset -1px 0 0 #ffffff47;
+}
+
+.body--dark th.stickyRow,
+.body--dark td.stickyRow {
+  background: #050505;
+  box-shadow: inset 0 -1px 0 #ffffff47;
 }
 </style>
