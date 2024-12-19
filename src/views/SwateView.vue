@@ -63,7 +63,7 @@ var customColumnUnit = ref(false);
 var stickyColumn = ref(false);
 var stickyOutput = ref(false);
 // sticks the top row of the table
-var stickyHead = ref(true);
+var stickyHead = ref(false);
 ////////
 
 // set to true if the building block has a unit
@@ -85,7 +85,7 @@ var unitSearch = ref("");
 var tablePage = ref(1);
 
 // amount of rows per page
-var rowsPerPage = 50;
+var rowsPerPage = sheetProperties.rowsPerPage;
 
 // the type of term to be searched for
 var searchType = "";

@@ -539,6 +539,7 @@ function setUnit(term: Term) {
  * @param index - the index value of the sheet inside of the sheets array
  */
 async function selectSheet(name: string, index: number) {
+  let selectedSheet = sheetProperties.sheets[index];
   sheetProperties.name = name;
   templateProperties.template = [];
   templateProperties.content = [];
@@ -546,11 +547,10 @@ async function selectSheet(name: string, index: number) {
   errors = "";
   sheetProperties.columnIds = 1;
 
-  if (sheetProperties.sheets[index].columns.length > 0)
-    appProperties.showIsaView = false;
+  if (selectedSheet.columns.length > 0) appProperties.showIsaView = false;
   // create the table column by column
-  for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
-    let element = sheetProperties.sheets[index].columns[i];
+  for (let i = 0; i < selectedSheet.columns.length; i++) {
+    let element = selectedSheet.columns[i];
     let words = element.split(" [");
     // whether its a custom column
     let custom = false;
@@ -564,9 +564,7 @@ async function selectSheet(name: string, index: number) {
       let accession = "";
       try {
         // retrieve the accession (get the word between the square brackets)
-        accession = sheetProperties.sheets[index].columns[i + 2]
-          .split("[")[1]
-          .split("]")[0];
+        accession = selectedSheet.columns[i + 2].split("[")[1].split("]")[0];
 
         if (element.includes("[C]")) {
           custom = true;
@@ -575,9 +573,7 @@ async function selectSheet(name: string, index: number) {
       } catch (error) {
         try {
           // retrieve the accession (get the word between the round brackets)
-          accession = sheetProperties.sheets[index].columns[i + 2]
-            .split("(")[1]
-            .split(")")[0];
+          accession = selectedSheet.columns[i + 2].split("(")[1].split(")")[0];
         } catch (error) {
           accession = "";
         }
@@ -611,13 +607,16 @@ async function selectSheet(name: string, index: number) {
     let cellContent: string[] = [];
 
     // load in the cell data row by row
-    for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
-      cellContent.push(sheetProperties.sheets[index].data[j][i]);
+    for (let j = 0; j < selectedSheet.data.length; j++) {
+      cellContent.push(selectedSheet.data[j][i]);
     }
     templateProperties.content.push(cellContent);
 
-    templateProperties.pages =
-      Math.floor(sheetProperties.sheets[index].data.length / 51) + 1;
+    templateProperties.pages = Math.floor(
+      selectedSheet.data.length / sheetProperties.rowsPerPage
+    );
+    if (selectedSheet.data.length % sheetProperties.rowsPerPage > 0)
+      templateProperties.pages += 1;
   }
   // if the content is empty, get a list of templates and display them
   if (templateProperties.template.length == 0) {
@@ -758,6 +757,8 @@ function checkName(name: String) {
     ".mztab",
     ".ab1",
     ".bib",
+    ".gtf",
+    ".sf",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {

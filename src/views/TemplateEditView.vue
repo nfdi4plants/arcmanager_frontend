@@ -761,7 +761,8 @@ if (templateList.length == 0) getTemplates();
                       >{{ term.Name }}
                       <a
                         :href="
-                          'http://purl.obolibrary.org/obo/' + term.Accession
+                          'http://purl.obolibrary.org/obo/' +
+                          term.Accession.replace(':', '_')
                         "
                         target="_blank"
                         style="font-size: medium"
@@ -801,7 +802,8 @@ if (templateList.length == 0) getTemplates();
                       >{{ term.Name }}
                       <a
                         :href="
-                          'http://purl.obolibrary.org/obo/' + term.Accession
+                          'http://purl.obolibrary.org/obo/' +
+                          term.Accession.replace(':', '_')
                         "
                         target="_blank"
                         style="font-size: medium"
@@ -841,7 +843,8 @@ if (templateList.length == 0) getTemplates();
                       >{{ term.Name }}
                       <a
                         :href="
-                          'http://purl.obolibrary.org/obo/' + term.Accession
+                          'http://purl.obolibrary.org/obo/' +
+                          term.Accession.replace(':', '_')
                         "
                         target="_blank"
                         style="font-size: medium"

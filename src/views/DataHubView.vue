@@ -162,18 +162,21 @@ class TreeChildren {
   label: string;
   icon: string;
   key: string;
+  disabled = false;
   children: Array<TreeChildren>;
 
   constructor(
     label: string,
     icon: string,
     key: string,
-    children: Array<TreeChildren>
+    children: Array<TreeChildren>,
+    disabled = false
   ) {
     this.label = label;
     this.icon = icon;
     this.key = key;
     this.children = children;
+    this.disabled = disabled;
   }
 }
 
@@ -736,7 +739,13 @@ async function inspectArc(id: number) {
 
       let treeIcon = element.type == "tree" ? "folder" : "description";
       arcTreeChildren.push(
-        new TreeChildren(element.name, treeIcon, element.name, [])
+        new TreeChildren(
+          element.name,
+          treeIcon,
+          element.name,
+          [],
+          checkName(element.name)
+        )
       );
     });
 
@@ -865,7 +874,13 @@ async function inspectTree(
       let treeIcon = element.type == "tree" ? "folder" : "description";
       addTreeChildren(
         path,
-        new TreeChildren(element.name, treeIcon, path + "/" + element.name, [])
+        new TreeChildren(
+          element.name,
+          treeIcon,
+          path + "/" + element.name,
+          [],
+          checkName(element.name)
+        )
       );
 
       if (element.name == "isa.datamap.xlsx") containsDatamap = true;
@@ -1589,6 +1604,7 @@ function checkName(name: string) {
     ".swp",
     ".ab1",
     ".spf",
+    ".rds",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
