@@ -210,9 +210,16 @@ async function saveTemplate() {
   });
   if (!response.ok) {
     errors = "ERROR: Couldn't save Template!";
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     loading = false;
   } else {
-    $q.notify("Template was saved successfully!");
+    $q.notify({
+      type: "positive",
+      message: "Template was saved successfully!",
+    });
   }
   // cleanup
   template = [];
@@ -248,6 +255,10 @@ async function getSuggestions(tag = false) {
     let data = await terms.json();
     if (!terms.ok) {
       errors = "ERROR: " + data["detail"];
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
     } else {
       // if the list of tags is empty
       if (data["terms"].length == 0) {
@@ -267,6 +278,10 @@ async function getSuggestions(tag = false) {
     let data = await terms.json();
     if (!terms.ok) {
       errors = "ERROR: " + data["detail"];
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
     } else {
       // if the list of terms is empty
       if (data["terms"].length == 0) {
@@ -301,6 +316,10 @@ async function getUnitSuggestions() {
   let data = await terms.json();
   if (!terms.ok) {
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     // if the list of terms is empty
     if (data["terms"].length == 0) {
@@ -392,6 +411,10 @@ async function getTemplates() {
   // if there was an error, fill the templates with an empty template
   if (!response.ok) {
     errors = "ERROR: No templates found!";
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     templateList = [emptyTemplate];
     templatesFiltered = [emptyTemplate];
     forcereload();
@@ -584,7 +607,11 @@ function setBB(name: string, accession: string, source: string) {
   });
   // if column already exists, throw an error
   if (exists) {
-    errors = "ERROR: Column '" + name + "' already exists!!";
+    errors = "Warning: Column '" + name + "' already exists!!";
+    $q.notify({
+      type: "warning",
+      message: errors,
+    });
     forcereload();
   } else {
     // the new block will be inserted at the end of the last column list
@@ -620,11 +647,19 @@ function setUnit(name: string, accession: string, ontology: string) {
 
       // if there is already a unit column, throw an error
     } else {
-      errors = "ERROR: Building block already has a Unit!";
+      errors = "Warning: Building block already has a Unit!";
+      $q.notify({
+        type: "warning",
+        message: errors,
+      });
       forcereload();
     }
   } catch {
-    errors = "ERROR: You must add a parameter first!";
+    errors = "Warning: You must add a parameter first!";
+    $q.notify({
+      type: "warning",
+      message: errors,
+    });
     forcereload();
   }
   unitList = [];
@@ -726,7 +761,8 @@ if (templateList.length == 0) getTemplates();
                       >{{ term.Name }}
                       <a
                         :href="
-                          'http://purl.obolibrary.org/obo/' + term.Accession
+                          'http://purl.obolibrary.org/obo/' +
+                          term.Accession.replace(':', '_')
                         "
                         target="_blank"
                         style="font-size: medium"
@@ -766,7 +802,8 @@ if (templateList.length == 0) getTemplates();
                       >{{ term.Name }}
                       <a
                         :href="
-                          'http://purl.obolibrary.org/obo/' + term.Accession
+                          'http://purl.obolibrary.org/obo/' +
+                          term.Accession.replace(':', '_')
                         "
                         target="_blank"
                         style="font-size: medium"
@@ -806,7 +843,8 @@ if (templateList.length == 0) getTemplates();
                       >{{ term.Name }}
                       <a
                         :href="
-                          'http://purl.obolibrary.org/obo/' + term.Accession
+                          'http://purl.obolibrary.org/obo/' +
+                          term.Accession.replace(':', '_')
                         "
                         target="_blank"
                         style="font-size: medium"

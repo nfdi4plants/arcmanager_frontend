@@ -19,6 +19,9 @@ const sheetProperties = reactive({
 
   // amount of columns
   columnIds: 1,
+
+  // amount of rows per page of a sheet
+  rowsPerPage: 50,
 });
 
 export default sheetProperties;

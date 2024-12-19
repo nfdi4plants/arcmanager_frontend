@@ -26,6 +26,46 @@ import ArcSearchView from "./views/ArcSearchView.vue";
 
 const $q = useQuasar();
 
+class Banner {
+  id: number;
+  message: string;
+  starts_at: string;
+  ends_at: string;
+  color: string;
+  font: string;
+  target_access_levels: Array<string>;
+  target_path: string;
+  broadcast_type: string;
+  dismissable: boolean;
+  active: boolean;
+
+  constructor(
+    id: number,
+    message: string,
+    starts_at: string,
+    ends_at: string,
+    color: string,
+    font: string,
+    target_access_levels: Array<string>,
+    target_path: string,
+    broadcast_type: string,
+    dismissable: boolean,
+    active: boolean
+  ) {
+    this.id = id;
+    this.message = message;
+    this.starts_at = starts_at;
+    this.ends_at = ends_at;
+    this.color = color;
+    this.font = font;
+    this.target_access_levels = target_access_levels;
+    this.target_path = target_path;
+    this.broadcast_type = broadcast_type;
+    this.dismissable = dismissable;
+    this.active = active;
+  }
+}
+
 const layoutProperties = reactive({
   showLeft: true,
 });
@@ -60,7 +100,7 @@ var countDown = { hour: 2, minute: 0, second: 0 };
 var timer = ref(10);
 
 // when there is something to announce, it will be displayed in the header area
-var announcement = "";
+var announcement = ref("");
 
 // string containing info about a current error
 var errors: string;
@@ -109,6 +149,9 @@ const loginOptions: ReadonlyArray<{
     description: "Development server for federated DataHUB",
   },
 ];
+
+const manualLink =
+  "https://nfdi4plants.github.io/nfdi4plants.knowledgebase/arc-manager/";
 
 if ($q.cookies.get("logged_in") != null) {
   appProperties.loggedIn = true;
@@ -198,10 +241,6 @@ if (document.cookie.includes("error")) {
   window.alert(document.cookie.split("error=")[1]);
 }
 
-function openArcSearch() {
-  window.open("https://arcregistry.nfdi4plants.org/isasearch");
-}
-
 /** get the list of branches
  *
  * @param id - the id of the arc
@@ -224,14 +263,55 @@ async function getGroups() {
       });
     } else {
       errors = "Error retrieving your groups! Try to login again!";
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
     }
   } catch (error: any) {
     errors = error.toString();
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   }
   forcereload();
 }
 
+/** get the list of branches
+ *
+ * @param id - the id of the arc
+ */
+async function getBanner() {
+  try {
+    let request = await fetch(appProperties.backend + "projects/getBanner", {
+      credentials: "include",
+    });
+    if (request.ok) {
+      let bannerJson: Banner | null = await request.json();
+      if (bannerJson != null) announcement.value = bannerJson.message;
+    }
+  } catch (error: any) {
+    errors = error.toString();
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
+  }
+  forcereload();
+}
+
+// check if user settings prefer dark mode
+if (
+  window.matchMedia &&
+  window.matchMedia("(prefers-color-scheme: dark)").matches
+) {
+  appProperties.dark = true;
+  forcereload();
+}
+
 if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
+  getBanner();
   let time = Number($q.cookies.get("timer")) + 7200;
   let timeLeft = time - Math.floor(new Date().getTime() / 1000);
 
@@ -359,15 +439,6 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             <q-item-section style="margin-left: -1.2em">New ARC</q-item-section
             ><q-tooltip>Create a new Arc</q-tooltip> </q-item
           ><q-separator />
-          <!-- ARC REGISTRY-->
-          <q-item v-ripple clickable v-on:click="openArcSearch()">
-            <q-item-section avatar>
-              <q-icon color="grey-7" name="open_in_new"></q-icon>
-            </q-item-section>
-            <q-item-section style="margin-left: -1.2em"
-              >ARC Registry</q-item-section
-            ><q-tooltip>Open the Arc registry in a new tab</q-tooltip>
-          </q-item>
           <!-- TEMPLATE EDITOR-->
           <q-item
             v-if="appProperties.experimental"
@@ -389,9 +460,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             ><q-tooltip>Open the template editor</q-tooltip>
           </q-item>
           <!-- ARC SEARCH -->
-          <q-separator v-if="appProperties.experimental"></q-separator>
           <q-item
-            v-if="appProperties.experimental"
             v-ripple
             clickable
             v-on:click="
@@ -483,7 +552,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
       <q-footer bordered class="footer row">
         <a
           class="footer"
-          href="https://www.nfdi4plants.de/nfdi4plants.knowledgebase/docs/ARCmanager-manual/00_index.html"
+          :href="manualLink"
           target="_blank"
           style="margin-left: 45%"
           >Manual</a
@@ -503,8 +572,9 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
         bordered
         class="footer"
         v-if="announcement != ''"
+        style="text-align: center"
         :key="refresher + 7">
-        <span style="margin-left: 40%">{{ announcement }}</span>
+        <span>{{ announcement }}</span>
       </q-header>
       <q-page padding>
         <q-item-section v-if="errors != ''">{{ errors }}</q-item-section>

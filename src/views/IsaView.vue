@@ -70,6 +70,10 @@ async function buildChart(password: string) {
   let data = await metrics.json();
   if (!metrics.ok) {
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
   } else {
     authorized.value = true;
     let responseTimes = data["responseTimes"];
@@ -210,6 +214,10 @@ async function commitFile() {
   if (!(await response).ok) {
     let data = await response.json();
     errors = "ERROR: " + data["detail"];
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     fileProperties.name = "";
@@ -339,7 +347,12 @@ function setTemplate(table: Table) {
     ];
     templateProperties.content = [[""], [""]];
   }
-  templateProperties.rowId = 1;
+  templateProperties.rowId = templateProperties.content[0].length;
+  sheetProperties.rowIds = [];
+  for (let j = 0; j < templateProperties.content[0].length; j++) {
+    sheetProperties.rowIds.push(j + 1);
+  }
+  templateProperties.pages = sheetProperties.rowIds.length;
   loading = false;
   keyNumber.value += 1;
 }
@@ -419,7 +432,11 @@ function setBB(term: Term) {
         element.Type == termProperties.parameterType + " [" + term.Name + "]"
     )
   ) {
-    errors = "ERROR: Column '" + term.Name + "' already exists!!";
+    errors = "Warning: Column '" + term.Name + "' already exists!!";
+    $q.notify({
+      type: "warning",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     appProperties.showIsaView = false;
@@ -432,10 +449,10 @@ function setBB(term: Term) {
         Accession: term.Accession,
       },
       {
-        Type: "Term Source REF [" + term.Accession + "]",
+        Type: "Term Source REF (" + term.Accession + ")",
       },
       {
-        Type: "Term Accession Number [" + term.Accession + "]",
+        Type: "Term Accession Number (" + term.Accession + ")",
       }
     );
 
@@ -499,11 +516,19 @@ function setUnit(term: Term) {
       appProperties.showIsaView = false;
       // if there is already a unit column, throw an error
     } else {
-      errors = "ERROR: Building block already has a Unit!";
+      errors = "Warning: Building block already has a Unit!";
+      $q.notify({
+        type: "warning",
+        message: errors,
+      });
       keyNumber.value += 1;
     }
   } catch {
-    errors = "ERROR: You must add a parameter first!";
+    errors = "Warning: You must add a parameter first!";
+    $q.notify({
+      type: "warning",
+      message: errors,
+    });
     keyNumber.value += 1;
   }
 }
@@ -514,6 +539,7 @@ function setUnit(term: Term) {
  * @param index - the index value of the sheet inside of the sheets array
  */
 async function selectSheet(name: string, index: number) {
+  let selectedSheet = sheetProperties.sheets[index];
   sheetProperties.name = name;
   templateProperties.template = [];
   templateProperties.content = [];
@@ -521,11 +547,10 @@ async function selectSheet(name: string, index: number) {
   errors = "";
   sheetProperties.columnIds = 1;
 
-  if (sheetProperties.sheets[index].columns.length > 0)
-    appProperties.showIsaView = false;
+  if (selectedSheet.columns.length > 0) appProperties.showIsaView = false;
   // create the table column by column
-  for (let i = 0; i < sheetProperties.sheets[index].columns.length; i++) {
-    let element = sheetProperties.sheets[index].columns[i];
+  for (let i = 0; i < selectedSheet.columns.length; i++) {
+    let element = selectedSheet.columns[i];
     let words = element.split(" [");
     // whether its a custom column
     let custom = false;
@@ -539,9 +564,7 @@ async function selectSheet(name: string, index: number) {
       let accession = "";
       try {
         // retrieve the accession (get the word between the square brackets)
-        accession = sheetProperties.sheets[index].columns[i + 1]
-          .split("[")[1]
-          .split("]")[0];
+        accession = selectedSheet.columns[i + 2].split("[")[1].split("]")[0];
 
         if (element.includes("[C]")) {
           custom = true;
@@ -550,9 +573,7 @@ async function selectSheet(name: string, index: number) {
       } catch (error) {
         try {
           // retrieve the accession (get the word between the round brackets)
-          accession = sheetProperties.sheets[index].columns[i + 1]
-            .split("(")[1]
-            .split(")")[0];
+          accession = selectedSheet.columns[i + 2].split("(")[1].split(")")[0];
         } catch (error) {
           accession = "";
         }
@@ -585,32 +606,35 @@ async function selectSheet(name: string, index: number) {
     }
     let cellContent: string[] = [];
 
-    // if the sheet has more than hundred rows, only show the last 100 to save memory
-    if (sheetProperties.sheets[index].data.length < 100) {
-      // load in the cell data row by row
-      for (let j = 0; j < sheetProperties.sheets[index].data.length; j++) {
-        cellContent.push(sheetProperties.sheets[index].data[j][i]);
-      }
-    } else {
-      for (
-        let j = sheetProperties.sheets[index].data.length - 100;
-        j < sheetProperties.sheets[index].data.length;
-        j++
-      ) {
-        cellContent.push(sheetProperties.sheets[index].data[j][i]);
-      }
+    // load in the cell data row by row
+    for (let j = 0; j < selectedSheet.data.length; j++) {
+      cellContent.push(selectedSheet.data[j][i]);
     }
     templateProperties.content.push(cellContent);
+
+    templateProperties.pages = Math.floor(
+      selectedSheet.data.length / sheetProperties.rowsPerPage
+    );
+    if (selectedSheet.data.length % sheetProperties.rowsPerPage > 0)
+      templateProperties.pages += 1;
   }
   // if the content is empty, get a list of templates and display them
   if (templateProperties.template.length == 0) {
     errors = "ERROR: Sheet is empty! Insert a Template!";
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     // retrieve the templates
     await fetch(backend + "tnt/getTemplates")
       .then((response) => response.json())
       .then((templates) => {
         if (templates.templates.length == 0) {
           errors = "ERROR: No templates found!";
+          $q.notify({
+            type: "negative",
+            message: errors,
+          });
           keyNumber.value += 1;
         }
         // save the templates
@@ -620,6 +644,8 @@ async function selectSheet(name: string, index: number) {
   } else {
     appProperties.arcList = false;
   }
+  templateProperties.templateName = "-";
+  templateProperties.templateVersion = "";
   sheetProperties.sheets = sheetProperties.names = [];
   setIds();
 }
@@ -728,6 +754,11 @@ function checkName(name: String) {
     ".ini",
     ".bak",
     ".zj",
+    ".mztab",
+    ".ab1",
+    ".bib",
+    ".gtf",
+    ".sf",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -772,11 +803,15 @@ async function sendToBackend() {
 
   if (!response.ok) {
     errors = "ERROR: " + response.statusText;
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     isaProperties.entry = [];
     errors = "";
-    $q.notify("Saved");
+    $q.notify({ type: "positive", message: "Saved" });
   }
 
   loading = false;
@@ -850,7 +885,13 @@ function setIds() {
       ></q-toolbar-title
     >
     <q-toolbar-title v-if="templateProperties.templates.length > 1"
-      >Templates</q-toolbar-title
+      >Templates
+      <span style="margin-left: 1em"
+        >Don't know which template to use? Use the
+        <a href="https://nfdi4plants.github.io/metadataquiz/" target="_blank"
+          >Metadata Quiz</a
+        >.</span
+      ></q-toolbar-title
     >
     <q-toolbar-title v-if="termProperties.terms.length > 0"
       >Terms</q-toolbar-title

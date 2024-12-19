@@ -1,7 +1,10 @@
 <script lang="ts" setup>
 import appProperties from "@/AppProperties";
 import isaProperties from "@/IsaProperties";
+import { useQuasar } from "quasar";
 import { ref } from "vue";
+
+const $q = useQuasar();
 
 var backend = appProperties.backend + "search/";
 
@@ -165,6 +168,10 @@ async function getArcJson() {
 
   if (!arcJsonData.ok) {
     errors = "ERROR: " + arcJsonData.statusText;
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     arcJson = await arcJsonData.json();
@@ -206,7 +213,7 @@ const openArc = (url: string) => {
   window.open(url);
 };
 
-function sortList(term: "datahub" | "name" | "id" | "author") {
+function sortList(term: "datahub" | "name" | "id" | "author" | "activity") {
   let x: string | number = "";
   let y: string | number = "";
 
@@ -220,12 +227,16 @@ function sortList(term: "datahub" | "name" | "id" | "author") {
         y = b[term].toLowerCase();
         break;
       case "id":
-        x = a.id;
-        y = b.id;
+        x = b.id;
+        y = a.id;
         break;
       case "author":
         x = a.author.name.toLowerCase();
         y = b.author.name.toLowerCase();
+        break;
+      case "activity":
+        x = b.last_activity;
+        y = a.last_activity;
         break;
     }
     if (x < y) {
@@ -271,6 +282,10 @@ async function downloadJson() {
 
   if (!searchJson.ok) {
     errors = "ERROR: " + searchJson.json();
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
     keyNumber.value += 1;
   } else {
     const url = window.URL.createObjectURL(await searchJson.blob());
@@ -324,8 +339,20 @@ async function downloadJson() {
       val="author"
       label="Author"
       @update:model-value="sortList('author')" />
+    <q-radio
+      v-model="sort"
+      val="activity"
+      label="Activity"
+      @update:model-value="sortList('activity')" />
   </div>
-  <q-btn @click="getArcJson" class="return">Get</q-btn>
+  <q-btn
+    @click="
+      getArcJson();
+      sort = 'datahub';
+    "
+    class="return"
+    >Get</q-btn
+  >
   <q-btn
     icon="download"
     @click="downloadJson"
@@ -337,6 +364,7 @@ async function downloadJson() {
   <q-markup-table
     wrap-cells
     bordered
+    dense
     separator="cell"
     flat
     v-if="searchList.length > 0"
@@ -361,10 +389,17 @@ async function downloadJson() {
         @click="openCard(entry.name, entry.id)"
         style="cursor: pointer">
         <td>{{ entry.datahub }}</td>
-        <td>{{ entry.name }}</td>
+        <td>
+          {{ entry.name.slice(0, 50) }}
+          <template v-if="entry.name.length > 50">...</template>
+        </td>
         <td>{{ entry.id }}</td>
         <td>{{ entry.author.name }} ({{ entry.author.username }})</td>
-        <td>{{ entry.description }}</td>
+        <td v-if="entry.description">
+          {{ entry.description.slice(0, 100)
+          }}<template v-if="entry.description.length > 100">...</template>
+        </td>
+        <td v-else>{{ entry.description }}</td>
         <td>{{ entry.identifier }}</td>
         <td>{{ entry.license?.name }}</td>
         <td>
@@ -374,7 +409,6 @@ async function downloadJson() {
             {{ study }}: {{ entry.assay_study_relation[study] }}
           </p>
         </td>
-
         <td>{{ entry.created_at }}</td>
         <td>{{ entry.last_activity }}</td>
       </tr>
@@ -384,12 +418,15 @@ async function downloadJson() {
     <q-card style="width: 700px; max-width: 80vw">
       <q-item>
         <q-item-section>
-          <q-item-label>{{ cardArc.name }}</q-item-label>
+          <q-item-label
+            :style="cardArc.name.length > 30 ? 'font-size: small' : ''"
+            >{{ cardArc.name }}</q-item-label
+          >
           <q-item-label caption>
             {{ cardArc.datahub }}, ID: {{ cardArc.id }}
           </q-item-label>
         </q-item-section>
-        <q-item-section>
+        <q-item-section style="padding-left: 15em">
           <q-item-label>by {{ cardArc.author.name }}</q-item-label>
           <q-item-label caption>({{ cardArc.author.username }})</q-item-label>
         </q-item-section>
