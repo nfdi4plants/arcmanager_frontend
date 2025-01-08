@@ -301,6 +301,82 @@ async function getBanner() {
   forcereload();
 }
 
+/** refreshes your session using the refresh token
+ *
+ *
+ */
+async function refreshSession() {
+  try {
+    let request = await fetch(appProperties.backend + "auth/refresh", {
+      credentials: "include",
+    });
+    if (request.ok) {
+      $q.notify({ message: await request.text(), type: "positive" });
+
+      try {
+        let time = Number($q.cookies.get("timer")) + 7200;
+        let timeLeft = time - Math.floor(new Date().getTime() / 1000);
+
+        // if session ran out, the countdown was stopped. Therefore start a new cycle
+        if (
+          countDown.hour == 0 &&
+          countDown.minute == 0 &&
+          countDown.second == 0
+        ) {
+          countDown.hour = Math.floor(timeLeft / 3600);
+          countDown.minute = Math.floor(timeLeft / 60) % 60;
+          countDown.second = Math.floor(timeLeft % 60);
+          let interval = setInterval(() => {
+            if (countDown.minute == 0) {
+              countDown.hour -= 1;
+              countDown.minute = 59;
+              countDown.second = 59;
+            }
+            if (countDown.second == 0) {
+              countDown.minute -= 1;
+              countDown.second = 59;
+            } else {
+              countDown.second -= 1;
+            }
+            // reset counter
+            if (countDown.hour < 0) {
+              countDown.hour = 0;
+              countDown.minute = 0;
+              countDown.second = 0;
+              clearInterval(interval);
+            }
+
+            // refresh time left to accommodate to rounding errors after one hour or 5 minutes left
+            if (timeLeft == 3600 || timeLeft == 300)
+              timeLeft = time - Math.floor(new Date().getTime() / 1000);
+
+            timer.value += 1;
+          }, 970);
+          // else just set the timer back to the newest state
+        } else {
+          countDown.hour = Math.floor(timeLeft / 3600);
+          countDown.minute = Math.floor(timeLeft / 60) % 60;
+          countDown.second = Math.floor(timeLeft % 60);
+        }
+      } catch (error: any) {
+        $q.notify({ type: "negative", message: error.toString() });
+      }
+    } else {
+      errors = "Error refreshing your Session! Try to login again!";
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
+    }
+  } catch (error: any) {
+    errors = error.toString();
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
+  }
+}
+
 // check if user settings prefer dark mode
 if (
   window.matchMedia &&
@@ -512,6 +588,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
           v-show="loading"
           :key="refresher + 2"></q-spinner-gears>
         <q-separator inset style="margin-top: 1em; margin-bottom: 1em" />
+        <!-- SESSION TIMER-->
         <p class="text-center" v-if="appProperties.arcList">
           Session time left:
         </p>
@@ -526,6 +603,17 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
           <template v-if="countDown.second < 10">0</template
           >{{ countDown.second }}</span
         >
+
+        <!-- REFRESH -->
+        <p
+          class="text-center"
+          style="margin-top: 1em"
+          v-if="appProperties.loggedIn">
+          <template v-if="appProperties.arcList">Refresh: </template>
+          <q-btn icon="autorenew" round outline @click="refreshSession"
+            ><q-tooltip>Refresh your session</q-tooltip></q-btn
+          >
+        </p>
       </q-scroll-area>
     </q-drawer>
 

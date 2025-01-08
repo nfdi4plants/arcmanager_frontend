@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive } from "vue";
 
 const isaProperties = reactive({
   // path to the file
@@ -9,7 +9,7 @@ const isaProperties = reactive({
 
   // current entry to edit
   entry: [] as Array<string>,
-  
+
   // the number of the row
   rowId: 0,
 
@@ -28,7 +28,7 @@ const isaProperties = reactive({
 
   // array containing the publications information; name of the current publication page
   publications: [] as Array<Array<string>>,
-  publication: "publication 1"
+  publication: "publication 1",
 });
 
 export default isaProperties;
