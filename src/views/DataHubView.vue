@@ -1259,7 +1259,7 @@ async function fileUpload(folder = false) {
             try {
               let data = await response.json();
               errors =
-                response.statusText + ", " + data["detail"].slice(0, 200);
+                response.statusText + ", " + data["detail"].slice(0, 300);
               $q.notify({
                 type: "negative",
                 message: errors,
@@ -1583,6 +1583,7 @@ function checkName(name: string) {
     ".zip",
     ".7z",
     ".gz",
+    ".bz2",
     ".html",
     ".css",
     ".mp4",
@@ -2465,9 +2466,11 @@ async function validateArc() {
           ><q-tooltip>Reload the content of the arc</q-tooltip></q-btn
         >
       </q-btn-group>
-      <!-- activates lfs
-      <q-checkbox v-model="lfs"
-        >LFS<q-tooltip>Activate lfs for your file upload</q-tooltip></q-checkbox> -->
+      <q-checkbox v-model="lfs" v-if="appProperties.experimental"
+        >LFS<q-tooltip
+          >Activate lfs for all your file upload</q-tooltip
+        ></q-checkbox
+      >
     </template>
 
     <!-- LOADING SPINNER --><q-spinner
