@@ -759,6 +759,7 @@ function checkName(name: String) {
     ".bib",
     ".gtf",
     ".sf",
+    ".gitattributes"
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {

@@ -1255,7 +1255,7 @@ async function fileUpload(folder = false) {
             credentials: "include",
           });
 
-          if (!response.ok) {
+          if (!response.ok && response.status!=504) {
             try {
               let data = await response.json();
               errors =
@@ -1276,7 +1276,11 @@ async function fileUpload(folder = false) {
             $q.loading.hide();
             uploading = false;
           } else {
-            if (response.status == 201 || response.status == 200) filesDone++;
+            if(response.status==504){ $q.notify({
+                message: 'Your file is uploaded in the background. Check again later!',
+                color: 'primary',
+              });}
+            if (response.status == 201 || response.status == 200 || response.status == 504) filesDone++;
             const temp = `Chunk ${
               chunkNumber + 1
             }/${totalChunks} uploaded successfully`;

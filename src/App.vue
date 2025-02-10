@@ -76,10 +76,13 @@ var backend = appProperties.backend + "projects/";
 
 var target = ref("");
 
+// when entering the personal access token this boolean toggles the visibility in the input field
 var showPwd = ref(false);
 
+// personal access token
 var pat = ref("");
 
+// set to true if personal access token is set
 var patSet = ref(false);
 
 var groups: Array<{ name: string; id: number }> = [];
@@ -667,7 +670,8 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             ><q-tooltip>Refresh your session</q-tooltip></q-btn
           >
         </p>
-
+        
+        <!-- PERSONAL ACCESS TOKEN -->
         <q-separator v-if="appProperties.experimental" />
         <q-item
           v-if="appProperties.experimental"
@@ -751,9 +755,18 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             "
             :key="refresher + 3"></q-btn>
           <p>Please fill out the form below to create the new ARC:</p>
-          <q-input outlined v-model="arcName" label="Name of the ARC" />
-          <q-input outlined v-model="arcDesc" label="Description of the ARC" />
           <q-input
+            outlined
+            v-model="arcName"
+            label="Name of the ARC"
+            style="width: 50em" />
+          <q-input
+            outlined
+            v-model="arcDesc"
+            label="Description of the ARC"
+            style="width: 50em" />
+          <q-input
+            style="width: 50em"
             outlined
             v-model="invId"
             label="An identifier of your ARC for the isa file (e.g. hhu_talinum_fruticosum)"
@@ -827,7 +840,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
           <ArcSearchView></ArcSearchView>
         </template>
         <!-- MODE 3: PERSONAL ACCESS TOKEN-->
-        <template v-if="mode == 3"
+        <template v-else-if="mode == 3"
           ><q-btn
             class="return"
             icon="arrow_back"
@@ -842,6 +855,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             Please fill out the field below to add your Personal Access Token
             (PAT):
           </p>
+          <p>
           <q-input
             style="width: 30em"
             outlined
@@ -854,7 +868,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
                 class="cursor-pointer"
                 @click="showPwd = !showPwd" /> </template
           ></q-input>
-
+          </p>
           <q-btn
             class="send"
             icon="send"
