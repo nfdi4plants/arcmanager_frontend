@@ -347,6 +347,10 @@ var extendedSearch = ref(false);
 // namespace of the arc
 var arcNamespace = ref("");
 
+var fdat = ref(false);
+var fdatPAT = ref("");
+var fdatAddress = ref("");
+
 // set to true if folder contains a datamap xlsx file
 var containsDatamap = false;
 
@@ -1255,7 +1259,7 @@ async function fileUpload(folder = false) {
             credentials: "include",
           });
 
-          if (!response.ok && response.status!=504) {
+          if (!response.ok && response.status != 504) {
             try {
               let data = await response.json();
               errors =
@@ -1276,11 +1280,19 @@ async function fileUpload(folder = false) {
             $q.loading.hide();
             uploading = false;
           } else {
-            if(response.status==504){ $q.notify({
-                message: 'Your file is uploaded in the background. Check again later!',
-                color: 'primary',
-              });}
-            if (response.status == 201 || response.status == 200 || response.status == 504) filesDone++;
+            if (response.status == 504) {
+              $q.notify({
+                message:
+                  "Your file is uploaded in the background. Check again later!",
+                color: "primary",
+              });
+            }
+            if (
+              response.status == 201 ||
+              response.status == 200 ||
+              response.status == 504
+            )
+              filesDone++;
             const temp = `Chunk ${
               chunkNumber + 1
             }/${totalChunks} uploaded successfully`;
@@ -2325,6 +2337,60 @@ async function validateArc() {
   loading = false;
   forcereload();
 }
+
+/** Publishes the arc to invenio (FDAT)
+ *
+ *
+ */
+async function publishArc() {
+  loading = true;
+  $q.notify({ message: "This will take some time. You can continue working." });
+  appProperties.arcList = true;
+  forcereload();
+  let fdatId = "";
+  if (fdatAddress.value.length > 0) {
+    fdatId = fdatAddress.value.split("/").slice(-1)[0];
+    try {
+      let request = await fetch(appProperties.backend + "projects/publishArc", {
+        credentials: "include",
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          arcName: arcProperties.identifier,
+          namespace: arcNamespace.value,
+          invenioPAT: fdatPAT.value,
+          invenioId: fdatId,
+        }),
+      });
+      if (request.ok) {
+        $q.notify({ message: await request.text(), type: "positive" });
+      } else {
+        errors = "Error publishing your ARC! Try again!";
+        $q.notify({
+          type: "negative",
+          message: errors,
+        });
+      }
+    } catch (error: any) {
+      errors = error.toString();
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
+    }
+  } else {
+    errors = "Failed to retrieve the record ID! Please try again!";
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
+  }
+  loading = false;
+  appProperties.arcList = true;
+  fdatPAT.value = "";
+  fdatAddress.value = "";
+  forcereload();
+}
 </script>
 
 <template>
@@ -2423,7 +2489,8 @@ async function validateArc() {
             id="folderUp"
             webkitdirectory
             multiple
-            @change="uploadFolder" />
+            @change="uploadFolder"
+          />
           <q-tooltip>Upload a single folder</q-tooltip>
         </div>
         <!-- OPEN -->
@@ -2481,7 +2548,8 @@ async function validateArc() {
       id="loader"
       size="2em"
       v-show="loading"
-      :key="refresher + 4"></q-spinner>
+      :key="refresher + 4"
+    ></q-spinner>
   </div>
   <div class="q-pa-xs row q-gutter-sm" v-if="arcList.length != 0">
     <q-btn-group style="max-height: 3em">
@@ -2558,7 +2626,8 @@ async function validateArc() {
                 assaySync = studySync = false;
                 forcereload();
                 getUser();
-              ">
+              "
+            >
               <q-item-section>Add User</q-item-section>
               <q-tooltip>Add a new user to the arc</q-tooltip>
             </q-item>
@@ -2571,7 +2640,8 @@ async function validateArc() {
                 assaySync = studySync = false;
                 forcereload();
                 getArcUser(arcId);
-              ">
+              "
+            >
               <q-item-section>Remove User</q-item-section
               ><q-tooltip>Remove a current user of the arc</q-tooltip>
             </q-item>
@@ -2584,12 +2654,35 @@ async function validateArc() {
                 assaySync = studySync = false;
                 forcereload();
                 getArcUser(arcId);
-              ">
+              "
+            >
               <q-item-section>Edit User</q-item-section
               ><q-tooltip>Edit the role of a current user of the arc</q-tooltip>
             </q-item>
           </q-list> </q-menu
         ><q-tooltip>Add, edit or remove members of your arc</q-tooltip></q-btn
+      ><!-- PUBLISH ARC-->
+      <q-btn
+        v-if="appProperties.experimental"
+        id="publish"
+        icon="publish"
+        glossy
+        @click="
+          studySync = false;
+          assaySync = false;
+          fdat = true;
+          appProperties.arcList = false;
+          forcereload();
+        "
+        :key="refresher + 7"
+        ><template
+          v-if="
+            !appProperties.showIsaView &&
+            appProperties.arcList &&
+            windowWidth > 1520
+          "
+          >Publish ARC</template
+        ><q-tooltip>Publish your ARC to FDAT</q-tooltip></q-btn
       ></q-btn-group
     >
     <!-- VALIDATION -->
@@ -2607,19 +2700,22 @@ async function validateArc() {
         arrows
         height="80%"
         width
-        class="bg-primary text-white shadow-1 rounded-borders">
+        class="bg-primary text-white shadow-1 rounded-borders"
+      >
         <!-- BASIC STRUCTURE -->
         <q-carousel-slide name="structure" class="column no-wrap flex-center"
           ><h5>Basic structure:</h5>
           <div
             class="q-mt-md text-center"
-            v-if="typeof validateData.ARC_Structure === 'boolean'">
+            v-if="typeof validateData.ARC_Structure === 'boolean'"
+          >
             Your ARC structure is valid. It contains all necessary folders and
             files.
           </div>
           <div
             class="q-mt-md text-center"
-            v-else-if="typeof validateData.ARC_Structure === 'string'">
+            v-else-if="typeof validateData.ARC_Structure === 'string'"
+          >
             Your ARC structure is not valid. {{ validateData.ARC_Structure }}
           </div>
         </q-carousel-slide>
@@ -2667,10 +2763,12 @@ async function validateArc() {
                 >
                 <q-item-section
                   avatar
-                  v-if="typeof Object.values(item)[0] == 'boolean'">
+                  v-if="typeof Object.values(item)[0] == 'boolean'"
+                >
                   <q-icon
                     name="done"
-                    :color="validateData.ARC ? 'gold' : 'green'" />
+                    :color="validateData.ARC ? 'gold' : 'green'"
+                  />
                 </q-item-section>
               </q-item>
             </q-list>
@@ -2680,7 +2778,8 @@ async function validateArc() {
         <q-carousel-slide
           v-if="validateData.Investigation"
           name="investigation"
-          class="column no-wrap flex-center">
+          class="column no-wrap flex-center"
+        >
           <h5>Investigation:</h5>
           <div class="q-pa-none text-center">
             <!-- Identifier-->
@@ -2751,7 +2850,8 @@ async function validateArc() {
       :value="progress"
       :key="refresher + 5"
       color="red"
-      :indeterminate="progress == 0.99"></q-linear-progress>
+      :indeterminate="progress == 0.99"
+    ></q-linear-progress>
     <p v-if="progress < 0.99">Uploading File...</p>
     <p v-else>Processing data... This may take a moment!</p>
   </template>
@@ -2778,7 +2878,8 @@ async function validateArc() {
           : 'List of ARCs and other projects from the DataHUB'
       "
       header-class="bg-grey-33"
-      default-opened>
+      default-opened
+    >
       <div style="display: block; margin: 0 auto; max-width: 100%">
         <q-splitter v-model="splitterModel" style="height: 100%">
           <template v-slot:before v-if="arcList.length > 0">
@@ -2792,7 +2893,8 @@ async function validateArc() {
                 @update:selected="inspectArcTree(selectedNode)"
                 selected-color="primary"
                 label-key="label"
-                node-key="key" />
+                node-key="key"
+              />
             </div>
           </template>
 
@@ -2810,7 +2912,8 @@ async function validateArc() {
                 @click="
                   showInput = false;
                   forcereload();
-                "></q-btn>
+                "
+              ></q-btn>
               <span style="margin-left: 1em">Add Isa:</span>
               <q-input
                 outlined
@@ -2818,7 +2921,8 @@ async function validateArc() {
                 :rules="[
                   (val) => !val.includes(' ') || 'No whitespace allowed!',
                 ]"
-                label="An identifier for the isa file (e.g. GelBasedProteomicsWT)" />
+                label="An identifier for the isa file (e.g. GelBasedProteomicsWT)"
+              />
               <q-separator></q-separator>
 
               <q-btn
@@ -2836,7 +2940,8 @@ async function validateArc() {
                   forcereload();
                 "
                 :disable="ident.length == 0"
-                :key="refresher + 6"></q-btn
+                :key="refresher + 6"
+              ></q-btn
               ><span style="margin-left: 1em" v-if="ident.length == 0"
                 >Please provide an identifier!</span
               >
@@ -2849,7 +2954,8 @@ async function validateArc() {
                 @click="
                   showFolderInput = false;
                   forcereload();
-                "></q-btn>
+                "
+              ></q-btn>
               <span style="margin-left: 1em">Add Folder:</span>
               <q-input
                 outlined
@@ -2857,7 +2963,8 @@ async function validateArc() {
                 :rules="[
                   (val) => !val.includes(' ') || 'No whitespace allowed!',
                 ]"
-                label="A name for the folder" />
+                label="A name for the folder"
+              />
               <q-separator></q-separator>
 
               <q-btn
@@ -2875,7 +2982,8 @@ async function validateArc() {
                   forcereload();
                 "
                 :disable="identFolder.length == 0"
-                :key="refresher + 10"></q-btn
+                :key="refresher + 10"
+              ></q-btn
               ><span style="margin-left: 1em" v-if="identFolder.length == 0"
                 >Please provide a name!</span
               >
@@ -2941,7 +3049,8 @@ async function validateArc() {
                   v-if="
                     pathHistory[pathHistory.length - 1] == 'assays' ||
                     pathHistory[pathHistory.length - 1] == 'studies'
-                  ">
+                  "
+                >
                   <div class="q-gutter-xs">
                     <q-btn
                       id="add"
@@ -2965,7 +3074,8 @@ async function validateArc() {
                     appProperties.experimental &&
                     (pathHistory[pathHistory.length - 2] == 'studies' ||
                       pathHistory[pathHistory.length - 2] == 'assays')
-                  ">
+                  "
+                >
                   <div class="q-gutter-xs">
                     <q-btn
                       id="add"
@@ -3044,7 +3154,8 @@ async function validateArc() {
                   getFile(arcId, item.path, arcProperties.branch);
                 }
               "
-              :disable="checkName(item.name) || item.type == 'commit'">
+              :disable="checkName(item.name) || item.type == 'commit'"
+            >
               <template v-if="item.type == 'tree'">
                 <q-item-section avatar top
                   ><q-avatar icon="folder"></q-avatar
@@ -3135,28 +3246,35 @@ async function validateArc() {
                       item.name.toLowerCase().includes('.png') ||
                       item.name.toLowerCase().includes('.jpeg')
                     "
-                    icon="image"></q-avatar>
+                    icon="image"
+                  ></q-avatar>
                   <q-avatar
                     v-else-if="item.name.toLowerCase().includes('.mp4')"
-                    icon="movie"></q-avatar>
+                    icon="movie"
+                  ></q-avatar>
                   <q-avatar
                     v-else-if="item.name.toLowerCase().includes('.html')"
-                    icon="html"></q-avatar
+                    icon="html"
+                  ></q-avatar
                   ><q-avatar
                     v-else-if="item.name.toLowerCase().includes('.css')"
-                    icon="css"></q-avatar>
+                    icon="css"
+                  ></q-avatar>
                   <q-avatar
                     v-else-if="item.name.toLowerCase().endsWith('.js')"
-                    icon="javascript"></q-avatar>
+                    icon="javascript"
+                  ></q-avatar>
                   <q-avatar
                     v-else-if="item.name.toLowerCase().includes('.zip')"
-                    icon="folder_zip"></q-avatar>
+                    icon="folder_zip"
+                  ></q-avatar>
                   <q-avatar
                     v-else-if="
                       item.name.toLowerCase().includes('.py') ||
                       item.name.toLowerCase().endsWith('.r')
                     "
-                    icon="code"></q-avatar>
+                    icon="code"
+                  ></q-avatar>
                   <q-avatar v-else icon="description"></q-avatar
                 ></q-item-section>
                 <q-item-section
@@ -3181,7 +3299,8 @@ async function validateArc() {
                 >
                 <q-item-section
                   side
-                  v-if="!checkForDeletion(item.name.toLowerCase())">
+                  v-if="!checkForDeletion(item.name.toLowerCase())"
+                >
                   <q-btn
                     icon="download"
                     color="green"
@@ -3193,7 +3312,8 @@ async function validateArc() {
                 >
                 <q-item-section
                   side
-                  v-if="!checkForDeletion(item.name.toLowerCase())">
+                  v-if="!checkForDeletion(item.name.toLowerCase())"
+                >
                   <q-btn
                     icon="cancel"
                     color="red"
@@ -3230,7 +3350,8 @@ async function validateArc() {
             <div
               class="q-pa-lg flex flex-center"
               v-if="arcList.length != 0"
-              v-show="treePageMax > 1">
+              v-show="treePageMax > 1"
+            >
               <q-pagination
                 v-model="treePage"
                 :max="treePageMax"
@@ -3243,7 +3364,8 @@ async function validateArc() {
                     undefined,
                     treePage
                   )
-                " />
+                "
+              />
             </div>
 
             <!-- LIST OF ARCS -->
@@ -3266,7 +3388,8 @@ async function validateArc() {
                   arcProperties.url = item.http_url_to_repo;
                   arcNamespace = item.path_with_namespace;
                   inspectArc(item.id);
-                ">
+                "
+              >
                 <!-- load the avatar if there is one -->
                 <q-item-section avatar>
                   <q-avatar v-if="item.avatar_url != null">
@@ -3282,10 +3405,12 @@ async function validateArc() {
                     >{{ item.name }}, ID: {{ item.id }}</q-item-label
                   >
                   <template
-                    v-if="!appProperties.showIsaView || windowWidth > 1200">
+                    v-if="!appProperties.showIsaView || windowWidth > 1200"
+                  >
                     <div
                       class="q-pa-xs q-gutter-md"
-                      v-if="item.topics.length > 0">
+                      v-if="item.topics.length > 0"
+                    >
                       <q-badge
                         outline
                         v-for="i in item.topics"
@@ -3346,13 +3471,15 @@ async function validateArc() {
             <div
               class="q-pa-lg flex flex-center"
               v-if="arcList.length == 0"
-              v-show="arcsPageMax > 1">
+              v-show="arcsPageMax > 1"
+            >
               <q-pagination
                 :max="arcsPageMax"
                 v-model="arcsPage"
                 boundary-numbers
                 :max-pages="6"
-                @update:model-value="fetchArcs(arcsPage)"></q-pagination></div
+                @update:model-value="fetchArcs(arcsPage)"
+              ></q-pagination></div
           ></template>
         </q-splitter>
       </div>
@@ -3363,14 +3490,16 @@ async function validateArc() {
         class="q-pa-md"
         v-show="
           arcProperties.assays.length > 0 && arcProperties.studies.length > 0
-        ">
+        "
+      >
         <q-btn
           icon="arrow_back"
           @click="
             assaySync = false;
             forcereload();
           "
-          class="return">
+          class="return"
+        >
           Return
         </q-btn>
         <div class="q-gutter-md row">
@@ -3378,13 +3507,15 @@ async function validateArc() {
             v-model="assaySelect"
             :options="arcProperties.assays"
             label="Assay"
-            style="width: 200px" />
+            style="width: 200px"
+          />
           <q-icon name="arrow_forward" size="48px"></q-icon>
           <q-select
             v-model="studySelect"
             :options="arcProperties.studies"
             label="Study"
-            style="width: 200px" />
+            style="width: 200px"
+          />
           <q-btn
             @click="
               assaySync = false;
@@ -3407,7 +3538,8 @@ async function validateArc() {
             studySync = false;
             forcereload();
           "
-          class="return">
+          class="return"
+        >
           Return
         </q-btn>
         <div class="q-gutter-md row">
@@ -3415,7 +3547,8 @@ async function validateArc() {
             v-model="studySelect"
             :options="arcProperties.studies"
             label="Study"
-            style="width: 200px" />
+            style="width: 200px"
+          />
           <q-btn
             @click="
               studySync = false;
@@ -3438,7 +3571,8 @@ async function validateArc() {
             user = -1;
             forcereload();
           "
-          class="return">
+          class="return"
+        >
           Return
         </q-btn>
         <div class="q-gutter-md row">
@@ -3447,13 +3581,15 @@ async function validateArc() {
             :options="userList"
             label="Users"
             style="width: 200px"
-            :key="refresher + 11" />
+            :key="refresher + 11"
+          />
           <q-select
             v-if="user != 1"
             v-model="permission"
             :options="userPermissions"
             label="Role"
-            style="width: 200px" />
+            style="width: 200px"
+          />
           <!-- ADD/REMOVE/EDIT USER -->
           <q-btn
             v-if="user == 0"
@@ -3504,6 +3640,46 @@ async function validateArc() {
           >
           about role permissions
         </span>
+      </div>
+    </template>
+    <!-- PUBLISH ARC -->
+    <template v-if="fdat"
+      ><div class="q-pa-md">
+        <q-btn
+          icon="arrow_back"
+          @click="
+            fdat = false;
+            forcereload();
+          "
+          class="return"
+        >
+          Return
+        </q-btn>
+        <div class="q-gutter-md row">
+          <q-input
+            outlined
+            v-model="fdatPAT"
+            label="Personal Access token from FDAT"
+            style="width: 50em"
+          />
+          <q-input
+            outlined
+            v-model="fdatAddress"
+            placeholder="https://fdat.uni-tuebingen.de/uploads/xxxxx-xxxxx"
+            label="Address of the record"
+            style="width: 50em"
+          />
+          <q-btn
+            @click="
+              fdat = false;
+              publishArc();
+              forcereload();
+            "
+            :disable="fdatAddress.length == 0 || fdatPAT.length == 0"
+            glossy
+            >Publish</q-btn
+          >
+        </div>
       </div>
     </template>
   </q-list>
