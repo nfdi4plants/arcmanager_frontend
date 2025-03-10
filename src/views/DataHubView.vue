@@ -1064,6 +1064,19 @@ async function getFile(id: number, path: string, branch: string) {
                 isaProperties.contacts.push(cache);
               }
               break;
+
+            // compliance agreement (Convention of biodiversity compliance)
+            case "Comment[Special CDB-ABS permissions required]":
+              if (isaProperties.identification.length > 0) {
+                let entry = data[i];
+                let cache: string[] = [];
+                entry.forEach((element: string | null) => {
+                  if (element) cache.push(element);
+                  else cache.push("");
+                });
+                isaProperties.identification.push(cache);
+              }
+              break;
           }
           isaList.push(element);
         });
@@ -2347,9 +2360,7 @@ async function publishArc() {
   $q.notify({ message: "This will take some time. You can continue working." });
   appProperties.arcList = true;
   forcereload();
-  let fdatId = "";
   if (fdatAddress.value.length > 0) {
-    fdatId = fdatAddress.value.split("/").slice(-1)[0];
     try {
       let request = await fetch(appProperties.backend + "projects/publishArc", {
         credentials: "include",
@@ -2359,7 +2370,7 @@ async function publishArc() {
           arcName: arcProperties.identifier,
           namespace: arcNamespace.value,
           invenioPAT: fdatPAT.value,
-          invenioId: fdatId,
+          invenioURL: fdatAddress.value,
         }),
       });
       if (request.ok) {
@@ -3648,6 +3659,7 @@ async function publishArc() {
         <q-btn
           icon="arrow_back"
           @click="
+            appProperties.arcList = true;
             fdat = false;
             forcereload();
           "
