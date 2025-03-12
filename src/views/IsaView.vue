@@ -1027,19 +1027,20 @@ function setIds() {
       ></q-input>
       <q-input
         v-if="isaProperties.identification.length > 5"
+        v-for="entry in isaProperties.identification.slice(5)"
         style="width: 45%"
         outlined
-        v-model="isaProperties.identification[5][1]"
-        :label="isaProperties.identification[5][0]"
+        v-model="entry[1]"
+        :label="entry[0]"
       ></q-input>
     </div>
     <div class="q-gutter-md row items-start" v-else>
       <q-input
         style="width: 45%"
         outlined
-        v-for="(entry, i) in isaProperties.identification"
-        v-model="isaProperties.identification[i][1]"
-        :label="isaProperties.identification[i][0]"
+        v-for="entry in isaProperties.identification"
+        v-model="entry[1]"
+        :label="entry[0]"
       ></q-input>
     </div>
     <div class="q-gutter-y-md" style="max-width: 600px">
@@ -1070,9 +1071,9 @@ function setIds() {
             <q-input
               style="width: 45%"
               outlined
-              v-for="(entry, i) in isaProperties.publications"
-              v-model="isaProperties.publications[i][j]"
-              :label="isaProperties.publications[i][0]"
+              v-for="entry in isaProperties.publications"
+              v-model="entry[j]"
+              :label="entry[0]"
             ></q-input
             ><q-btn
               icon="add"
@@ -1111,9 +1112,9 @@ function setIds() {
             <q-input
               style="width: 45%"
               outlined
-              v-for="(entry, i) in isaProperties.contacts"
-              v-model="isaProperties.contacts[i][j]"
-              :label="isaProperties.contacts[i][0]"
+              v-for="entry in isaProperties.contacts"
+              v-model="entry[j]"
+              :label="entry[0]"
             ></q-input
             ><q-btn
               icon="add"

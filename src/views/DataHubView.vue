@@ -1077,6 +1077,19 @@ async function getFile(id: number, path: string, branch: string) {
                 isaProperties.identification.push(cache);
               }
               break;
+
+            // compliance agreement (Convention of biodiversity compliance)
+            case "Comment[Special ITPGRFA permissions required]":
+              if (isaProperties.identification.length > 0) {
+                let entry = data[i];
+                let cache: string[] = [];
+                entry.forEach((element: string | null) => {
+                  if (element) cache.push(element);
+                  else cache.push("");
+                });
+                isaProperties.identification.push(cache);
+              }
+              break;
           }
           isaList.push(element);
         });
