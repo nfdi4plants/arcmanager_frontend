@@ -2482,7 +2482,7 @@ async function publishArc() {
           :label="appProperties.showIsaView ? '' : 'Upload File(s)'"
           multiple
           :max-file-size="
-            appProperties.experimental ? '53687091200' : '10737418240'
+            appProperties.experimental ? '107374182400' : '21474836480'
           "
           @update:model-value="
             fileUpload();
@@ -2490,8 +2490,8 @@ async function publishArc() {
           "
           @rejected="
             errors = appProperties.experimental
-              ? 'ERROR: File too big (max. 50 GB) or too many selected!'
-              : 'ERROR: File too big (max. 10 GB) or too many selected!';
+              ? 'ERROR: File too big (max. 100 GB)!'
+              : 'ERROR: File too big (max. 20 GB)!';
             $q.notify({
               type: 'negative',
               message: errors,
@@ -2505,8 +2505,8 @@ async function publishArc() {
           ><q-tooltip
             >Upload one or multiple files
             <template v-if="appProperties.experimental"
-              >(max. 50 Gb per file)</template
-            ><template v-else>(max. 10 Gb per file)</template></q-tooltip
+              >(max. 100 Gb per file)</template
+            ><template v-else>(max. 20 Gb per file)</template></q-tooltip
           ></q-file
         >
         <!-- Folder Upload -->
@@ -3127,6 +3127,7 @@ async function publishArc() {
                   isaProperties.entry = [];
                   splitterModel = 0;
                   lfs = false;
+                  user = -1;
                   showInput = showFolderInput = false;
                   forcereload();
                 "

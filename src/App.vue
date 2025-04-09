@@ -670,7 +670,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             ><q-tooltip>Refresh your session</q-tooltip></q-btn
           >
         </p>
-        
+
         <!-- PERSONAL ACCESS TOKEN -->
         <q-separator v-if="appProperties.experimental" />
         <q-item
@@ -856,18 +856,18 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             (PAT):
           </p>
           <p>
-          <q-input
-            style="width: 30em"
-            outlined
-            v-model="pat"
-            label="Your Personal Access Token"
-            :type="showPwd ? 'test' : 'password'"
-            ><template v-slot:append>
-              <q-icon
-                :name="showPwd ? 'visibility' : 'visibility_off'"
-                class="cursor-pointer"
-                @click="showPwd = !showPwd" /> </template
-          ></q-input>
+            <q-input
+              style="width: 30em"
+              outlined
+              v-model="pat"
+              label="Your Personal Access Token"
+              :type="showPwd ? 'test' : 'password'"
+              ><template v-slot:append>
+                <q-icon
+                  :name="showPwd ? 'visibility' : 'visibility_off'"
+                  class="cursor-pointer"
+                  @click="showPwd = !showPwd" /> </template
+            ></q-input>
           </p>
           <q-btn
             class="send"
