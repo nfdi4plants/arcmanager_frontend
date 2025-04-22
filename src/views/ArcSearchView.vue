@@ -493,8 +493,10 @@ async function downloadJson() {
             flat
             :key="keyNumber">
             <thead>
-              <th>Study</th>
-              <th>Assays</th>
+              <tr>
+                <th>Study</th>
+                <th>Assays</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="study in Object.keys(cardArc.assay_study_relation)">

@@ -79,6 +79,8 @@ var target = ref("");
 // when entering the personal access token this boolean toggles the visibility in the input field
 var showPwd = ref(false);
 
+var mouseHover = ref(false);
+
 // personal access token
 var pat = ref("");
 
@@ -153,7 +155,7 @@ const loginOptions: ReadonlyArray<{
     description: "DataHUB for the transregio project TRR356",
   },
   {
-    label: "DataHUB (federated) test environment",
+    label: "Test environment",
     value: "tuebingen_testenv",
     description: "Development server for federated DataHUB",
   },
@@ -488,8 +490,10 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
     <q-drawer
       v-model="layoutProperties.showLeft"
       show-if-above
-      :mini="!appProperties.arcList"
-      :width="190"
+      @mouseenter="mouseHover = true"
+      @mouseleave="mouseHover = false"
+      :mini="!appProperties.arcList && !mouseHover"
+      :width="200"
       :breakpoint="500"
       bordered>
       <q-scroll-area
@@ -528,6 +532,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             </q-item-section>
           </q-item>
           <q-select
+            style="width: 200px"
             standout
             v-model="target"
             v-if="!appProperties.loggedIn"
@@ -645,14 +650,16 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
           style="margin-top: 1em; margin-bottom: 1em"
           v-if="!patSet" />
         <!-- SESSION TIMER-->
-        <p class="text-center" v-if="appProperties.arcList && !patSet">
+        <p
+          class="text-center"
+          v-if="(appProperties.arcList || mouseHover) && !patSet">
           Session time left:
         </p>
 
         <span
           style="margin-left: 25%"
           :key="timer"
-          v-show="appProperties.arcList && !patSet"
+          v-show="(appProperties.arcList || mouseHover) && !patSet"
           >{{ countDown.hour }} :
           <template v-if="countDown.minute < 10">0</template
           >{{ countDown.minute }} :
@@ -665,7 +672,9 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
           class="text-center"
           style="margin-top: 1em"
           v-if="appProperties.loggedIn && !patSet">
-          <template v-if="appProperties.arcList">Refresh: </template>
+          <template v-if="appProperties.arcList || mouseHover"
+            >Refresh:
+          </template>
           <q-btn icon="autorenew" round outline @click="refreshSession"
             ><q-tooltip>Refresh your session</q-tooltip></q-btn
           >
@@ -861,7 +870,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
               outlined
               v-model="pat"
               label="Your Personal Access Token"
-              :type="showPwd ? 'test' : 'password'"
+              :type="showPwd ? 'text' : 'password'"
               ><template v-slot:append>
                 <q-icon
                   :name="showPwd ? 'visibility' : 'visibility_off'"
