@@ -79,9 +79,11 @@ let keyNumber = ref(0);
     :key="keyNumber"></q-spinner>
 
   <q-item-section v-for="(item, i) in isaProperties.entry"
-    ><QInput outlined v-model="isaProperties.entry[i]" v-if="i != 0"
-      >Entry {{ i }}</QInput
-    >
+    ><q-input
+      outlined
+      v-model="isaProperties.entry[i]"
+      v-if="i != 0"
+      :label="i.toString()" />
   </q-item-section>
   <q-item-section>
     <q-btn id="add" icon="add" @click="addEntry()"
