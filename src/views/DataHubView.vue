@@ -1258,7 +1258,7 @@ async function fileUpload(folder = false) {
 
       // if there are chunks left, upload them
       if (chunkNumber < totalChunks) {
-        const chunk = selectedFile.slice(start, end);
+        let chunk = selectedFile.slice(start, end);
         const formData = new FormData();
 
         // body for the backend containing all necessary data
@@ -1284,6 +1284,33 @@ async function fileUpload(folder = false) {
             body: formData,
             credentials: "include",
           });
+          // if the response is 409, it means that the chunk is missing and needs to be uploaded again
+          if (response.status == 409) {
+            let missingPackage = "";
+            try {
+              if (response.headers.has("missing-package")) {
+                missingPackage = response.headers.get("missing-package");
+              }
+              start = Number(missingPackage) * chunkSize;
+              end = start + chunkSize;
+              chunk = selectedFile.slice(start, end);
+              formData.set("file", chunk);
+              formData.set("chunkNumber", missingPackage);
+
+              response = await fetch(appProperties.backend + "fnf/uploadFile", {
+                method: "POST",
+                body: formData,
+                credentials: "include",
+              });
+              chunkNumber = Number(missingPackage);
+            } catch (error) {
+              $q.notify({
+                type: "negative",
+                message: "Error while uploading file " + selectedFile.name,
+              });
+              errors = "Error uploading file " + selectedFile.name;
+            }
+          }
 
           if (!response.ok && response.status != 504) {
             try {
