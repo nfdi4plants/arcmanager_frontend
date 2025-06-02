@@ -406,7 +406,14 @@ async function downloadJson() {
           <p
             v-for="study in Object.keys(entry.assay_study_relation)"
             style="font-size: small">
-            {{ study }}: {{ entry.assay_study_relation[study] }}
+            <template v-if="entry.assay_study_relation[study].length > 3">
+              {{ study }}: [{{
+                entry.assay_study_relation[study].slice(0, 3).join()
+              }}, ...]
+            </template>
+            <template v-else
+              >{{ study }}: {{ entry.assay_study_relation[study] }}</template
+            >
           </p>
         </td>
         <td>{{ entry.created_at }}</td>
@@ -486,8 +493,10 @@ async function downloadJson() {
             flat
             :key="keyNumber">
             <thead>
-              <th>Study</th>
-              <th>Assays</th>
+              <tr>
+                <th>Study</th>
+                <th>Assays</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="study in Object.keys(cardArc.assay_study_relation)">

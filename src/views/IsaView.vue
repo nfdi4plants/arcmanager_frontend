@@ -759,6 +759,7 @@ function checkName(name: String) {
     ".bib",
     ".gtf",
     ".sf",
+    ".gitattributes",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
@@ -915,7 +916,8 @@ function setIds() {
       id="loader"
       size="2em"
       v-show="loading"
-      :key="keyNumber + 1"></q-spinner
+      :key="keyNumber + 1"
+    ></q-spinner
   ></q-list>
   <!-- METRICS -->
   <q-list v-if="!appProperties.loggedIn">
@@ -925,7 +927,8 @@ function setIds() {
         filled
         type="password"
         hint="Password"
-        style="size: 1cm" />
+        style="size: 1cm"
+      />
       <q-btn @click="buildChart(metricsPwd)" :disabled="metricsPwd.length == 0"
         >Get Metrics</q-btn
       >
@@ -939,7 +942,8 @@ function setIds() {
       id="errors"
       style="width: 50%"
       :key="keyNumber + 2"
-      v-show="chartErrors.length > 0">
+      v-show="chartErrors.length > 0"
+    >
       <p><b>Errors:</b></p>
       <ul>
         <li v-for="entry in chartErrors">{{ entry }}</li>
@@ -951,7 +955,8 @@ function setIds() {
     <!-- Identification -->
     <div
       class="q-gutter-md row items-start"
-      v-if="!isaProperties.path.includes('assay')">
+      v-if="!isaProperties.path.includes('assay')"
+    >
       <q-input
         outlined
         v-model="isaProperties.identification[0][1]"
@@ -967,7 +972,8 @@ function setIds() {
             ? ''
             : 'red'
         "
-        label="Identifier"></q-input>
+        label="Identifier"
+      ></q-input>
       <q-input
         style="width: 45%"
         outlined
@@ -984,7 +990,8 @@ function setIds() {
             ? ''
             : 'red'
         "
-        label="Title"></q-input>
+        label="Title"
+      ></q-input>
       <q-input
         style="width: 92%"
         outlined
@@ -1002,27 +1009,39 @@ function setIds() {
             ? ''
             : 'red'
         "
-        label="Description"></q-input>
+        label="Description"
+      ></q-input>
       <q-input
         style="width: 45%"
         outlined
         type="date"
         v-model="isaProperties.identification[3][1]"
-        label="Submission Date"></q-input>
+        label="Submission Date"
+      ></q-input>
       <q-input
         style="width: 45%"
         outlined
         type="date"
         v-model="isaProperties.identification[4][1]"
-        label="Public Release Date"></q-input>
+        label="Public Release Date"
+      ></q-input>
+      <q-input
+        v-if="isaProperties.identification.length > 5"
+        v-for="entry in isaProperties.identification.slice(5)"
+        style="width: 45%"
+        outlined
+        v-model="entry[1]"
+        :label="entry[0]"
+      ></q-input>
     </div>
     <div class="q-gutter-md row items-start" v-else>
       <q-input
         style="width: 45%"
         outlined
-        v-for="(entry, i) in isaProperties.identification"
-        v-model="isaProperties.identification[i][1]"
-        :label="isaProperties.identification[i][0]"></q-input>
+        v-for="entry in isaProperties.identification"
+        v-model="entry[1]"
+        :label="entry[0]"
+      ></q-input>
     </div>
     <div class="q-gutter-y-md" style="max-width: 600px">
       <q-tabs
@@ -1030,7 +1049,8 @@ function setIds() {
         v-if="!isaProperties.path.includes('assay')"
         dense
         align="left"
-        outside-arrows>
+        outside-arrows
+      >
         <template v-for="i in isaProperties.publications[0].length - 1"
           ><q-tab :label="'Publication ' + i" :name="'publication ' + i"></q-tab
         ></template>
@@ -1040,18 +1060,21 @@ function setIds() {
     <q-tab-panels
       v-model="isaProperties.publication"
       animated
-      v-if="!isaProperties.path.includes('assay')">
+      v-if="!isaProperties.path.includes('assay')"
+    >
       <template v-for="j in isaProperties.publications[0].length - 1">
         <q-tab-panel :name="'publication ' + j">
           <div
             class="q-gutter-md row items-start"
-            v-if="!isaProperties.path.includes('assay')">
+            v-if="!isaProperties.path.includes('assay')"
+          >
             <q-input
               style="width: 45%"
               outlined
-              v-for="(entry, i) in isaProperties.publications"
-              v-model="isaProperties.publications[i][j]"
-              :label="isaProperties.publications[i][0]"></q-input
+              v-for="entry in isaProperties.publications"
+              v-model="entry[j]"
+              :label="entry[0]"
+            ></q-input
             ><q-btn
               icon="add"
               outline
@@ -1074,7 +1097,8 @@ function setIds() {
         dense
         align="left"
         outside-arrows
-        mobile-arrows>
+        mobile-arrows
+      >
         <template v-for="i in isaProperties.contacts[0].length - 1"
           ><q-tab :label="'Contact ' + i" :name="'contact ' + i"></q-tab
         ></template>
@@ -1088,9 +1112,10 @@ function setIds() {
             <q-input
               style="width: 45%"
               outlined
-              v-for="(entry, i) in isaProperties.contacts"
-              v-model="isaProperties.contacts[i][j]"
-              :label="isaProperties.contacts[i][0]"></q-input
+              v-for="entry in isaProperties.contacts"
+              v-model="entry[j]"
+              :label="entry[0]"
+            ></q-input
             ><q-btn
               icon="add"
               outline
@@ -1120,11 +1145,13 @@ function setIds() {
       :clickable="item[0] != item[0].toUpperCase()"
       @click="setEntry(item, i)"
       v-for="(item, i) in isaProperties.entries.slice(0, 1000)"
-      :class="i % 2 === 1 ? 'alt' : ''">
+      :class="i % 2 === 1 ? 'alt' : ''"
+    >
       <q-item-section v-for="(entry, i) in item">
         <q-item-section
           v-if="entry != null"
-          :style="mandatory(item, i) ? 'color:red' : ''">
+          :style="mandatory(item, i) ? 'color:red' : ''"
+        >
           <template v-if="i > 0"
             >{{ entry.toString().slice(0, 15)
             }}<template v-if="entry.length > 15">...</template></template
@@ -1139,7 +1166,8 @@ function setIds() {
       clickable
       v-for="(term, i) in termProperties.terms.slice(0, 1000)"
       :class="i % 2 === 1 ? 'alt' : ''"
-      @click="setIds()">
+      @click="setIds()"
+    >
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
@@ -1168,7 +1196,8 @@ function setIds() {
               :options="sheetProperties.rowIds"
               label="select row to overwrite"
               options-dense
-              style="width: 12em"></q-select
+              style="width: 12em"
+            ></q-select
             ><q-btn
               class="alt"
               @click="setTerm(term)"
@@ -1188,13 +1217,15 @@ function setIds() {
     v-if="
       termProperties.unitTerms.length > 0 ||
       termProperties.buildingBlocks.length > 0
-    ">
+    "
+  >
     <!-- if its a list of unit terms-->
     <q-item
       clickable
       v-if="termProperties.unitTerms.length > 0"
       v-for="(term, i) in termProperties.unitTerms.slice(0, 1000)"
-      :class="i % 2 === 1 ? 'alt;' : ''">
+      :class="i % 2 === 1 ? 'alt;' : ''"
+    >
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
@@ -1233,7 +1264,8 @@ function setIds() {
       clickable
       v-else-if="termProperties.buildingBlocks.length > 0"
       v-for="(term, i) in termProperties.buildingBlocks.slice(0, 1000)"
-      :class="i % 2 === 1 ? 'alt;' : ''">
+      :class="i % 2 === 1 ? 'alt;' : ''"
+    >
       <q-expansion-item>
         <template #header>
           <span style="font-size: medium"
@@ -1274,7 +1306,8 @@ function setIds() {
   <q-list bordered v-if="sheetProperties.names.length > 0">
     <q-item
       v-for="(name, i) in sheetProperties.names"
-      :class="i % 2 === 1 ? 'alt' : ''">
+      :class="i % 2 === 1 ? 'alt' : ''"
+    >
       <q-expansion-item>
         <template #header>
           <q-btn @click="selectSheet(name, i)">{{ name }}</q-btn>
@@ -1308,7 +1341,8 @@ function setIds() {
     <q-item
       clickable
       v-for="(template, i) in templateProperties.filtered"
-      :class="i % 2 === 1 ? 'alt' : ''">
+      :class="i % 2 === 1 ? 'alt' : ''"
+    >
       <q-expansion-item>
         <template #header>
           {{ template.name }} ({{ template.organisation }})
@@ -1349,7 +1383,8 @@ function setIds() {
     v-if="
       fileProperties.name.toLowerCase().endsWith('.pdf') &&
       fileProperties.pdfContent != ''
-    ">
+    "
+  >
     <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
 
     <span v-html="fileProperties.pdfContent"></span>
@@ -1372,33 +1407,39 @@ function setIds() {
         readonly
         v-model="fileProperties.content"
         style="white-space: pre-line"
-        @paste="onPaste"></q-editor>
+        @paste="onPaste"
+      ></q-editor>
     </template>
     <template v-else>
       <q-toolbar-title>{{ fileProperties.name }}</q-toolbar-title>
       <!-- IF its an png -->
       <q-img
         v-if="fileProperties.name.toLowerCase().includes('.png')"
-        :src="'data:image/png;base64,' + fileProperties.content"></q-img>
+        :src="'data:image/png;base64,' + fileProperties.content"
+      ></q-img>
       <!-- IF its an jpeg -->
       <q-img
         v-else-if="fileProperties.name.toLowerCase().includes('.jpeg')"
-        :src="'data:image/jpeg;base64,' + fileProperties.content"></q-img>
+        :src="'data:image/jpeg;base64,' + fileProperties.content"
+      ></q-img>
       <!-- IF its an jpg -->
       <q-img
         v-else-if="fileProperties.name.toLowerCase().includes('.jpg')"
-        :src="'data:image/jpg;base64,' + fileProperties.content"></q-img>
+        :src="'data:image/jpg;base64,' + fileProperties.content"
+      ></q-img>
       <!-- IF its an svg -->
       <q-editor
         v-else-if="fileProperties.name.toLowerCase().includes('.svg')"
         style="white-space: pre-line"
-        v-model="fileProperties.content"></q-editor>
+        v-model="fileProperties.content"
+      ></q-editor>
       <template v-else>
         <q-editor
           v-model="fileProperties.content"
           style="white-space: pre-line"
           :readonly="checkName(fileProperties.name)"
-          @paste="onPaste"></q-editor>
+          @paste="onPaste"
+        ></q-editor>
         <q-btn
           icon="save"
           @click="commitFile()"
@@ -1418,14 +1459,16 @@ function setIds() {
       checkEmptyIsaView() &&
       arcProperties.changes != '' &&
       fileProperties.pdfContent == ''
-    ">
+    "
+  >
     <div class="row">
       <q-checkbox v-model="showChanges" label="View changes" />
       <q-select
         v-model="arcProperties.branch"
         :options="arcProperties.branches"
         label="Branch"
-        style="margin-left: 2em; max-width: 150px"></q-select>
+        style="margin-left: 2em; max-width: 150px"
+      ></q-select>
     </div>
 
     <q-card v-if="showChanges">
@@ -1434,7 +1477,8 @@ function setIds() {
     </q-card>
   </q-item-section>
   <q-item-section
-    v-else-if="checkEmptyIsaView() && fileProperties.pdfContent == ''">
+    v-else-if="checkEmptyIsaView() && fileProperties.pdfContent == ''"
+  >
     <q-checkbox v-model="appProperties.experimental"
       >Experimental<q-tooltip self="top left" anchor="bottom left"
         >Show experimental features</q-tooltip

@@ -347,6 +347,10 @@ var extendedSearch = ref(false);
 // namespace of the arc
 var arcNamespace = ref("");
 
+var fdat = ref(false);
+var fdatPAT = ref("");
+var fdatAddress = ref("");
+
 // set to true if folder contains a datamap xlsx file
 var containsDatamap = false;
 
@@ -1060,6 +1064,32 @@ async function getFile(id: number, path: string, branch: string) {
                 isaProperties.contacts.push(cache);
               }
               break;
+
+            // compliance agreement (Convention of biodiversity compliance)
+            case "Comment[Special CDB-ABS permissions required]":
+              if (isaProperties.identification.length > 0) {
+                let entry = data[i];
+                let cache: string[] = [];
+                entry.forEach((element: string | null) => {
+                  if (element) cache.push(element);
+                  else cache.push("");
+                });
+                isaProperties.identification.push(cache);
+              }
+              break;
+
+            // compliance agreement (Convention of biodiversity compliance)
+            case "Comment[Special ITPGRFA permissions required]":
+              if (isaProperties.identification.length > 0) {
+                let entry = data[i];
+                let cache: string[] = [];
+                entry.forEach((element: string | null) => {
+                  if (element) cache.push(element);
+                  else cache.push("");
+                });
+                isaProperties.identification.push(cache);
+              }
+              break;
           }
           isaList.push(element);
         });
@@ -1228,7 +1258,7 @@ async function fileUpload(folder = false) {
 
       // if there are chunks left, upload them
       if (chunkNumber < totalChunks) {
-        const chunk = selectedFile.slice(start, end);
+        let chunk = selectedFile.slice(start, end);
         const formData = new FormData();
 
         // body for the backend containing all necessary data
@@ -1254,12 +1284,39 @@ async function fileUpload(folder = false) {
             body: formData,
             credentials: "include",
           });
+          // if the response is 409, it means that the chunk is missing and needs to be uploaded again
+          if (response.status == 409) {
+            let missingPackage = "";
+            try {
+              if (response.headers.has("missing-package")) {
+                missingPackage = response.headers.get("missing-package");
+              }
+              start = Number(missingPackage) * chunkSize;
+              end = start + chunkSize;
+              chunk = selectedFile.slice(start, end);
+              formData.set("file", chunk);
+              formData.set("chunkNumber", missingPackage);
 
-          if (!response.ok) {
+              response = await fetch(appProperties.backend + "fnf/uploadFile", {
+                method: "POST",
+                body: formData,
+                credentials: "include",
+              });
+              chunkNumber = Number(missingPackage);
+            } catch (error) {
+              $q.notify({
+                type: "negative",
+                message: "Error while uploading file " + selectedFile.name,
+              });
+              errors = "Error uploading file " + selectedFile.name;
+            }
+          }
+
+          if (!response.ok && response.status != 504) {
             try {
               let data = await response.json();
               errors =
-                response.statusText + ", " + data["detail"].slice(0, 200);
+                response.statusText + ", " + data["detail"].slice(0, 300);
               $q.notify({
                 type: "negative",
                 message: errors,
@@ -1276,7 +1333,19 @@ async function fileUpload(folder = false) {
             $q.loading.hide();
             uploading = false;
           } else {
-            if (response.status == 201 || response.status == 200) filesDone++;
+            if (response.status == 504) {
+              $q.notify({
+                message:
+                  "Your file is uploaded in the background. Check again later!",
+                color: "primary",
+              });
+            }
+            if (
+              response.status == 201 ||
+              response.status == 200 ||
+              response.status == 504
+            )
+              filesDone++;
             const temp = `Chunk ${
               chunkNumber + 1
             }/${totalChunks} uploaded successfully`;
@@ -1583,6 +1652,7 @@ function checkName(name: string) {
     ".zip",
     ".7z",
     ".gz",
+    ".bz2",
     ".html",
     ".css",
     ".mp4",
@@ -1768,7 +1838,16 @@ async function deleteFolder(
       });
     } else {
       $q.notify({ type: "positive", message: data });
-      await inspectTree(arcId, pathHistory[pathHistory.length - 1], undefined);
+      let pathPieces = path.split("/");
+      if (pathPieces.length > 1) {
+        await inspectTree(
+          arcId,
+          pathHistory[pathHistory.length - 1],
+          undefined
+        );
+      } else {
+        await inspectArc(arcId);
+      }
     }
     loading = false;
     forcereload();
@@ -1811,8 +1890,12 @@ async function createFolder(
       message: errors,
     });
   } else {
-    // get the updated tree
-    inspectTree(id, path);
+    if (path != "") {
+      // get the updated tree
+      await inspectTree(id, path);
+    } else {
+      await inspectArc(id);
+    }
 
     // get the updated changes, assays and studies
     await getChanges(id, arcProperties.branch);
@@ -2320,6 +2403,58 @@ async function validateArc() {
   loading = false;
   forcereload();
 }
+
+/** Publishes the arc to invenio (FDAT)
+ *
+ *
+ */
+async function publishArc() {
+  loading = true;
+  $q.notify({ message: "This will take some time. You can continue working." });
+  appProperties.arcList = true;
+  forcereload();
+  if (fdatAddress.value.length > 0) {
+    try {
+      let request = await fetch(appProperties.backend + "projects/publishArc", {
+        credentials: "include",
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          arcName: arcProperties.identifier,
+          namespace: arcNamespace.value,
+          invenioPAT: fdatPAT.value,
+          invenioURL: fdatAddress.value,
+        }),
+      });
+      if (request.ok) {
+        $q.notify({ message: await request.text(), type: "positive" });
+      } else {
+        errors = "Error publishing your ARC! Try again!";
+        $q.notify({
+          type: "negative",
+          message: errors,
+        });
+      }
+    } catch (error: any) {
+      errors = error.toString();
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
+    }
+  } else {
+    errors = "Failed to retrieve the record ID! Please try again!";
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
+  }
+  loading = false;
+  appProperties.arcList = true;
+  fdatPAT.value = "";
+  fdatAddress.value = "";
+  forcereload();
+}
 </script>
 
 <template>
@@ -2374,7 +2509,7 @@ async function validateArc() {
           :label="appProperties.showIsaView ? '' : 'Upload File(s)'"
           multiple
           :max-file-size="
-            appProperties.experimental ? '53687091200' : '10737418240'
+            appProperties.experimental ? '107374182400' : '42949672960'
           "
           @update:model-value="
             fileUpload();
@@ -2382,8 +2517,8 @@ async function validateArc() {
           "
           @rejected="
             errors = appProperties.experimental
-              ? 'ERROR: File too big (max. 50 GB) or too many selected!'
-              : 'ERROR: File too big (max. 10 GB) or too many selected!';
+              ? 'ERROR: File too big (max. 100 GB)!'
+              : 'ERROR: File too big (max. 40 GB)!';
             $q.notify({
               type: 'negative',
               message: errors,
@@ -2397,8 +2532,8 @@ async function validateArc() {
           ><q-tooltip
             >Upload one or multiple files
             <template v-if="appProperties.experimental"
-              >(max. 50 Gb per file)</template
-            ><template v-else>(max. 10 Gb per file)</template></q-tooltip
+              >(max. 100 Gb per file)</template
+            ><template v-else>(max. 40 Gb per file)</template></q-tooltip
           ></q-file
         >
         <!-- Folder Upload -->
@@ -2465,9 +2600,11 @@ async function validateArc() {
           ><q-tooltip>Reload the content of the arc</q-tooltip></q-btn
         >
       </q-btn-group>
-      <!-- activates lfs
-      <q-checkbox v-model="lfs"
-        >LFS<q-tooltip>Activate lfs for your file upload</q-tooltip></q-checkbox> -->
+      <q-checkbox v-model="lfs" v-if="appProperties.experimental"
+        >LFS<q-tooltip
+          >Activate lfs for all your file upload</q-tooltip
+        ></q-checkbox
+      >
     </template>
 
     <!-- LOADING SPINNER --><q-spinner
@@ -2583,6 +2720,28 @@ async function validateArc() {
             </q-item>
           </q-list> </q-menu
         ><q-tooltip>Add, edit or remove members of your arc</q-tooltip></q-btn
+      ><!-- PUBLISH ARC-->
+      <q-btn
+        v-if="appProperties.experimental"
+        id="publish"
+        icon="publish"
+        glossy
+        @click="
+          studySync = false;
+          assaySync = false;
+          fdat = true;
+          appProperties.arcList = false;
+          forcereload();
+        "
+        :key="refresher + 7"
+        ><template
+          v-if="
+            !appProperties.showIsaView &&
+            appProperties.arcList &&
+            windowWidth > 1520
+          "
+          >Publish ARC</template
+        ><q-tooltip>Publish your ARC to FDAT</q-tooltip></q-btn
       ></q-btn-group
     >
     <!-- VALIDATION -->
@@ -2995,6 +3154,7 @@ async function validateArc() {
                   isaProperties.entry = [];
                   splitterModel = 0;
                   lfs = false;
+                  user = -1;
                   showInput = showFolderInput = false;
                   forcereload();
                 "
@@ -3497,6 +3657,44 @@ async function validateArc() {
           >
           about role permissions
         </span>
+      </div>
+    </template>
+    <!-- PUBLISH ARC -->
+    <template v-if="fdat"
+      ><div class="q-pa-md">
+        <q-btn
+          icon="arrow_back"
+          @click="
+            appProperties.arcList = true;
+            fdat = false;
+            forcereload();
+          "
+          class="return">
+          Return
+        </q-btn>
+        <div class="q-gutter-md row">
+          <q-input
+            outlined
+            v-model="fdatPAT"
+            label="Personal Access token from FDAT"
+            style="width: 50em" />
+          <q-input
+            outlined
+            v-model="fdatAddress"
+            placeholder="https://fdat.uni-tuebingen.de/uploads/xxxxx-xxxxx"
+            label="Address of the record"
+            style="width: 50em" />
+          <q-btn
+            @click="
+              fdat = false;
+              publishArc();
+              forcereload();
+            "
+            :disable="fdatAddress.length == 0 || fdatPAT.length == 0"
+            glossy
+            >Publish</q-btn
+          >
+        </div>
       </div>
     </template>
   </q-list>

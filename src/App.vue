@@ -76,14 +76,25 @@ var backend = appProperties.backend + "projects/";
 
 var target = ref("");
 
+// when entering the personal access token this boolean toggles the visibility in the input field
+var showPwd = ref(false);
+
+var mouseHover = ref(false);
+
+// personal access token
+var pat = ref("");
+
+// set to true if personal access token is set
+var patSet = ref(false);
+
 var groups: Array<{ name: string; id: number }> = [];
 
 var group = ref({ name: "", id: 0 });
 
 var groupEnable = ref(false);
 
-// -1 - normal mode; 0 - arc creation; 1 - template editing; 2 - Arc search
-var mode: -1 | 0 | 1 | 2 = -1;
+// -1 - normal mode; 0 - arc creation; 1 - template editing; 2 - Arc search; 3 - Personal Access Token
+var mode: -1 | 0 | 1 | 2 | 3 = -1;
 
 // Name of the new arc
 var arcName = ref("");
@@ -144,7 +155,7 @@ const loginOptions: ReadonlyArray<{
     description: "DataHUB for the transregio project TRR356",
   },
   {
-    label: "DataHUB (federated) test environment",
+    label: "Test environment",
     value: "tuebingen_testenv",
     description: "Development server for federated DataHUB",
   },
@@ -301,6 +312,122 @@ async function getBanner() {
   forcereload();
 }
 
+/** refreshes your session using the refresh token
+ *
+ *
+ */
+async function refreshSession() {
+  try {
+    let request = await fetch(appProperties.backend + "auth/refresh", {
+      credentials: "include",
+    });
+    if (request.ok) {
+      $q.notify({ message: await request.text(), type: "positive" });
+
+      try {
+        let time = Number($q.cookies.get("timer")) + 7200;
+        let timeLeft = time - Math.floor(new Date().getTime() / 1000);
+
+        // if session ran out, the countdown was stopped. Therefore start a new cycle
+        if (
+          countDown.hour == 0 &&
+          countDown.minute == 0 &&
+          countDown.second == 0
+        ) {
+          countDown.hour = Math.floor(timeLeft / 3600);
+          countDown.minute = Math.floor(timeLeft / 60) % 60;
+          countDown.second = Math.floor(timeLeft % 60);
+          let interval = setInterval(() => {
+            if (countDown.minute == 0) {
+              countDown.hour -= 1;
+              countDown.minute = 59;
+              countDown.second = 59;
+            }
+            if (countDown.second == 0) {
+              countDown.minute -= 1;
+              countDown.second = 59;
+            } else {
+              countDown.second -= 1;
+            }
+            // reset counter
+            if (countDown.hour < 0) {
+              countDown.hour = 0;
+              countDown.minute = 0;
+              countDown.second = 0;
+              clearInterval(interval);
+            }
+
+            // refresh time left to accommodate to rounding errors after one hour or 5 minutes left
+            if (timeLeft == 3600 || timeLeft == 300)
+              timeLeft = time - Math.floor(new Date().getTime() / 1000);
+
+            timer.value += 1;
+          }, 970);
+          // else just set the timer back to the newest state
+        } else {
+          countDown.hour = Math.floor(timeLeft / 3600);
+          countDown.minute = Math.floor(timeLeft / 60) % 60;
+          countDown.second = Math.floor(timeLeft % 60);
+        }
+      } catch (error: any) {
+        $q.notify({ type: "negative", message: error.toString() });
+      }
+    } else {
+      errors = "Error refreshing your Session! Try to login again!";
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
+    }
+  } catch (error: any) {
+    errors = error.toString();
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
+  }
+}
+
+/** Adds your personal access token allowing much longer session
+ *
+ *
+ */
+async function addPAT() {
+  try {
+    let request = await fetch(appProperties.backend + "auth/addPAT", {
+      credentials: "include",
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pat: pat.value }),
+    });
+    if (request.ok) {
+      $q.notify({ message: await request.text(), type: "positive" });
+
+      try {
+        let patCookie = $q.cookies.get("pat");
+
+        if (patCookie && patCookie == "true") {
+          patSet.value = true;
+        }
+      } catch (error: any) {
+        $q.notify({ type: "negative", message: error.toString() });
+      }
+    } else {
+      errors = "Error adding your PAT! Try to login again!";
+      $q.notify({
+        type: "negative",
+        message: errors,
+      });
+    }
+  } catch (error: any) {
+    errors = error.toString();
+    $q.notify({
+      type: "negative",
+      message: errors,
+    });
+  }
+}
+
 // check if user settings prefer dark mode
 if (
   window.matchMedia &&
@@ -311,11 +438,15 @@ if (
 }
 
 if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
+  if ($q.cookies.get("pat")) {
+    if ($q.cookies.get("pat") == "true") patSet.value = true;
+  }
+
   getBanner();
   let time = Number($q.cookies.get("timer")) + 7200;
   let timeLeft = time - Math.floor(new Date().getTime() / 1000);
 
-  if (timeLeft > 0) {
+  if (timeLeft > 0 && !patSet.value) {
     countDown.hour = Math.floor(timeLeft / 3600);
     countDown.minute = Math.floor(timeLeft / 60) % 60;
     countDown.second = Math.floor(timeLeft % 60);
@@ -359,8 +490,10 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
     <q-drawer
       v-model="layoutProperties.showLeft"
       show-if-above
-      :mini="!appProperties.arcList"
-      :width="190"
+      @mouseenter="mouseHover = true"
+      @mouseleave="mouseHover = false"
+      :mini="!appProperties.arcList && !mouseHover"
+      :width="200"
       :breakpoint="500"
       bordered>
       <q-scroll-area
@@ -399,6 +532,7 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             </q-item-section>
           </q-item>
           <q-select
+            style="width: 200px"
             standout
             v-model="target"
             v-if="!appProperties.loggedIn"
@@ -511,21 +645,60 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
           style="margin-left: 1cm"
           v-show="loading"
           :key="refresher + 2"></q-spinner-gears>
-        <q-separator inset style="margin-top: 1em; margin-bottom: 1em" />
-        <p class="text-center" v-if="appProperties.arcList">
+        <q-separator
+          inset
+          style="margin-top: 1em; margin-bottom: 1em"
+          v-if="!patSet" />
+        <!-- SESSION TIMER-->
+        <p
+          class="text-center"
+          v-if="(appProperties.arcList || mouseHover) && !patSet">
           Session time left:
         </p>
 
         <span
           style="margin-left: 25%"
           :key="timer"
-          v-show="appProperties.arcList"
+          v-show="(appProperties.arcList || mouseHover) && !patSet"
           >{{ countDown.hour }} :
           <template v-if="countDown.minute < 10">0</template
           >{{ countDown.minute }} :
           <template v-if="countDown.second < 10">0</template
           >{{ countDown.second }}</span
         >
+
+        <!-- REFRESH -->
+        <p
+          class="text-center"
+          style="margin-top: 1em"
+          v-if="appProperties.loggedIn && !patSet">
+          <template v-if="appProperties.arcList || mouseHover"
+            >Refresh:
+          </template>
+          <q-btn icon="autorenew" round outline @click="refreshSession"
+            ><q-tooltip>Refresh your session</q-tooltip></q-btn
+          >
+        </p>
+
+        <!-- PERSONAL ACCESS TOKEN -->
+        <q-separator v-if="appProperties.experimental" />
+        <q-item
+          v-if="appProperties.experimental"
+          v-ripple
+          clickable
+          v-on:click="
+            errors = '';
+            mode = 3;
+            appProperties.showIsaView = false;
+            cleanIsaView();
+            forcereload();
+          ">
+          <q-item-section avatar>
+            <q-icon color="grey-7" name="add"></q-icon>
+          </q-item-section>
+          <q-item-section style="margin-left: -1.2em">Add PAT</q-item-section
+          ><q-tooltip>Add your Personal Access Token (PAT)</q-tooltip>
+        </q-item>
       </q-scroll-area>
     </q-drawer>
 
@@ -591,9 +764,18 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             "
             :key="refresher + 3"></q-btn>
           <p>Please fill out the form below to create the new ARC:</p>
-          <q-input outlined v-model="arcName" label="Name of the ARC" />
-          <q-input outlined v-model="arcDesc" label="Description of the ARC" />
           <q-input
+            outlined
+            v-model="arcName"
+            label="Name of the ARC"
+            style="width: 50em" />
+          <q-input
+            outlined
+            v-model="arcDesc"
+            label="Description of the ARC"
+            style="width: 50em" />
+          <q-input
+            style="width: 50em"
             outlined
             v-model="invId"
             label="An identifier of your ARC for the isa file (e.g. hhu_talinum_fruticosum)"
@@ -665,6 +847,47 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
             "
             :key="refresher + 4"></q-btn>
           <ArcSearchView></ArcSearchView>
+        </template>
+        <!-- MODE 3: PERSONAL ACCESS TOKEN-->
+        <template v-else-if="mode == 3"
+          ><q-btn
+            class="return"
+            icon="arrow_back"
+            @click="
+              mode = -1;
+              groupEnable = false;
+              appProperties.arcList = true;
+              forcereload();
+            "
+            :key="refresher + 3"></q-btn>
+          <p>
+            Please fill out the field below to add your Personal Access Token
+            (PAT):
+          </p>
+          <p>
+            <q-input
+              style="width: 30em"
+              outlined
+              v-model="pat"
+              label="Your Personal Access Token"
+              :type="showPwd ? 'text' : 'password'"
+              ><template v-slot:append>
+                <q-icon
+                  :name="showPwd ? 'visibility' : 'visibility_off'"
+                  class="cursor-pointer"
+                  @click="showPwd = !showPwd" /> </template
+            ></q-input>
+          </p>
+          <q-btn
+            class="send"
+            icon="send"
+            @click="
+              addPAT();
+              mode = -1;
+              pat = '';
+              forcereload();
+            "
+            :disable="pat.length == 0"></q-btn>
         </template>
         <!-- MODE -1: NORMAL MODE-->
         <template v-else>
