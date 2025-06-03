@@ -1224,8 +1224,7 @@ async function fileUpload(folder = false) {
       else filePath = selectedFile.webkitRelativePath;
     else filePath = pathHistory[pathHistory.length - 1];
     $q.loading.show({
-      message:
-        "Uploading the file(s)...<br><i>All files over 50 mb are uploaded through git-lfs!</i>",
+      message: `Uploading the file(s)...<br><i>All files over 50 mb are uploaded through git-lfs!</i>`,
       html: true,
     });
 
@@ -1250,6 +1249,7 @@ async function fileUpload(folder = false) {
 
     // function that builds the next chunk and uploads it
     const uploadNextChunk = async () => {
+      let startTime = performance.now();
       end = Math.min(start + chunkSize, fileSize);
       // set the progress to 99% for the last chunk
       if (chunkNumber + 1 == totalChunks) {
@@ -1349,6 +1349,34 @@ async function fileUpload(folder = false) {
             const temp = `Chunk ${
               chunkNumber + 1
             }/${totalChunks} uploaded successfully`;
+
+            // calculate the upload time for the chunk in seconds
+            let uploadTime = (performance.now() - startTime) / 1000;
+
+            let timeRemaining = Number(
+              ((totalChunks - chunkNumber - 1) * uploadTime).toFixed(2)
+            );
+
+            let estimation = `${timeRemaining} seconds`;
+
+            if (timeRemaining > 3600) {
+              estimation = `${(timeRemaining / 3600).toFixed(2)} hours`;
+            } else if (timeRemaining > 60) {
+              estimation = `${(timeRemaining / 60).toFixed(2)} minutes`;
+            }
+
+            let uploadMessage =
+              `File: ${selectedFile.name} (${(fileSize / 1000000).toFixed(
+                2
+              )} MB) <br />` +
+              `Chunk: ${chunkNumber + 1}/${totalChunks} <br />` +
+              `<br />` +
+              `Estimated time remaining: ${estimation}`;
+
+            $q.loading.show({
+              message: `Uploading the file(s)...<br><i>All files over 50 mb are uploaded through git-lfs!</i><br><br>${uploadMessage}`,
+              html: true,
+            });
 
             // update progress if its not the last chunk
             if (progress != 0.99)
