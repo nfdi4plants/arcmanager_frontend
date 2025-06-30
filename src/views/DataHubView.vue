@@ -719,11 +719,11 @@ async function inspectArc(id: number) {
   appProperties.arcList = true;
   arcProperties.studies = arcProperties.assays = [];
   showInput = assaySync = studySync = false;
-  fileInput.value = [];
   user = -1;
   arcProperties.changes = "";
   treePage.value = treePageMax = 1;
   repairClicked.value = false;
+  if (!uploading) fileInput.value = [];
   forcereload();
   try {
     const response = await fetch(
@@ -1202,6 +1202,10 @@ async function fileUpload(folder = false) {
 
   errors = "";
 
+  const arcID = arcId.toString();
+
+  const currentPath = pathHistory[pathHistory.length - 1];
+
   // chunksize is set to 100mb
   const chunkSize = 100 * 1024 * 1024;
 
@@ -1216,13 +1220,10 @@ async function fileUpload(folder = false) {
 
     // save the file on the most recent path
     if (folder)
-      if (pathHistory[pathHistory.length - 1] != "")
-        filePath =
-          pathHistory[pathHistory.length - 1] +
-          "/" +
-          selectedFile.webkitRelativePath;
+      if (currentPath != "")
+        filePath = currentPath + "/" + selectedFile.webkitRelativePath;
       else filePath = selectedFile.webkitRelativePath;
-    else filePath = pathHistory[pathHistory.length - 1];
+    else filePath = currentPath;
     $q.loading.show({
       message: `Uploading the file(s)...<br><i>All files over 50 mb are uploaded through git-lfs!</i>`,
       html: true,
@@ -1256,6 +1257,9 @@ async function fileUpload(folder = false) {
         progress = 0.99;
       }
 
+      if (progress == 0.99 && filesDone == fileInput.value.length - 1)
+        $q.loading.hide();
+
       // if there are chunks left, upload them
       if (chunkNumber < totalChunks) {
         let chunk = selectedFile.slice(start, end);
@@ -1266,7 +1270,7 @@ async function fileUpload(folder = false) {
         formData.append("chunkNumber", chunkNumber.toString());
         formData.append("totalChunks", totalChunks.toString());
         formData.append("name", selectedFile.name);
-        formData.append("id", arcId.toString());
+        formData.append("id", arcID);
         formData.append("branch", arcProperties.branch);
         formData.append("path", filePath);
         formData.append("namespace", arcNamespace.value);
@@ -1344,8 +1348,14 @@ async function fileUpload(folder = false) {
               response.status == 201 ||
               response.status == 200 ||
               response.status == 504
-            )
+            ) {
               filesDone++;
+              $q.notify({
+                type: "positive",
+                message: await response.text(),
+              });
+            }
+
             const temp = `Chunk ${
               chunkNumber + 1
             }/${totalChunks} uploaded successfully`;
@@ -1365,22 +1375,26 @@ async function fileUpload(folder = false) {
               estimation = `${(timeRemaining / 60).toFixed(2)} minutes`;
             }
 
-            let uploadMessage =
-              `File: ${selectedFile.name} (${(fileSize / 1000000).toFixed(
-                2
-              )} MB) <br />` +
-              `Chunk: ${chunkNumber + 1}/${totalChunks} <br />` +
-              `<br />` +
-              `Estimated time remaining: ${estimation}`;
+            let uploadMessage = `File: ${selectedFile.name} (${(
+              fileSize / 1000000
+            ).toFixed(2)} MB) <br />`;
 
-            $q.loading.show({
-              message: `Uploading the file(s)...<br><i>All files over 50 mb are uploaded through git-lfs!</i><br><br>${uploadMessage}`,
-              html: true,
-            });
+            if (progress != 0.99) {
+              uploadMessage +=
+                `Chunk: ${chunkNumber + 1}/${totalChunks} <br />` +
+                `<br />` +
+                `Estimated time remaining: ${estimation}`;
+
+              $q.loading.show({
+                message: `Uploading the file(s)...<br><i>All files over 50 mb are uploaded through git-lfs!</i><br><br>${uploadMessage}`,
+                html: true,
+              });
+            }
 
             // update progress if its not the last chunk
             if (progress != 0.99)
               progress = Number((chunkNumber + 1) * chunkProgress);
+            else $q.loading.hide();
             console.log(temp);
             chunkNumber++;
             start = end;
@@ -1394,10 +1408,7 @@ async function fileUpload(folder = false) {
         // when every chunk is uploaded, set the progress to 1
       } else {
         progress = 1;
-        $q.notify({
-          type: "positive",
-          message: selectedFile.name + " was uploaded successfully!",
-        });
+
         console.log("Upload complete");
         // when the largest file (which in return is the last file to finish) was uploaded, finish the process and clear the input
         if (filesDone == fileInput.value.length) {
@@ -1408,7 +1419,8 @@ async function fileUpload(folder = false) {
           errors = "";
           uploading = false;
           // get the updated view of the arc
-          await inspectTree(arcId, pathHistory[pathHistory.length - 1]);
+          if (Number(arcID) == arcId && currentPath == pathHistory[pathHistory.length - 1])
+            await inspectTree(Number(arcID), currentPath);
           forcereload();
         }
       }
@@ -2555,7 +2567,7 @@ async function publishArc() {
           "
           :key="refresher"
           :loading="uploading"
-          :disable="progress > 0 && progress != 1 && progress != null"
+          :disable="uploading"
           ><template v-slot:before> <q-icon name="file_upload" /> </template
           ><q-tooltip
             >Upload one or multiple files
@@ -2579,6 +2591,7 @@ async function publishArc() {
           <input
             type="file"
             id="folderUp"
+            :disabled="uploading"
             webkitdirectory
             multiple
             @change="uploadFolder" />
