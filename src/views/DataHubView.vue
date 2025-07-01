@@ -338,6 +338,8 @@ var identFolder = ref("");
 // field for searchbar
 var search = ref("");
 
+var uploadMessage = "";
+
 // the filtered list, that will be displayed
 var searchList: Array<Arc> = [];
 
@@ -371,6 +373,38 @@ var selectedNode = ref("");
 var splitterModel = ref(0);
 
 var repairClicked = ref(false);
+
+function confirmUpload(folder = false) {
+  let dataSize = 0;
+  for (let i = 0; i < fileInput.value.length; i++) {
+    let file = fileInput.value[i];
+    dataSize += file.size;
+  }
+
+  let sizeString =
+    dataSize > 1000000000
+      ? (dataSize / 1000000000).toFixed(2) + " GB"
+      : dataSize > 1000000
+      ? (dataSize / 1000000).toFixed(2) + " MB"
+      : (dataSize / 1000).toFixed(2) + " KB";
+
+  $q.dialog({
+    title: "Confirm Upload",
+    message: `Are you sure you want to upload the file(s) to the Arc? <br> Datasize: ${sizeString} <br> <i>All files over 50 MB are uploaded through git-lfs!</i>`,
+    html: true,
+    cancel: true,
+    persistent: true,
+  })
+    .onOk(() => {
+      fileUpload(folder);
+      uploading = true;
+    })
+    .onCancel(() => {
+      // if the dialog is canceled, reset the file input
+      fileInput.value = [];
+      uploading = false;
+    });
+}
 
 /** adds the given child to the respective Arc Tree subnode
  *
@@ -1224,11 +1258,6 @@ async function fileUpload(folder = false) {
         filePath = currentPath + "/" + selectedFile.webkitRelativePath;
       else filePath = selectedFile.webkitRelativePath;
     else filePath = currentPath;
-    $q.loading.show({
-      message: `Uploading the file(s)...<br><i>All files over 50 mb are uploaded through git-lfs!</i>`,
-      html: true,
-    });
-
     if (!folder) {
       // if the file is in a subfolder, include an "/"
       if (filePath == "") {
@@ -1256,9 +1285,6 @@ async function fileUpload(folder = false) {
       if (chunkNumber + 1 == totalChunks) {
         progress = 0.99;
       }
-
-      if (progress == 0.99 && filesDone == fileInput.value.length - 1)
-        $q.loading.hide();
 
       // if there are chunks left, upload them
       if (chunkNumber < totalChunks) {
@@ -1334,7 +1360,6 @@ async function fileUpload(folder = false) {
               message: errors,
             });
             progress = 1;
-            $q.loading.hide();
             uploading = false;
           } else {
             if (response.status == 504) {
@@ -1375,26 +1400,17 @@ async function fileUpload(folder = false) {
               estimation = `${(timeRemaining / 60).toFixed(2)} minutes`;
             }
 
-            let uploadMessage = `File: ${selectedFile.name} (${(
-              fileSize / 1000000
-            ).toFixed(2)} MB) <br />`;
+            uploadMessage = `Uploading the file(s)... File: ${
+              selectedFile.name
+            } (${(fileSize / 1000000).toFixed(2)} MB)`;
 
             if (progress != 0.99) {
-              uploadMessage +=
-                `Chunk: ${chunkNumber + 1}/${totalChunks} <br />` +
-                `<br />` +
-                `Estimated time remaining: ${estimation}`;
-
-              $q.loading.show({
-                message: `Uploading the file(s)...<br><i>All files over 50 mb are uploaded through git-lfs!</i><br><br>${uploadMessage}`,
-                html: true,
-              });
+              uploadMessage += ` Estimated time remaining: ${estimation}`;
             }
 
             // update progress if its not the last chunk
             if (progress != 0.99)
               progress = Number((chunkNumber + 1) * chunkProgress);
-            else $q.loading.hide();
             console.log(temp);
             chunkNumber++;
             start = end;
@@ -1412,14 +1428,17 @@ async function fileUpload(folder = false) {
         console.log("Upload complete");
         // when the largest file (which in return is the last file to finish) was uploaded, finish the process and clear the input
         if (filesDone == fileInput.value.length) {
+          uploadMessage = "";
           fileInput.value = [];
-          $q.loading.hide();
           fileProperties.path = fileProperties.content = "";
           fileProperties.id = 0;
           errors = "";
           uploading = false;
           // get the updated view of the arc
-          if (Number(arcID) == arcId && currentPath == pathHistory[pathHistory.length - 1])
+          if (
+            Number(arcID) == arcId &&
+            currentPath == pathHistory[pathHistory.length - 1]
+          )
             await inspectTree(Number(arcID), currentPath);
           forcereload();
         }
@@ -2218,7 +2237,7 @@ function uploadFolder(event: InputEvent) {
   fileInput.value = files;
 
   // upload the files with property "folder" set to true
-  fileUpload(true);
+  confirmUpload(true);
 }
 
 /** views the selected tree from the breadcrumb
@@ -2551,10 +2570,7 @@ async function publishArc() {
           :max-file-size="
             appProperties.experimental ? '107374182400' : '42949672960'
           "
-          @update:model-value="
-            fileUpload();
-            uploading = true;
-          "
+          @update:model-value="confirmUpload()"
           @rejected="
             errors = appProperties.experimental
               ? 'ERROR: File too big (max. 100 GB)!'
@@ -2945,8 +2961,7 @@ async function publishArc() {
       :key="refresher + 5"
       color="red"
       :indeterminate="progress == 0.99"></q-linear-progress>
-    <p v-if="progress < 0.99">Uploading File...</p>
-    <p v-else>Processing data... This may take a moment!</p>
+    <p>{{ uploadMessage }}</p>
   </template>
   <!-- HINTS FOR LFS AND EXT. SEARCH-->
   <p v-if="lfs">Note: Large file uploads may take a while!</p>
