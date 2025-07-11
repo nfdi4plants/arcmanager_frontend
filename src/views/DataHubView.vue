@@ -10,7 +10,7 @@ import appProperties from "@/AppProperties";
 import { templateProperties, Template, Table } from "@/TemplateProperties";
 import { termProperties } from "@/TermProperties";
 import sheetProperties from "@/SheetProperties";
-import ValidationView from "./ValidationView.vue";
+import ValidationView, { type ValidationData } from "./ValidationView.vue";
 
 const $q = useQuasar();
 
@@ -280,17 +280,46 @@ var studySync = false;
 // show validation of the arc
 var validate = ref(false);
 var slide = ref("structure");
-var validateData = {
-  Assays: [] as Array<Object>,
-  Studies: [] as Array<Object>,
-  ARC_Structure: true as boolean | string,
-  Investigation: {
-    identifier: false,
-    title: false,
-    description: false,
-    contacts: [] as Array<boolean | string>,
+// var validateData = {
+//   Assays: [] as Array<Object>,
+//   Studies: [] as Array<Object>,
+//   ARC_Structure: true as boolean | string,
+//   Investigation: {
+//     identifier: false,
+//     title: false,
+//     description: false,
+//     contacts: [] as Array<boolean | string>,
+//   },
+//   ARC: false,
+// };
+var validateData: ValidationData = {
+  structure: {
+    isValid: false,
+    messages: [],
   },
-  ARC: false,
+  isaInvestigation: {
+    correctSheetName: {
+      isValid: false,
+      messages: [],
+    },
+    requiredFields: {
+      identifier: false,
+      title: false,
+      description: false,
+    },
+    additionalFields: {
+      submissionDate: false,
+      releaseDate: false,
+    },
+    contacts: [],
+    messages: [],
+  },
+  assays: [],
+  studies: [],
+  invenioPublishable: {
+    isValid: false,
+    messages: []
+  }
 };
 
 // displays the user management screen (-1 for disabled, 0 for add, 1 for remove, 2 for edit)
