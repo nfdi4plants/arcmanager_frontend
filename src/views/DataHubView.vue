@@ -1734,6 +1734,8 @@ function checkName(name: string) {
     ".ab1",
     ".spf",
     ".rds",
+    ".wma",
+    ".wav",
   ];
   formats.forEach((element) => {
     if (name.toLowerCase().includes(element)) {
