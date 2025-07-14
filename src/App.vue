@@ -681,9 +681,9 @@ if (appProperties.loggedIn && $q.cookies.get("timer") != null) {
         </p>
 
         <!-- PERSONAL ACCESS TOKEN -->
-        <q-separator v-if="appProperties.experimental" />
+        <q-separator v-if="appProperties.loggedIn" />
         <q-item
-          v-if="appProperties.experimental"
+          v-if="appProperties.loggedIn"
           v-ripple
           clickable
           v-on:click="
