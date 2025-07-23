@@ -813,6 +813,15 @@ async function sendToBackend() {
     isaProperties.entry = [];
     errors = "";
     $q.notify({ type: "positive", message: "Saved" });
+
+    toSend.forEach((element) => {
+      // sync changed fields back to entries
+      isaProperties.entries.forEach((entry, index) => {
+        if (entry[0] == element[0]) {
+          isaProperties.entries[index] = element;
+        }
+      });
+    });
   }
 
   loading = false;

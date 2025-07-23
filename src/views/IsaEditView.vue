@@ -45,6 +45,18 @@ async function sendToBackend() {
     });
     keyNumber.value += 1;
   } else {
+    // loop through the different special categories and update the value if found
+    let toCheck = isaProperties.identification.concat(
+      isaProperties.contacts,
+      isaProperties.publications
+    );
+
+    toCheck.forEach((element) => {
+      if (isaProperties.entry[0] == element[0]) {
+        element.splice(1, element.length - 1, ...isaProperties.entry.slice(1));
+      }
+    });
+
     isaProperties.entries[isaProperties.rowId] = isaProperties.entry;
     isaProperties.entry = [];
     errors = "";
@@ -76,14 +88,16 @@ let keyNumber = ref(0);
     id="loader"
     size="2em"
     v-show="loading"
-    :key="keyNumber"></q-spinner>
+    :key="keyNumber"
+  ></q-spinner>
 
   <q-item-section v-for="(item, i) in isaProperties.entry"
     ><q-input
       outlined
       v-model="isaProperties.entry[i]"
       v-if="i != 0"
-      :label="i.toString()" />
+      :label="i.toString()"
+    />
   </q-item-section>
   <q-item-section>
     <q-btn id="add" icon="add" @click="addEntry()"
