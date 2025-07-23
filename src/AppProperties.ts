@@ -21,7 +21,7 @@ const appProperties = reactive({
   dark: false,
 
   //version of the app
-  version: "1.2.0",
+  version: "1.2.1",
 });
 
 export default appProperties;
