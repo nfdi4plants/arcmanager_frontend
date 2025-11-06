@@ -51,7 +51,7 @@ class Authors {
 
 class Table {
   name: string;
-  header: Array<{
+  headers: Array<{
     headertype: string;
     values: Array<string | Tag>;
   }>;
@@ -67,13 +67,13 @@ class Table {
 
   constructor(
     name: string,
-    header: Array<{ headertype: string; values: Array<string | Tag> }>,
+    headers: Array<{ headertype: string; values: Array<string | Tag> }>,
     values: Array<
       [Array<number>, { celltype: string; values: Array<string | Tag> }]
     >
   ) {
     this.name = name;
-    this.header = header;
+    this.headers = headers;
     this.values = values;
   }
 }
