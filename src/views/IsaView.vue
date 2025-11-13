@@ -841,9 +841,8 @@ function mandatory(field: Array<string>, index: number) {
     case "Study Identifier":
     case "Study File Name":
     case "Study Description":
-    case "Assay Measurement Type":
     case "Assay File Name":
-    case "Measurement Type":
+    case "Assay Identifier":
     case "File Name":
       // return true if the field is not a string type or is an empty string
       return typeof field[1] != "string" || field[1] == "";
@@ -1035,9 +1034,26 @@ function setIds() {
     </div>
     <div class="q-gutter-md row items-start" v-else>
       <q-input
+        outlined
+        v-model="isaProperties.identification[0][1]"
+        :label-color="
+          isaProperties.identification[0][1] != '' &&
+          isaProperties.identification[0][1] != null
+            ? ''
+            : 'red'
+        "
+        :color="
+          isaProperties.identification[0][1] != '' &&
+          isaProperties.identification[0][1] != null
+            ? ''
+            : 'red'
+        "
+        label="Identifier"></q-input>
+      <q-input
+        v-if="isaProperties.identification.length > 1"
+        v-for="entry in isaProperties.identification.slice(1)"
         style="width: 45%"
         outlined
-        v-for="entry in isaProperties.identification"
         v-model="entry[1]"
         :label="entry[0]"></q-input>
     </div>

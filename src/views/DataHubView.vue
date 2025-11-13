@@ -318,8 +318,8 @@ var validateData: ValidationData = {
   studies: [],
   invenioPublishable: {
     isValid: false,
-    messages: []
-  }
+    messages: [],
+  },
 };
 
 // displays the user management screen (-1 for disabled, 0 for add, 1 for remove, 2 for edit)
@@ -1068,9 +1068,8 @@ async function getFile(id: number, path: string, branch: string) {
               }
               break;
 
-            case "Measurement Type":
-            case "Assay Measurement Type":
-              for (let j = 0; j < 8; j++) {
+            case "Assay Identifier":
+              for (let j = 0; j < 11; j++) {
                 isaProperties.identification.push([data[j][0], data[j][1]]);
               }
               break;
@@ -2837,8 +2836,7 @@ async function publishArc() {
     <ValidationView
       v-model:validate="validate"
       v-model:slide="slide"
-      :validateData="validateData"
-    />
+      :validateData="validateData" />
   </div>
   <!-- PROGRESS BAR-->
   <template v-if="progress > 0 && progress != 1 && progress != null">
