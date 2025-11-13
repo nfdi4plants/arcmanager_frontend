@@ -273,7 +273,7 @@ function setTemplate(table: Table) {
       }
     }
 
-    table.headers.forEach((entry, index: number) => {
+    table.header.forEach((entry, index: number) => {
       if (typeof entry.values[0] != typeof "") {
         try {
           templateProperties.template.push({
