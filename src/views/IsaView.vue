@@ -310,7 +310,7 @@ function setTemplate(table: Table) {
         try {
           templateProperties.template.push({
             Type:
-              "Term Source REF (" + (entry.values[0] as Tag).termSource + ")",
+              "Term Source REF (" + (entry.values[0] as Tag).termAccession + ")",
           });
           templateProperties.template.push({
             Type:
